@@ -1,0 +1,283 @@
+import { N8AOPostPass } from 'n8ao';
+import {
+  BlendFunction,
+  BloomEffect,
+  BrightnessContrastEffect,
+  EffectComposer,
+  EffectPass,
+  HueSaturationEffect,
+  NoiseEffect,
+  RenderPass,
+  SMAAEffect,
+  SMAAPreset,
+  ToneMappingEffect,
+  ToneMappingMode,
+  VignetteEffect,
+} from 'postprocessing';
+import * as THREE from 'three';
+import { CSM } from 'three/addons/csm/CSM.js';
+import { clamp } from '../core/math';
+import type { GameClock, GfxApi, QualityLevel, SettingsApi } from '../core/types';
+import { Materials } from './materials';
+import { loadPhotoSurfaces } from './phototextures';
+import { QUALITY, type QualityPreset } from './quality';
+import { Atmosphere } from './sky';
+
+/** Renderer, post-processing stack, cascaded shadows and the atmosphere. */
+export class Gfx implements GfxApi {
+  renderer: THREE.WebGLRenderer;
+  materials: Materials;
+  atmosphere: Atmosphere;
+  quality: QualityLevel;
+  preset: QualityPreset;
+  fps = 60;
+  frameMs = 16.7;
+  stats = { drawCalls: 0, triangles: 0, renderScale: 1 };
+
+  private nearFade = { centre: { value: new THREE.Vector2() }, radius: { value: 0 } };
+  private composer!: EffectComposer;
+  private csm!: CSM;
+  private frame = 0;
+  private flashEl: HTMLDivElement;
+  private flashTime = 0;
+  private flashDuration = 0;
+  private flashStrength = 0;
+  private renderScale = 1;
+  private scaleTimer = 0;
+  private slowFrames = 0;
+  private fastFrames = 0;
+
+  constructor(
+    private canvas: HTMLCanvasElement,
+    private scene: THREE.Scene,
+    private camera: THREE.PerspectiveCamera,
+    private settings: SettingsApi,
+    clock: GameClock,
+  ) {
+    this.quality = settings.data.quality;
+    this.preset = QUALITY[this.quality];
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false, depth: true });
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMapping = THREE.NoToneMapping; // done in the post stack
+    this.renderer.toneMappingExposure = 1;
+    this.renderer.info.autoReset = false;
+
+    this.materials = new Materials(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
+    this.atmosphere = new Atmosphere(scene, this.renderer, clock, QUALITY.ultra.rainDrops);
+
+    this.flashEl = document.createElement('div');
+    this.flashEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;opacity:0;z-index:5';
+    document.body.appendChild(this.flashEl);
+
+    this.build();
+    window.addEventListener('resize', () => this.resize());
+    settings.onChange((key) => {
+      if (key === 'quality') this.setQuality(settings.data.quality);
+      if (key === 'dynamicResolution' && !settings.data.dynamicResolution) {
+        this.renderScale = 1;
+        this.resize();
+      }
+    });
+  }
+
+  /** Photographic surface textures, if the asset pack is present. Call before the world is built. */
+  loadTextures(onProgress?: (fraction: number) => void): Promise<number> {
+    return loadPhotoSurfaces(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()), onProgress);
+  }
+
+  setQuality(quality: QualityLevel) {
+    this.quality = quality;
+    this.preset = QUALITY[quality];
+    this.csm.remove();
+    this.csm.dispose();
+    this.composer.dispose();
+    this.build();
+  }
+
+  private build() {
+    const p = this.preset;
+
+    this.csm = new CSM({
+      camera: this.camera,
+      parent: this.scene,
+      cascades: p.cascades,
+      maxFar: p.shadowFar,
+      mode: 'practical',
+      shadowMapSize: p.shadowMapSize,
+      lightDirection: new THREE.Vector3(-0.4, -0.8, 0.4).normalize(),
+      lightIntensity: 4,
+      lightMargin: 180,
+      lightFar: 900,
+      shadowBias: -0.00012,
+    });
+    this.csm.fade = true;
+    for (const light of this.csm.lights) light.shadow.normalBias = 0.35;
+    this.materials.setShadowSetup((m) => this.csm.setupMaterial(m));
+    this.materials.setShadowTeardown((m) => this.csm.shaders.delete(m));
+
+    const composer = (this.composer = new EffectComposer(this.renderer, { frameBufferType: THREE.HalfFloatType, multisampling: 0 }));
+    composer.addPass(new RenderPass(this.scene, this.camera));
+    if (p.ao !== 'off') {
+      const ao = new N8AOPostPass(this.scene, this.camera, 1, 1);
+      ao.configuration.aoRadius = 2.2;
+      ao.configuration.distanceFalloff = 1;
+      ao.configuration.intensity = 1.9;
+      ao.configuration.aoSamples = p.aoSamples;
+      ao.configuration.denoiseSamples = 4;
+      ao.configuration.halfRes = p.ao === 'half';
+      ao.configuration.gammaCorrection = false;
+      ao.configuration.color = new THREE.Color(0.02, 0.03, 0.06);
+      // Left to itself the pass walks the whole scene every frame looking for transparent materials and, finding
+      // any, renders the scene twice more (shadow maps included). Glass and water are fine without that.
+      ao.autoDetectTransparency = false;
+      ao.configuration.transparencyAware = false;
+      composer.addPass(ao);
+    }
+    const grade = [
+      new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC }),
+      // A restrained "print film" grade: slightly lifted contrast, warm-leaning saturation.
+      new BrightnessContrastEffect({ brightness: 0.0, contrast: 0.08 }),
+      new HueSaturationEffect({ saturation: 0.1 }),
+      new VignetteEffect({ darkness: 0.38, offset: 0.32 }),
+    ];
+    const first = p.bloom
+      ? [new BloomEffect({ mipmapBlur: true, luminanceThreshold: 1.0, luminanceSmoothing: 0.25, intensity: 0.55, radius: 0.72 }), ...grade]
+      : grade;
+    composer.addPass(new EffectPass(this.camera, ...first));
+    const noise = new NoiseEffect({ blendFunction: BlendFunction.OVERLAY, premultiply: false });
+    noise.blendMode.opacity.value = 0.09;
+    composer.addPass(new EffectPass(this.camera, ...(p.smaa ? [new SMAAEffect({ preset: SMAAPreset.MEDIUM }), noise] : [noise])));
+
+    this.resize();
+  }
+
+  private resize() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const ratio = Math.min(window.devicePixelRatio, this.preset.pixelRatio) * this.renderScale;
+    this.renderer.setPixelRatio(ratio);
+    this.renderer.setSize(w, h, false);
+    this.composer.setSize(w, h);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    this.csm.updateFrustums();
+    this.stats.renderScale = this.renderScale;
+    void this.canvas;
+  }
+
+  /**
+   * A registered copy of `material` that is clipped away within the near-detail radius, for distant
+   * stand-ins (far terrain, far roads, skyline boxes) that full-detail chunks replace up close.
+   */
+  farVariant<T extends THREE.MeshStandardMaterial>(material: T): T {
+    const copy = material.clone() as T;
+    const uniforms = this.nearFade;
+    return this.materials.registerPatched(copy, 'far-variant', (shader) => {
+      shader.uniforms.uNearCentre = uniforms.centre;
+      shader.uniforms.uNearRadius = uniforms.radius;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec2 vFarXZ;')
+        .replace(
+          '#include <project_vertex>',
+          `#include <project_vertex>
+          #ifdef USE_INSTANCING
+            vFarXZ = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xz;
+          #else
+            vFarXZ = (modelMatrix * vec4(transformed, 1.0)).xz;
+          #endif`,
+        );
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying vec2 vFarXZ;\nuniform vec2 uNearCentre;\nuniform float uNearRadius;')
+        .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nif (distance(vFarXZ, uNearCentre) < uNearRadius) discard;');
+    });
+  }
+
+  /**
+   * A registered copy of `material` for far-off backdrop scenery: instead of distance fog it is blended
+   * a fixed amount towards the horizon colour, so it stays visible however far away it is.
+   */
+  backdropVariant<T extends THREE.MeshStandardMaterial>(material: T, haze: number): T {
+    const copy = material.clone() as T;
+    copy.fog = true;
+    return this.materials.registerPatched(copy, `backdrop-${haze}`, (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', `gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, ${haze.toFixed(3)});`);
+    });
+  }
+
+  setNearFade(x: number, z: number, radius: number) {
+    this.nearFade.centre.value.set(x, z);
+    this.nearFade.radius.value = radius;
+  }
+
+  get night(): number {
+    return this.atmosphere.night;
+  }
+
+  get lampCount(): number {
+    return this.preset.pointLights;
+  }
+
+  flash(color: number, strength: number, seconds: number) {
+    this.flashEl.style.background = `#${color.toString(16).padStart(6, '0')}`;
+    this.flashStrength = strength;
+    this.flashDuration = this.flashTime = seconds;
+  }
+
+  /** Draw one frame. `dt` is real seconds since the previous frame. */
+  render(dt: number) {
+    // Smoothed frame statistics.
+    this.frameMs += (dt * 1000 - this.frameMs) * 0.05;
+    this.fps = 1000 / this.frameMs;
+
+    // Dynamic resolution: drop quickly when slow, creep back up when there is headroom.
+    if (this.settings.data.dynamicResolution) {
+      if (dt > 1 / 50) this.slowFrames++;
+      else if (dt < 1 / 58) this.fastFrames++;
+      this.scaleTimer += dt;
+      if (this.scaleTimer > 1.5) {
+        const total = this.slowFrames + this.fastFrames || 1;
+        let next = this.renderScale;
+        if (this.slowFrames / total > 0.35) next -= 0.1;
+        else if (this.fastFrames / total > 0.95) next += 0.05;
+        next = clamp(next, 0.55, 1);
+        if (Math.abs(next - this.renderScale) > 0.01) {
+          this.renderScale = next;
+          this.resize();
+        }
+        this.scaleTimer = this.slowFrames = this.fastFrames = 0;
+      }
+    }
+
+    const atmo = this.atmosphere;
+    atmo.update(dt, this.camera, this.preset.envInterval);
+    this.materials.update(atmo.night, atmo.wetness);
+
+    // Shadow-casting sun / moon.
+    this.csm.lightDirection.copy(atmo.sunDir).negate();
+    for (const light of this.csm.lights) {
+      light.color.copy(atmo.lightColor);
+      light.intensity = atmo.lightIntensity;
+    }
+    this.csm.update();
+    // The nearest cascade is redrawn every frame; the wider ones change slowly and take turns, so at most two
+    // shadow maps are drawn per frame. (A map that is not redrawn keeps the matrix it was drawn with.)
+    this.frame++;
+    const lights = this.csm.lights;
+    for (let i = 0; i < lights.length; i++) {
+      const every = i === 0 ? 1 : i === 1 ? 2 : 4;
+      lights[i].shadow.autoUpdate = false;
+      lights[i].shadow.needsUpdate = (this.frame + i) % every === 0;
+    }
+
+    if (this.flashTime > 0) {
+      this.flashTime -= dt;
+      this.flashEl.style.opacity = String(Math.max(0, (this.flashTime / this.flashDuration) * this.flashStrength));
+    }
+
+    this.renderer.info.reset();
+    this.composer.render(dt);
+    this.stats.drawCalls = this.renderer.info.render.calls;
+    this.stats.triangles = this.renderer.info.render.triangles;
+  }
+}

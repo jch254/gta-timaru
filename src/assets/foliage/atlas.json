@@ -1,0 +1,333 @@
+{
+  "version": 1,
+  "size": 2048,
+  "file": "atlas.webp",
+  "cells": {
+    "oak-a": {
+      "x": 8,
+      "y": 8,
+      "w": 512,
+      "h": 512,
+      "anchor": "bottom",
+      "mean": [
+        0.281,
+        0.398,
+        0.16
+      ]
+    },
+    "oak-b": {
+      "x": 536,
+      "y": 8,
+      "w": 512,
+      "h": 512,
+      "anchor": "bottom",
+      "mean": [
+        0.274,
+        0.386,
+        0.155
+      ]
+    },
+    "poplar": {
+      "x": 8,
+      "y": 536,
+      "w": 384,
+      "h": 512,
+      "anchor": "bottom",
+      "mean": [
+        0.314,
+        0.442,
+        0.174
+      ]
+    },
+    "shrub": {
+      "x": 1368,
+      "y": 1400,
+      "w": 320,
+      "h": 320,
+      "anchor": "bottom",
+      "mean": [
+        0.224,
+        0.349,
+        0.158
+      ]
+    },
+    "hedge": {
+      "x": 1496,
+      "y": 1064,
+      "w": 512,
+      "h": 320,
+      "anchor": "bottom",
+      "mean": [
+        0.233,
+        0.371,
+        0.167
+      ]
+    },
+    "willow-bough": {
+      "x": 1208,
+      "y": 536,
+      "w": 384,
+      "h": 448,
+      "anchor": "bottom",
+      "mean": [
+        0.414,
+        0.496,
+        0.241
+      ]
+    },
+    "willow-curtain": {
+      "x": 8,
+      "y": 1064,
+      "w": 288,
+      "h": 832,
+      "anchor": "top",
+      "mean": [
+        0.426,
+        0.497,
+        0.239
+      ]
+    },
+    "pine-a": {
+      "x": 1064,
+      "y": 8,
+      "w": 512,
+      "h": 512,
+      "anchor": "bottom",
+      "mean": [
+        0.181,
+        0.268,
+        0.143
+      ]
+    },
+    "macrocarpa": {
+      "x": 1592,
+      "y": 8,
+      "w": 448,
+      "h": 512,
+      "anchor": "bottom",
+      "mean": [
+        0.185,
+        0.283,
+        0.139
+      ]
+    },
+    "norfolk": {
+      "x": 584,
+      "y": 1384,
+      "w": 768,
+      "h": 352,
+      "anchor": "left",
+      "mean": [
+        0.173,
+        0.294,
+        0.153
+      ]
+    },
+    "palm": {
+      "x": 584,
+      "y": 1064,
+      "w": 896,
+      "h": 304,
+      "anchor": "left",
+      "mean": [
+        0.28,
+        0.38,
+        0.18
+      ]
+    },
+    "cabbage": {
+      "x": 1704,
+      "y": 1400,
+      "w": 320,
+      "h": 320,
+      "anchor": "centre",
+      "mean": [
+        0.374,
+        0.411,
+        0.202
+      ]
+    },
+    "flax": {
+      "x": 408,
+      "y": 536,
+      "w": 384,
+      "h": 512,
+      "anchor": "bottom",
+      "mean": [
+        0.278,
+        0.355,
+        0.189
+      ]
+    },
+    "flax-flower": {
+      "x": 312,
+      "y": 1064,
+      "w": 256,
+      "h": 704,
+      "anchor": "bottom",
+      "mean": [
+        0.292,
+        0.289,
+        0.168
+      ]
+    },
+    "toetoe": {
+      "x": 808,
+      "y": 536,
+      "w": 384,
+      "h": 512,
+      "anchor": "bottom",
+      "mean": [
+        0.559,
+        0.591,
+        0.355
+      ]
+    },
+    "grass": {
+      "x": 584,
+      "y": 1752,
+      "w": 384,
+      "h": 288,
+      "anchor": "bottom",
+      "mean": [
+        0.516,
+        0.513,
+        0.286
+      ]
+    },
+    "gorse": {
+      "x": 1704,
+      "y": 1736,
+      "w": 304,
+      "h": 304,
+      "anchor": "bottom",
+      "mean": [
+        0.357,
+        0.394,
+        0.134
+      ]
+    },
+    "lupin": {
+      "x": 1608,
+      "y": 536,
+      "w": 320,
+      "h": 384,
+      "anchor": "bottom",
+      "mean": [
+        0.327,
+        0.404,
+        0.271
+      ]
+    }
+  },
+  "sources": [
+    {
+      "key": "oak",
+      "asset": "Leaf Set 016 (LeafSet016)",
+      "library": "ambientCG",
+      "source": "https://ambientcg.com/a/LeafSet016",
+      "author": "ambientCG",
+      "licence": "CC0-1.0",
+      "use": "English oak leaves"
+    },
+    {
+      "key": "lime",
+      "asset": "Leaf Set 004 (LeafSet004)",
+      "library": "ambientCG",
+      "source": "https://ambientcg.com/a/LeafSet004",
+      "author": "ambientCG",
+      "licence": "CC0-1.0",
+      "use": "heart-shaped leaves (poplar)"
+    },
+    {
+      "key": "narrow",
+      "asset": "Leaf Set 013 (LeafSet013)",
+      "library": "ambientCG",
+      "source": "https://ambientcg.com/a/LeafSet013",
+      "author": "ambientCG",
+      "licence": "CC0-1.0",
+      "use": "narrow lanceolate leaves (willow)"
+    },
+    {
+      "key": "box",
+      "asset": "Leaf Set 002 (LeafSet002)",
+      "library": "ambientCG",
+      "source": "https://ambientcg.com/a/LeafSet002",
+      "author": "ambientCG",
+      "licence": "CC0-1.0",
+      "use": "small-leaved sprigs (hedging)"
+    },
+    {
+      "key": "cypress",
+      "asset": "Leaf Set 019 (LeafSet019)",
+      "library": "ambientCG",
+      "source": "https://ambientcg.com/a/LeafSet019",
+      "author": "ambientCG",
+      "licence": "CC0-1.0",
+      "use": "conifer sprays (macrocarpa)"
+    },
+    {
+      "key": "blade",
+      "asset": "Foliage 001 (Foliage001)",
+      "library": "ambientCG",
+      "source": "https://ambientcg.com/a/Foliage001",
+      "author": "ambientCG",
+      "licence": "CC0-1.0",
+      "use": "long grass blades"
+    },
+    {
+      "key": "strap",
+      "asset": "Foliage 008 (Foliage008)",
+      "library": "ambientCG",
+      "source": "https://ambientcg.com/a/Foliage008",
+      "author": "ambientCG",
+      "licence": "CC0-1.0",
+      "use": "broad strap leaves (flax, cabbage tree, palm leaflets)"
+    },
+    {
+      "key": "plume",
+      "asset": "Foliage 002 (Foliage002)",
+      "library": "ambientCG",
+      "source": "https://ambientcg.com/a/Foliage002",
+      "author": "ambientCG",
+      "licence": "CC0-1.0",
+      "use": "grass seed heads (toetoe plumes)"
+    },
+    {
+      "key": "palmate",
+      "asset": "Leaf Set 025 (LeafSet025)",
+      "library": "ambientCG",
+      "source": "https://ambientcg.com/a/LeafSet025",
+      "author": "ambientCG",
+      "licence": "CC0-1.0",
+      "use": "palmate leaves (lupin)"
+    },
+    {
+      "key": "pine",
+      "asset": "Pine Tree 01 (pine_tree_01)",
+      "library": "Poly Haven",
+      "source": "https://polyhaven.com/a/pine_tree_01",
+      "author": "Rob Tuytel, Rico Cilliers",
+      "licence": "CC0-1.0",
+      "use": "pine needle sprigs"
+    },
+    {
+      "key": "fir",
+      "asset": "Fir Tree 01 (fir_tree_01)",
+      "library": "Poly Haven",
+      "source": "https://polyhaven.com/a/fir_tree_01",
+      "author": "Rob Tuytel, Rico Cilliers",
+      "licence": "CC0-1.0",
+      "use": "fir sprigs (Norfolk pine branchlets)"
+    },
+    {
+      "key": "willow",
+      "asset": "Shrub 02 (shrub_02)",
+      "library": "Poly Haven",
+      "source": "https://polyhaven.com/a/shrub_02",
+      "author": "Rico Cilliers",
+      "licence": "CC0-1.0",
+      "use": "long willow-like leaves"
+    }
+  ]
+}

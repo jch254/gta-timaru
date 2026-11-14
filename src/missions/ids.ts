@@ -1,0 +1,44 @@
+/** The shared identifiers fixed in docs/CONTRACT.md. Missions may reference only these. */
+
+export const PLACE_IDS = [
+  'timaru-spawn',
+  'timaru-chipshop',
+  'smithfield-carpark',
+  'timaru-port-lockup',
+  'timaru-hospital',
+  'timaru-police',
+  'timaru-gunshop',
+  'timaru-panelbeater',
+  'caroline-bay',
+  'washdyke-saleyards',
+  'temuka-pub',
+  'rangitata-layby',
+  'hinds-woolshed',
+  'ashburton-stock-agent',
+  'ashburton-police',
+  'ashburton-panelbeater',
+  'rakaia-salmon',
+  'chch-garage',
+  'four-aves-start',
+  'cathedral-square',
+  'arts-centre',
+  'antigua-boatsheds',
+  'chch-hospital',
+  'chch-police',
+  'chch-gunshop',
+  'chch-panelbeater',
+  'lancaster-park',
+  'new-brighton-beach',
+  'sign-of-the-kiwi',
+  'lyttelton-wharf',
+] as const;
+
+export const VEHICLE_IDS = ['statesman', 'v8sedan', 'coupe', 'hatch', 'wagon', 'ute', 'farmtruck', 'van', 'bike', 'police', 'bus'] as const;
+
+export const WEAPON_IDS = ['fists', 'bat', 'pistol', 'shotgun', 'rifle'] as const;
+
+/** Kinds `ctx.combat.spawnPickup` understands besides weapon ids. */
+export const PICKUP_KINDS = ['health', 'armour', 'cash'] as const;
+
+/** Landmark kinds a mission may look up on the map (docs/CONTRACT.md, addendum). */
+export const LANDMARK_KINDS = ['marae'] as const;

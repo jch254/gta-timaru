@@ -1,0 +1,12 @@
+node_modules
+dist/
+.DS_Store
+*.tsbuildinfo
+
+# Scratch area for evaluating downloaded assets (not shipped)
+assets-staging/
+
+shots/
+
+# A stray copy of another project; not part of this repo
+studiodaw/

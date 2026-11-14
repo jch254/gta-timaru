@@ -1,0 +1,1999 @@
+/*
+ * Timmaz Hard: HUD, minimap, pause screen and dialogs.
+ *
+ * Visual language: New Zealand roadside and print ephemera, c. 1995.
+ *   - motorway-sign green with a white keyline ........ minimap, location sign, map title
+ *   - yellow AA-style fingerposts ...................... objective, menu items, selected options
+ *   - black-and-silver number plates ................... keycaps, speed readout, ammo, timer
+ *   - ruled ledger paper ............................... money, toasts, dialogs, pause sheets
+ *   - sign-writer's slab serif ......................... banners and headings
+ *   - red and blue beacon lamps ........................ police heat
+ *
+ * Everything is sized in em from one viewport-derived font size on .nw-ui, so the whole interface scales
+ * from 800×600 to 2560×1440. System fonts only (all of them carry the macrons te reo Māori needs).
+ */
+
+.nw-ui {
+  --nw-ink: #14181f;
+  --nw-paper: #efe7d3;
+  --nw-gold: #e8b43a;
+  --nw-teal: #2f8f8a;
+  --nw-rust: #b5452c;
+  --nw-sign: #0f6b47;
+  --nw-sign-deep: #0a4a32;
+  --nw-post: #f4c417;
+  --nw-plate: #0c0d10;
+  --nw-silver: #dfe3e6;
+  --nw-ledger-ink: #1c2430;
+  --nw-rule: rgba(88, 134, 176, 0.24);
+  --nw-margin: rgba(196, 72, 60, 0.5);
+  --nw-data: 'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+  --nw-serif: Superclarendon, Rockwell, 'Rockwell Nova', Clarendon, 'Bookman Old Style', Georgia, 'Times New Roman', serif;
+  --nw-reo: 'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, 'Times New Roman', serif;
+  --nw-mono: Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+  --nw-shadow: 0 0.06em 0.12em rgba(0, 0, 0, 0.9), 0 0 0.5em rgba(0, 0, 0, 0.5);
+
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  pointer-events: none;
+  font: 600 clamp(10px, min(1.5vh, 1.15vw), 22px) / 1.2 var(--nw-data);
+  letter-spacing: 0.01em;
+  color: #fff;
+  cursor: default;
+  -webkit-font-smoothing: antialiased;
+}
+
+.nw-layer {
+  position: absolute;
+  inset: 0;
+}
+
+/* The pause screen replaces the HUD outright. */
+.nw-ui.nw-paused .nw-hud,
+.nw-ui.nw-paused .nw-over {
+  display: none;
+}
+
+/* ───────────── Shared pieces ───────────── */
+
+/* Number-plate keycap. */
+.nw-cap {
+  display: inline-block;
+  min-width: 1.7em;
+  padding: 0.12em 0.45em 0.1em;
+  background: var(--nw-plate);
+  color: var(--nw-silver);
+  border: 0.09em solid var(--nw-silver);
+  border-radius: 0.28em;
+  box-shadow: 0 0.12em 0 rgba(0, 0, 0, 0.6);
+  font: 800 0.92em / 1.15 var(--nw-data);
+  letter-spacing: 0.06em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.nw-cap.pad {
+  border-radius: 1em;
+  background: #2b3038;
+}
+
+.nw-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  white-space: nowrap;
+}
+
+.nw-hint-text {
+  margin-left: 0.15em;
+}
+
+/* Ruled ledger paper with a red margin line. */
+.nw-ledger {
+  color: var(--nw-ledger-ink);
+  background-color: var(--nw-paper);
+  background-image:
+    linear-gradient(90deg, transparent 2.2em, var(--nw-margin) 2.2em, var(--nw-margin) calc(2.2em + 1px), transparent calc(2.2em + 1px)),
+    repeating-linear-gradient(180deg, transparent 0, transparent calc(1.7em - 1px), var(--nw-rule) calc(1.7em - 1px), var(--nw-rule) 1.7em);
+  border-radius: 0.25em;
+  box-shadow: 0 0.6em 2.4em rgba(0, 0, 0, 0.5);
+}
+
+.nw-ledger .nw-cap {
+  box-shadow: none;
+}
+
+/* Motorway sign: green plate, white keyline, green edge. */
+.nw-signplate,
+.nw-loc {
+  background: var(--nw-sign);
+  color: #fff;
+  border: 0.16em solid #fff;
+  border-radius: 0.6em;
+  box-shadow:
+    0 0 0 0.14em var(--nw-sign),
+    0 0.35em 1em rgba(0, 0, 0, 0.45);
+}
+
+/* ───────────── HUD: damage vignette ───────────── */
+
+.nw-hurt {
+  --nw-hurt: 0.5;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, rgba(150, 10, 10, 0) 46%, rgba(150, 10, 10, 0.55) 78%, rgba(110, 0, 0, 0.92) 100%);
+}
+
+.nw-hurt.pulse-a {
+  animation: nw-hurt-a 0.6s ease-out;
+}
+
+.nw-hurt.pulse-b {
+  animation: nw-hurt-b 0.6s ease-out;
+}
+
+@keyframes nw-hurt-a {
+  from {
+    opacity: var(--nw-hurt);
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes nw-hurt-b {
+  from {
+    opacity: var(--nw-hurt);
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* ───────────── HUD: perf readout ───────────── */
+
+.nw-fps {
+  position: absolute;
+  left: 1.4em;
+  top: 0.5em;
+  display: none;
+  font: 500 max(10px, 0.74em) / 1.25 var(--nw-mono);
+  letter-spacing: 0;
+  white-space: pre;
+  color: #eaf3ee;
+  text-shadow:
+    0 1px 2px #000,
+    0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+.nw-fps.on {
+  display: block;
+}
+
+/* ───────────── HUD: location sign (on the left, above the minimap) ───────────── */
+
+.nw-loc {
+  position: absolute;
+  left: 1.4em;
+  bottom: 17.5em;
+  max-width: 36em;
+  padding: 0.5em 1em 0.55em;
+  opacity: 0;
+  transform: translateX(calc(-100% - 3em));
+  transition:
+    transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.35s;
+}
+
+.nw-loc.on {
+  opacity: 1;
+  transform: none;
+}
+
+.nw-loc-title {
+  font-size: 1.55em;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.nw-loc-sub {
+  display: none;
+  margin-top: 0.2em;
+  font-size: 0.98em;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  opacity: 0.94;
+}
+
+.nw-loc.has-sub .nw-loc-sub {
+  display: block;
+}
+
+.nw-loc-reo {
+  display: none;
+  margin-top: 0.15em;
+  font: italic 500 0.95em / 1.2 var(--nw-reo);
+  letter-spacing: 0;
+  color: #ffe9a3;
+}
+
+.nw-loc.has-reo .nw-loc-reo {
+  display: block;
+}
+
+/* ───────────── HUD: objective fingerpost and timer (top-centre) ───────────── */
+
+.nw-top {
+  position: absolute;
+  left: 50%;
+  top: 1.3em;
+  transform: translateX(-50%);
+  width: max-content;
+  /* Stops short of the clock and heat lamps in the top-right corner, however narrow the window. */
+  max-width: min(58vw, calc(100vw - 41em));
+  display: flex;
+  align-items: stretch;
+  gap: 0.6em;
+  filter: drop-shadow(0 0.25em 0.5em rgba(0, 0, 0, 0.45));
+}
+
+.nw-timer {
+  display: none;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 5em;
+  padding: 0.3em 0.8em;
+  background: var(--nw-plate);
+  color: var(--nw-silver);
+  border: 0.12em solid var(--nw-silver);
+  border-radius: 0.35em;
+}
+
+.nw-timer.on {
+  display: flex;
+}
+
+.nw-timer-label {
+  font-size: 1.05em;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.nw-timer.counts .nw-timer-label {
+  font-size: 0.72em;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.nw-timer-value {
+  display: none;
+  font-size: 1.7em;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+.nw-timer.counts .nw-timer-value {
+  display: block;
+}
+
+.nw-timer.counts.urgent {
+  color: #ffb9a6;
+  border-color: #ef5a3c;
+  animation: nw-urgent 1s steps(1) infinite;
+}
+
+@keyframes nw-urgent {
+  0% {
+    background: var(--nw-plate);
+  }
+  50% {
+    background: #5a1509;
+  }
+}
+
+.nw-obj {
+  display: none;
+  min-width: 0;
+}
+
+.nw-obj.on {
+  display: block;
+}
+
+.nw-obj-post {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 2.3em;
+  padding: 0.45em 2.2em 0.45em 1.1em;
+  background: var(--nw-post);
+  color: #15140f;
+  font-size: 1.2em;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  clip-path: polygon(0 0, calc(100% - 1.15em) 0, 100% 50%, calc(100% - 1.15em) 100%, 0 100%);
+}
+
+.nw-obj-post::before {
+  content: '';
+  position: absolute;
+  left: 0.3em;
+  top: 0.3em;
+  bottom: 0.3em;
+  width: 0.14em;
+  background: #15140f;
+}
+
+.nw-obj.flash-a .nw-obj-post {
+  animation: nw-flash-a 0.9s ease-out;
+}
+
+.nw-obj.flash-b .nw-obj-post {
+  animation: nw-flash-b 0.9s ease-out;
+}
+
+@keyframes nw-flash-a {
+  from {
+    transform: scale(1.07);
+    filter: brightness(1.7);
+  }
+  to {
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes nw-flash-b {
+  from {
+    transform: scale(1.07);
+    filter: brightness(1.7);
+  }
+  to {
+    transform: none;
+    filter: none;
+  }
+}
+
+/* ───────────── HUD: heat, clock, money (top-right) ───────────── */
+
+.nw-status {
+  position: absolute;
+  right: 1.4em;
+  top: 1.3em;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.45em;
+}
+
+/* Heat lamps sit to the left of the clock, so nothing shifts when they appear. */
+.nw-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+}
+
+/* A light bar of five beacon lamps, red and blue alternately. */
+.nw-heat {
+  --nw-warm: 0;
+  display: flex;
+  gap: 0.3em;
+  padding: 0.32em 0.45em 0.28em;
+  background: var(--nw-plate);
+  border: 0.1em solid #2c3038;
+  border-radius: 0.45em;
+  box-shadow: 0 0.2em 0.6em rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: translateX(0.5em);
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
+}
+
+.nw-heat.on {
+  opacity: 1;
+  transform: none;
+}
+
+.nw-lamp {
+  position: relative;
+  width: 1.35em;
+  height: 1em;
+  border-radius: 0.7em 0.7em 0.12em 0.12em;
+  background: #3b1512;
+  box-shadow:
+    inset 0 -0.2em 0.25em rgba(0, 0, 0, 0.5),
+    inset 0 0.12em 0.1em rgba(255, 255, 255, 0.12);
+}
+
+.nw-lamp.blue {
+  background: #12203f;
+}
+
+.nw-lamp.red.lit {
+  background: radial-gradient(circle at 50% 70%, #ffd6cb, #ff4a36 55%, #c21d10);
+  box-shadow: 0 0 0.6em 0.12em rgba(255, 70, 50, 0.85);
+}
+
+.nw-lamp.blue.lit {
+  background: radial-gradient(circle at 50% 70%, #d9e8ff, #4a8dff 55%, #1c4fc0);
+  box-shadow: 0 0 0.6em 0.12em rgba(70, 140, 255, 0.85);
+}
+
+/* The next lamp warms up as heat builds within the level. */
+.nw-lamp.next::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #ff5a40;
+  opacity: calc(var(--nw-warm) * 0.55);
+}
+
+.nw-lamp.blue.next::after {
+  background: #4a8dff;
+}
+
+/* Out of sight and being lost: the lamps wig-wag. */
+.nw-heat.evading .nw-lamp.lit {
+  animation: nw-lamp 0.7s steps(1) infinite;
+}
+
+.nw-heat.evading .nw-lamp.blue.lit {
+  animation-delay: -0.35s;
+}
+
+@keyframes nw-lamp {
+  0% {
+    filter: none;
+  }
+  50% {
+    filter: brightness(0.35) saturate(0.6);
+  }
+}
+
+.nw-clock {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  text-shadow: var(--nw-shadow);
+}
+
+.nw-clock-day {
+  font-size: 0.9em;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--nw-gold);
+}
+
+.nw-clock-time {
+  font-size: 1.5em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Money: a slip of ledger paper. */
+.nw-money {
+  padding: 0.2em 0.7em 0.24em 1.5em;
+  color: var(--nw-ledger-ink);
+  background: var(--nw-paper) linear-gradient(90deg, transparent 0.95em, var(--nw-margin) 0.95em, var(--nw-margin) calc(0.95em + 1px), transparent calc(0.95em + 1px));
+  border-radius: 0.18em;
+  box-shadow: 0 0.2em 0.6em rgba(0, 0, 0, 0.45);
+  font-size: 1.35em;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.nw-money-value {
+  display: inline-block;
+  border-bottom: 1px solid rgba(88, 134, 176, 0.6);
+}
+
+.nw-money.tick .nw-money-value {
+  animation: nw-tick 0.12s steps(1) infinite;
+}
+
+@keyframes nw-tick {
+  50% {
+    transform: translateY(-0.07em);
+  }
+}
+
+.nw-money-delta {
+  margin-top: -0.15em;
+  font-size: 1.1em;
+  font-weight: 800;
+  color: #8ff0c8;
+  text-shadow: var(--nw-shadow);
+  opacity: 0;
+  transform: translateY(-0.5em);
+  transition:
+    opacity 0.25s,
+    transform 0.25s;
+}
+
+.nw-money-delta.on {
+  opacity: 1;
+  transform: none;
+}
+
+.nw-money-delta.loss {
+  color: #ff9c85;
+}
+
+/* ───────────── HUD: minimap (bottom-left) ───────────── */
+
+.nw-mini {
+  position: absolute;
+  left: 1.4em;
+  bottom: 1.4em;
+  width: 15em;
+  height: 15em;
+  overflow: hidden;
+  background: var(--nw-sign);
+  border: 0.18em solid #fff;
+  border-radius: 1.5em;
+  box-shadow:
+    0 0 0 0.16em var(--nw-sign-deep),
+    0 0.4em 1.2em rgba(0, 0, 0, 0.5);
+}
+
+.nw-mini-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ───────────── HUD: bottom-right column ───────────── */
+
+.nw-corner {
+  position: absolute;
+  right: 1.4em;
+  bottom: 1.4em;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.55em;
+}
+
+/* Radio: a car-stereo strip. */
+.nw-radio {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  max-width: 22em;
+  padding: 0.4em 0.8em;
+  background: rgba(12, 13, 16, 0.88);
+  border: 0.08em solid #3a3f47;
+  border-radius: 0.3em;
+  opacity: 0;
+  transform: translateX(1em);
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
+}
+
+.nw-radio.on {
+  opacity: 1;
+  transform: none;
+}
+
+.nw-radio-led {
+  flex: none;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--nw-gold);
+  box-shadow: 0 0 0.5em var(--nw-gold);
+}
+
+.nw-radio-words {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nw-radio-name {
+  overflow: hidden;
+  font-size: 1.1em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #ffe2a0;
+}
+
+.nw-radio-blurb {
+  overflow: hidden;
+  font-size: 0.82em;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #c9cdd2;
+}
+
+.nw-radio-blurb:empty {
+  display: none;
+}
+
+.nw-veh {
+  font: 700 1.25em / 1.1 var(--nw-serif);
+  color: var(--nw-paper);
+  text-shadow:
+    0.06em 0.07em 0 rgba(0, 0, 0, 0.85),
+    0 0 0.6em rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: translateY(0.4em);
+  transition:
+    opacity 0.4s,
+    transform 0.4s;
+}
+
+.nw-veh.on {
+  opacity: 1;
+  transform: none;
+}
+
+/* Speedometer and vehicle condition. */
+.nw-drive {
+  display: none;
+  align-items: flex-end;
+  gap: 0.7em;
+}
+
+.nw-drive.on {
+  display: flex;
+}
+
+.nw-cond {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3em;
+  padding-bottom: 0.5em;
+}
+
+.nw-cond-word {
+  font-size: 0.85em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #d5f3e6;
+  text-shadow: var(--nw-shadow);
+}
+
+.nw-cond.rough .nw-cond-word {
+  color: var(--nw-gold);
+}
+
+.nw-cond.bad .nw-cond-word {
+  color: #ff8f78;
+  animation: nw-blink 1s steps(1) infinite;
+}
+
+.nw-cond-segs {
+  display: flex;
+  gap: 0.18em;
+}
+
+.nw-cond-seg {
+  width: 0.95em;
+  height: 0.5em;
+  background: rgba(12, 13, 16, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 0.1em;
+}
+
+.nw-cond-seg.lit {
+  background: #57c9a6;
+  border-color: #e6fff6;
+}
+
+.nw-cond.rough .nw-cond-seg.lit {
+  background: var(--nw-gold);
+}
+
+.nw-cond.bad .nw-cond-seg.lit {
+  background: #ef5a3c;
+}
+
+@keyframes nw-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.nw-dial {
+  position: relative;
+  flex: none;
+  width: 8.4em;
+  height: 8.4em;
+  filter: drop-shadow(0 0.25em 0.6em rgba(0, 0, 0, 0.5));
+}
+
+.nw-dial-face {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.nw-needle {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  width: 0.16em;
+  height: 3.1em;
+  margin-left: -0.08em;
+  background: linear-gradient(#ff7a45, #e8522a);
+  border-radius: 0.08em;
+  transform-origin: 50% 100%;
+  transform: rotate(-120deg);
+  will-change: transform;
+}
+
+.nw-dial-hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.9em;
+  height: 0.9em;
+  margin: -0.45em 0 0 -0.45em;
+  background: #1b1d22;
+  border: 0.1em solid #cfd4d8;
+  border-radius: 50%;
+}
+
+.nw-plate {
+  position: absolute;
+  left: 50%;
+  bottom: 0.75em;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 0.3em;
+  padding: 0.12em 0.45em 0.1em;
+  background: #050607;
+  color: var(--nw-silver);
+  border: 0.09em solid var(--nw-silver);
+  border-radius: 0.25em;
+}
+
+.nw-plate-digits {
+  font-size: 1.35em;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+}
+
+.nw-plate-unit {
+  font-size: 0.6em;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+
+/* Weapon and ammo. */
+.nw-weapon {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7em;
+  text-shadow: var(--nw-shadow);
+}
+
+.nw-weapon-name {
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.nw-weapon.unarmed {
+  opacity: 0.6;
+}
+
+.nw-ammo {
+  display: none;
+  align-items: baseline;
+  gap: 0.25em;
+  padding: 0.1em 0.5em;
+  background: var(--nw-plate);
+  color: var(--nw-silver);
+  border: 0.08em solid var(--nw-silver);
+  border-radius: 0.25em;
+  text-shadow: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.nw-ammo.on {
+  display: inline-flex;
+}
+
+.nw-ammo-clip {
+  font-size: 1.45em;
+  font-weight: 800;
+}
+
+.nw-ammo.empty .nw-ammo-clip {
+  color: #ff8f78;
+}
+
+.nw-ammo-slash {
+  opacity: 0.5;
+}
+
+.nw-ammo-reserve {
+  opacity: 0.8;
+}
+
+/* Health and armour. */
+.nw-vitals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  padding: 0.5em 0.6em;
+  background: rgba(12, 13, 16, 0.62);
+  border-radius: 0.4em;
+}
+
+.nw-vital {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.nw-vital.armour {
+  display: none;
+}
+
+.nw-vital.armour.on {
+  display: flex;
+}
+
+.nw-vital-icon {
+  flex: none;
+  width: 0.85em;
+  height: 0.85em;
+  background: #f3ede0;
+}
+
+.nw-vital.health .nw-vital-icon {
+  clip-path: polygon(34% 0, 66% 0, 66% 34%, 100% 34%, 100% 66%, 66% 66%, 66% 100%, 34% 100%, 34% 66%, 0 66%, 0 34%, 34% 34%);
+}
+
+.nw-vital.armour .nw-vital-icon {
+  background: #7fd4cd;
+  clip-path: polygon(0 0, 100% 0, 100% 55%, 50% 100%, 0 55%);
+}
+
+.nw-vital-bar {
+  position: relative;
+  width: 11em;
+  height: 0.6em;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 0.12em;
+}
+
+.nw-vital-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), rgba(12, 13, 16, 0.8) calc(10% - 1px), rgba(12, 13, 16, 0.8) 10%);
+}
+
+.nw-vital-fill {
+  position: absolute;
+  inset: 0;
+  background: #f3ede0;
+  transform-origin: 0 50%;
+  transition: transform 0.18s ease-out;
+}
+
+.nw-vital.armour .nw-vital-fill {
+  background: #7fd4cd;
+}
+
+.nw-vital.health.low .nw-vital-icon,
+.nw-vital.health.low .nw-vital-fill {
+  background: #ef5a3c;
+}
+
+.nw-vital.health.low .nw-vital-fill {
+  animation: nw-blink 0.8s steps(1) infinite;
+}
+
+/* ───────────── HUD: crosshair and hit marker (centre) ───────────── */
+
+.nw-cross,
+.nw-hit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  opacity: 0;
+}
+
+.nw-cross {
+  transition: opacity 0.12s;
+}
+
+.nw-cross.on {
+  opacity: 1;
+}
+
+.nw-cross i {
+  position: absolute;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.7),
+    0 0 0.25em rgba(0, 0, 0, 0.5);
+}
+
+.nw-cross-dot {
+  left: -0.13em;
+  top: -0.13em;
+  width: 0.26em;
+  height: 0.26em;
+  border-radius: 50%;
+}
+
+.nw-cross-tick.n,
+.nw-cross-tick.s {
+  left: -0.06em;
+  width: 0.12em;
+  height: 0.55em;
+}
+
+.nw-cross-tick.n {
+  top: -1.05em;
+}
+
+.nw-cross-tick.s {
+  top: 0.5em;
+}
+
+.nw-cross-tick.e,
+.nw-cross-tick.w {
+  top: -0.06em;
+  width: 0.55em;
+  height: 0.12em;
+}
+
+.nw-cross-tick.e {
+  left: 0.5em;
+}
+
+.nw-cross-tick.w {
+  left: -1.05em;
+}
+
+.nw-hit i {
+  position: absolute;
+  left: -1em;
+  top: -0.07em;
+  width: 2em;
+  height: 0.14em;
+  background: linear-gradient(90deg, #fff 0%, #fff 30%, transparent 30%, transparent 70%, #fff 70%, #fff 100%);
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9));
+}
+
+.nw-hit-a {
+  transform: rotate(45deg);
+}
+
+.nw-hit-b {
+  transform: rotate(-45deg);
+}
+
+.nw-hit.tick-a {
+  animation: nw-hit-a 0.28s ease-out;
+}
+
+.nw-hit.tick-b {
+  animation: nw-hit-b 0.28s ease-out;
+}
+
+@keyframes nw-hit-a {
+  0% {
+    opacity: 1;
+    transform: scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes nw-hit-b {
+  0% {
+    opacity: 1;
+    transform: scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+/* ───────────── HUD: prompt (bottom-centre) ───────────── */
+
+.nw-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 17%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 80vw;
+  display: none;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.45em 0.9em;
+  background: rgba(12, 13, 16, 0.76);
+  border-radius: 0.4em;
+  box-shadow: 0 0.2em 0.6em rgba(0, 0, 0, 0.35);
+  font-size: 1.15em;
+  white-space: nowrap;
+}
+
+.nw-prompt.on {
+  display: flex;
+}
+
+.nw-prompt .nw-cap {
+  display: none;
+}
+
+.nw-prompt .nw-cap.on {
+  display: inline-block;
+}
+
+.nw-prompt-text {
+  margin-left: 0.15em;
+}
+
+/* ───────────── Black fade ───────────── */
+
+.nw-fade {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  transition: opacity 1s linear;
+}
+
+/* ───────────── Subtitles ───────────── */
+
+.nw-sub {
+  position: absolute;
+  left: 50%;
+  bottom: 7%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(66vw, 48em);
+  padding: 0.4em 1em 0.45em;
+  background: rgba(12, 13, 16, 0.68);
+  border-radius: 0.35em;
+  font-size: 1.3em;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.nw-sub.on {
+  opacity: 1;
+}
+
+.nw-sub-who {
+  display: none;
+  margin-right: 0.6em;
+  font-size: 0.8em;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--nw-gold);
+}
+
+.nw-sub.who .nw-sub-who {
+  display: inline;
+}
+
+/* ───────────── Banner ───────────── */
+
+.nw-banner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 17%;
+  display: flex;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.45s;
+}
+
+.nw-banner.on {
+  opacity: 1;
+}
+
+.nw-banner-inner {
+  max-width: 94vw;
+  padding: 1.2em 6em 1.5em;
+  text-align: center;
+  background: radial-gradient(ellipse at center, rgba(8, 10, 14, 0.42) 0%, rgba(8, 10, 14, 0.24) 42%, rgba(8, 10, 14, 0) 72%);
+}
+
+.nw-banner-inner.in-a {
+  animation: nw-banner-a 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+
+.nw-banner-inner.in-b {
+  animation: nw-banner-b 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+
+@keyframes nw-banner-a {
+  from {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes nw-banner-b {
+  from {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.nw-banner-title {
+  font: 700 clamp(30px, 5em, 112px) / 1.02 var(--nw-serif);
+  letter-spacing: 0.005em;
+  color: var(--nw-paper);
+  text-shadow:
+    0.045em 0.055em 0 var(--nw-ink),
+    0 0.1em 0.6em rgba(0, 0, 0, 0.6);
+}
+
+.nw-banner-sub {
+  display: none;
+  margin-top: 0.9em;
+  font-size: 1.15em;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  text-shadow: var(--nw-shadow);
+}
+
+.nw-banner.sub .nw-banner-sub {
+  display: block;
+}
+
+.nw-banner-sub::before,
+.nw-banner-sub::after {
+  content: '';
+  display: inline-block;
+  width: 2.4em;
+  height: 0.1em;
+  margin: 0 0.9em;
+  vertical-align: middle;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+.nw-banner.tone-good .nw-banner-title {
+  color: var(--nw-gold);
+  text-shadow:
+    0.045em 0.055em 0 #6b2413,
+    0 0.1em 0.6em rgba(0, 0, 0, 0.6);
+}
+
+.nw-banner.tone-good .nw-banner-sub {
+  color: #ffe6a6;
+}
+
+.nw-banner.tone-bad .nw-banner-title {
+  color: #e2573a;
+  text-shadow:
+    0.045em 0.055em 0 #1a0b08,
+    0 0.1em 0.6em rgba(0, 0, 0, 0.7);
+}
+
+.nw-banner.tone-bad .nw-banner-sub {
+  color: #ffc4b5;
+}
+
+/* ───────────── Toasts ───────────── */
+
+.nw-toasts {
+  position: absolute;
+  right: 1.4em;
+  top: 8.6em;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4em;
+  max-width: 26em;
+}
+
+/* On the pause screen the slips move up into the empty corner, clear of the sheet. */
+.nw-ui.nw-paused .nw-toasts {
+  top: 1.4em;
+}
+
+.nw-toast {
+  display: none;
+  padding: 0.4em 0.8em 0.42em 1em;
+  background: var(--nw-paper);
+  color: var(--nw-ledger-ink);
+  border-left: 0.3em solid var(--nw-gold);
+  border-radius: 0.15em;
+  box-shadow: 0 0.25em 0.7em rgba(0, 0, 0, 0.45);
+  line-height: 1.25;
+}
+
+.nw-toast.on {
+  display: block;
+}
+
+.nw-toast.in-a {
+  animation: nw-toast-a 0.3s ease-out;
+}
+
+.nw-toast.in-b {
+  animation: nw-toast-b 0.3s ease-out;
+}
+
+@keyframes nw-toast-a {
+  from {
+    opacity: 0;
+    transform: translateX(1.2em);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes nw-toast-b {
+  from {
+    opacity: 0;
+    transform: translateX(1.2em);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ───────────── Choice dialog ───────────── */
+
+.nw-choose {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 12, 16, 0.5);
+  pointer-events: auto;
+}
+
+.nw-choose.on {
+  display: flex;
+}
+
+.nw-choose-card {
+  display: flex;
+  flex-direction: column;
+  width: min(34em, 90vw);
+  max-height: 86vh;
+  padding: 1.4em 1.8em 1.1em 3em;
+  animation: nw-card 0.22s ease-out;
+}
+
+@keyframes nw-card {
+  from {
+    opacity: 0;
+    transform: translateY(0.8em);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.nw-choose-title {
+  flex: none;
+  padding-bottom: 0.35em;
+  border-bottom: max(3px, 0.2em) double var(--nw-ledger-ink);
+  font: 700 1.9em / 1.1 var(--nw-serif);
+}
+
+.nw-choose-body {
+  display: none;
+  flex: none;
+  margin-top: 0.8em;
+  font-size: 1.08em;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: pre-line;
+}
+
+.nw-choose-body.on {
+  display: block;
+}
+
+.nw-choose-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  min-height: 0;
+  margin-top: 1em;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.nw-option {
+  flex: none;
+  padding: 0.5em 1.6em 0.5em 1em;
+  background: rgba(255, 255, 255, 0.4);
+  border: 0.08em solid rgba(28, 36, 48, 0.25);
+  border-radius: 0.15em;
+  font-size: 1.15em;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* The chosen option turns into a fingerpost. */
+.nw-option.sel {
+  background: var(--nw-post);
+  border-color: var(--nw-post);
+  color: #15140f;
+  clip-path: polygon(0 0, calc(100% - 0.9em) 0, 100% 50%, calc(100% - 0.9em) 100%, 0 100%);
+}
+
+.nw-choose-foot {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 1.2em;
+  margin-top: 1em;
+  font-size: 0.85em;
+  color: #4a5361;
+}
+
+/* ───────────── Pause screen ───────────── */
+
+.nw-pause {
+  position: absolute;
+  inset: 0;
+  display: none;
+  pointer-events: auto;
+  color: var(--nw-paper);
+  background: linear-gradient(180deg, rgba(14, 18, 24, 0.86), rgba(14, 18, 24, 0.94));
+}
+
+.nw-pause.on {
+  display: block;
+}
+
+.nw-pause-main {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.4em, 5vh, 4em) clamp(1.4em, 5vw, 6em) 1.5em;
+}
+
+.nw-pause.map .nw-pause-main {
+  display: none;
+}
+
+.nw-pause-head {
+  flex: none;
+}
+
+.nw-pause-kicker {
+  font-size: 0.95em;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--nw-gold);
+}
+
+.nw-pause-title {
+  margin-top: 0.1em;
+  font: 700 clamp(26px, 3.6em, 84px) / 1.05 var(--nw-serif);
+  color: var(--nw-paper);
+  text-shadow: 0.04em 0.05em 0 var(--nw-rust);
+}
+
+.nw-pause-status {
+  margin-top: 0.5em;
+  font-size: 1.05em;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  opacity: 0.85;
+}
+
+.nw-pause-body {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: clamp(1.4em, 4vw, 4em);
+  min-height: 0;
+  margin-top: 1.8em;
+}
+
+/* Fingerposts on a pole. */
+.nw-menu {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 0.6em;
+  width: 17.5em;
+  padding: 0.4em 0 0.4em 1em;
+  filter: drop-shadow(0 0.2em 0.4em rgba(0, 0, 0, 0.5));
+}
+
+.nw-menu::before {
+  content: '';
+  position: absolute;
+  left: 0.3em;
+  top: -0.8em;
+  bottom: -2.4em;
+  width: 0.6em;
+  border-radius: 0.3em;
+  background: linear-gradient(90deg, #8f969c, #f1f2f0 45%, #a4abb0 70%, #6d747a);
+}
+
+.nw-post {
+  position: relative;
+  width: 11em;
+  padding: 0.5em 1.9em 0.5em 1em;
+  background: #c4a01e;
+  color: #15140f;
+  font-size: 1.25em;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 1.05em) 0, 100% 50%, calc(100% - 1.05em) 100%, 0 100%);
+  transition:
+    width 0.12s ease-out,
+    background-color 0.12s;
+}
+
+.nw-post::before {
+  content: '';
+  position: absolute;
+  left: 0.3em;
+  top: 0.3em;
+  bottom: 0.3em;
+  width: 0.14em;
+  background: #15140f;
+}
+
+.nw-post.sel {
+  width: 12.8em;
+  background: var(--nw-post);
+}
+
+/* The sheet. */
+.nw-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 52em;
+  max-height: 100%;
+  padding: 1.3em 1.5em 1.2em 3em;
+}
+
+.nw-panel.focus {
+  box-shadow:
+    0 0 0 0.18em var(--nw-post),
+    0 0.6em 2.4em rgba(0, 0, 0, 0.5);
+}
+
+.nw-panel-title {
+  flex: none;
+  padding-bottom: 0.35em;
+  border-bottom: max(3px, 0.2em) double var(--nw-ledger-ink);
+  font: 700 1.7em / 1.1 var(--nw-serif);
+}
+
+.nw-panel-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 0.8em;
+  padding-right: 0.5em;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(28, 36, 48, 0.5) transparent;
+}
+
+.nw-para {
+  margin: 0 0 0.7em;
+  font-size: 1.1em;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.nw-para.nw-note {
+  margin-top: 1em;
+  font-size: 0.92em;
+  color: #55606e;
+}
+
+.nw-kv {
+  display: flex;
+  gap: 1em;
+  padding: 0.42em 0;
+  border-bottom: 1px dotted rgba(28, 36, 48, 0.3);
+  font-size: 1.08em;
+}
+
+.nw-kv-key {
+  flex: none;
+  width: 7.5em;
+  padding-top: 0.2em;
+  font-size: 0.8em;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #6a5a3a;
+}
+
+.nw-kv-value {
+  min-width: 0;
+  font-weight: 600;
+}
+
+/* Jobs. */
+.nw-job {
+  margin-bottom: 0.5em;
+  padding: 0.7em 0.8em 0.75em;
+  background: rgba(255, 255, 255, 0.34);
+  border: 1px solid rgba(28, 36, 48, 0.2);
+  border-radius: 0.15em;
+  cursor: pointer;
+}
+
+.nw-panel.focus .nw-job.sel {
+  background: rgba(244, 196, 23, 0.45);
+  border-color: var(--nw-ledger-ink);
+}
+
+.nw-job.state-locked {
+  opacity: 0.62;
+}
+
+.nw-job-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1em;
+}
+
+.nw-job-title {
+  font: 700 1.3em / 1.15 var(--nw-serif);
+}
+
+/* A rubber stamp. */
+.nw-stamp {
+  flex: none;
+  padding: 0.1em 0.5em;
+  border: 0.14em solid currentColor;
+  border-radius: 0.2em;
+  font-size: 0.78em;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--nw-teal);
+  transform: rotate(-3deg);
+}
+
+.nw-job.state-active .nw-stamp {
+  color: var(--nw-rust);
+}
+
+.nw-job.state-done .nw-stamp {
+  color: #5c6672;
+}
+
+.nw-job.state-locked .nw-stamp {
+  color: #8a8f96;
+}
+
+.nw-job-giver {
+  margin-top: 0.15em;
+  font-size: 0.8em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6a5a3a;
+}
+
+.nw-job-blurb {
+  margin-top: 0.4em;
+  font-size: 1.02em;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.nw-job-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 1em;
+  margin-top: 0.5em;
+  font-size: 0.92em;
+  font-weight: 700;
+}
+
+.nw-job-place {
+  font-weight: 500;
+  text-align: right;
+  color: #4a5361;
+}
+
+/* Controls. */
+.nw-ctl-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.8em;
+  padding: 0.32em 0;
+  border-bottom: 1px dotted rgba(28, 36, 48, 0.25);
+  font-size: 1.02em;
+}
+
+.nw-ctl-row.nw-ctl-head {
+  border-bottom: 1px solid rgba(28, 36, 48, 0.5);
+  font-size: 0.78em;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #6a5a3a;
+}
+
+.nw-ctl-group {
+  margin: 1em 0 0.2em;
+  font: 700 1.15em / 1.2 var(--nw-serif);
+}
+
+.nw-ctl-label {
+  min-width: 0;
+  font-weight: 600;
+}
+
+.nw-ctl-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+}
+
+.nw-ctl-none {
+  color: #8a8f96;
+}
+
+/* Settings. */
+.nw-set {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.2em;
+  padding: 0.55em 0.7em;
+  border-bottom: 1px dotted rgba(28, 36, 48, 0.25);
+  border-radius: 0.15em;
+}
+
+.nw-panel.focus .nw-set.sel {
+  background: rgba(244, 196, 23, 0.45);
+}
+
+.nw-set-label {
+  min-width: 0;
+  font-size: 1.1em;
+  font-weight: 700;
+}
+
+.nw-set-note {
+  margin-top: 0.15em;
+  font-size: 0.74em;
+  font-weight: 500;
+  color: #55606e;
+}
+
+.nw-chips {
+  display: flex;
+  flex: none;
+  overflow: hidden;
+  border: 0.1em solid var(--nw-ledger-ink);
+  border-radius: 0.25em;
+}
+
+.nw-chip {
+  padding: 0.32em 0.8em;
+  font-size: 0.95em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.nw-chip + .nw-chip {
+  border-left: 0.1em solid rgba(28, 36, 48, 0.5);
+}
+
+.nw-chip.on {
+  background: var(--nw-ledger-ink);
+  color: var(--nw-paper);
+}
+
+.nw-slide {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.8em;
+}
+
+.nw-slide-track {
+  position: relative;
+  width: 12em;
+  height: 1.4em;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.nw-slide-track::before,
+.nw-slide-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 0.5em;
+  margin-top: -0.25em;
+  border-radius: 0.1em;
+}
+
+.nw-slide-track::before {
+  content: '';
+  background: rgba(28, 36, 48, 0.16);
+  border: 1px solid rgba(28, 36, 48, 0.55);
+}
+
+.nw-slide-fill {
+  background: var(--nw-ledger-ink);
+  transform-origin: 0 50%;
+}
+
+.nw-slide-value {
+  width: 3.2em;
+  font-weight: 800;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.nw-pause-foot {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 1.6em;
+  margin-top: 1.2em;
+  font-size: 0.92em;
+  color: #c9cdd2;
+}
+
+/* "Click to carry on": shown while paused when the browser wants a click before it will lock the pointer. */
+.nw-shield {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 12, 16, 0.35);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.nw-shield.on {
+  display: flex;
+}
+
+.nw-shield-plate {
+  padding: 0.6em 1.1em;
+  background: rgba(12, 13, 16, 0.84);
+  border-radius: 0.4em;
+  font-size: 1.25em;
+}
+
+/* ───────────── Island map ───────────── */
+
+.nw-map {
+  position: absolute;
+  inset: 0;
+  display: none;
+  background: #cfc4a6;
+}
+
+.nw-pause.map .nw-map {
+  display: block;
+}
+
+.nw-map-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.nw-map.dragging .nw-map-canvas {
+  cursor: grabbing;
+}
+
+.nw-map-head {
+  position: absolute;
+  left: 1.4em;
+  top: 1.4em;
+  max-width: 44em;
+  padding: 0.55em 1.1em 0.6em;
+  pointer-events: none;
+}
+
+.nw-map-title {
+  display: inline;
+  font-size: 1.7em;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+}
+
+.nw-map-reo {
+  display: inline;
+  margin-left: 0.6em;
+  font: italic 500 1.15em / 1 var(--nw-reo);
+  letter-spacing: 0;
+  color: #ffe9a3;
+}
+
+.nw-map-where {
+  margin-top: 0.25em;
+  font-size: 0.98em;
+  font-weight: 500;
+  opacity: 0.94;
+}
+
+.nw-map-legend {
+  position: absolute;
+  right: 1.4em;
+  bottom: 1.4em;
+  min-width: 12em;
+  padding: 0.9em 1.1em 0.8em 1.2em;
+  background-image: none;
+  font-size: 0.92em;
+  pointer-events: none;
+}
+
+.nw-legend-title {
+  margin-bottom: 0.45em;
+  padding-bottom: 0.3em;
+  border-bottom: 3px double var(--nw-ledger-ink);
+  font: 700 1.25em / 1 var(--nw-serif);
+}
+
+.nw-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.14em 0;
+}
+
+.nw-legend-icon {
+  flex: none;
+  width: 1.5em;
+  height: 1.5em;
+}
+
+.nw-legend-label {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nw-legend-road {
+  flex: none;
+  width: 1.5em;
+  height: 0.4em;
+  background: #fff;
+  border: 1px solid #6f6753;
+  border-radius: 0.2em;
+}
+
+.nw-legend-road.highway {
+  height: 0.5em;
+  background: #c8402f;
+}
+
+.nw-legend-road.arterial {
+  height: 0.5em;
+  background: #f0b040;
+}
+
+.nw-legend-road.gravel {
+  background: repeating-linear-gradient(90deg, #b3956a 0, #b3956a 0.3em, transparent 0.3em, transparent 0.5em);
+  border-color: transparent;
+}
+
+.nw-legend-road.rail {
+  height: 0.3em;
+  background: repeating-linear-gradient(90deg, #2a2d33 0, #2a2d33 0.25em, #f4eedd 0.25em, #f4eedd 0.5em);
+  border-color: #2a2d33;
+  border-radius: 0;
+}
+
+.nw-legend-note {
+  margin-top: 0.5em;
+  font-size: 0.85em;
+  font-style: italic;
+  font-weight: 500;
+  color: #55606e;
+}
+
+.nw-legend-note:empty {
+  display: none;
+}
+
+.nw-map-foot {
+  position: absolute;
+  left: 50%;
+  bottom: 1.4em;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 72vw;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5em 1.4em;
+  padding: 0.5em 1em;
+  background: rgba(12, 13, 16, 0.84);
+  border-radius: 0.4em;
+  font-size: 0.9em;
+  color: #e9edf0;
+  pointer-events: none;
+}
+
+/* ───────────── Reduced motion ───────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .nw-heat.evading .nw-lamp.lit,
+  .nw-vital.health.low .nw-vital-fill,
+  .nw-cond.bad .nw-cond-word,
+  .nw-timer.counts.urgent,
+  .nw-money.tick .nw-money-value {
+    animation: none;
+  }
+}

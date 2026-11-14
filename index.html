@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en-NZ">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Timmaz Hard</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23151212'/%3E%3Crect x='2.5' y='2.5' width='27' height='27' rx='4' fill='none' stroke='%23c9ccd1'/%3E%3Cpath d='M5 9h10v3h-3.5v11h-3V12H5zM17 9h3v5.5h4V9h3v14h-3v-5.5h-4V23h-3z' fill='%23d8dbe0'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <div id="title">
+      <div class="sub">Canterbury &middot; 1995</div>
+      <h1>Timmaz Hard</h1>
+      <div id="title-buttons">
+        <button id="btn-new">New game</button>
+        <button id="btn-continue" hidden>Continue</button>
+        <button id="btn-controls">Controls</button>
+      </div>
+      <div id="controls-panel" hidden>
+        <table>
+          <tr><td>W A S D</td><td>Walk / drive</td><td>Mouse</td><td>Look</td></tr>
+          <tr><td>Shift</td><td>Sprint</td><td>Space</td><td>Jump / handbrake</td></tr>
+          <tr><td>F</td><td>Get in or out, interact</td><td>H</td><td>Horn</td></tr>
+          <tr><td>Right mouse</td><td>Aim</td><td>Left mouse</td><td>Fire</td></tr>
+          <tr><td>R</td><td>Reload / radio</td><td>Q</td><td>Melee</td></tr>
+          <tr><td>E / Z</td><td>Change weapon</td><td>C</td><td>Look behind</td></tr>
+          <tr><td>M</td><td>Map</td><td>Esc</td><td>Pause, settings</td></tr>
+          <tr><td>X</td><td>Skip a line of talk</td><td>V</td><td>Camera distance</td></tr>
+        </table>
+        <p>Gamepads work too. The full list is in the pause menu.</p>
+      </div>
+      <div id="load-status" hidden></div>
+      <div id="load-track"><div id="load-bar"></div></div>
+      <div class="legal">A work of fiction. Real places; every person, business and organisation in it is invented.</div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
