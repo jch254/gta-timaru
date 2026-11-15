@@ -53,8 +53,8 @@ export interface CameoDef {
   weather?: Partial<Record<WeatherKind, string>>;
   /** What they say if the player hits or shoots at them (then they move off). */
   oi: string;
-  /** What they do with their arms while speaking: 'arms' = both raised, 'point' = pointing up at the sky. */
-  gesture?: 'arms' | 'point';
+  /** What they do while speaking: 'orate' = one hand up to the crowd, 'point' = pointing up at the sky. */
+  gesture?: 'orate' | 'point';
   /** Strike that pose every few seconds whether or not anyone is listening. */
   restless?: boolean;
   /** Stands this many metres above the ground (the top of the speaker's ladder in the Square). */
@@ -76,7 +76,7 @@ export const CAMEOS: readonly CameoDef[] = [
     at: { landmark: 'cathedral-square', forward: 33, left: -14.5, turn: 0.5 },
     hours: [10, 17.5],
     lift: 2.15,
-    gesture: 'arms',
+    gesture: 'orate',
     restless: true,
     lines: [
       'Gather round! Every map of the world is printed upside down, and I alone in this Square am holding mine the right way up.',
@@ -113,7 +113,7 @@ export const CAMEOS: readonly CameoDef[] = [
     // The forecourt on Worcester Boulevard, in front of the clock tower.
     at: { place: 'arts-centre', left: 7, forward: -1.5 },
     hours: [9, 17],
-    gesture: 'arms',
+    gesture: 'orate',
     lines: [
       'Hey hey, look who it is! Give us a wave for the kids at home. No? A shy one. We love a shy one!',
       'We’re filming straight after the break. Stick around, you could win a T-shirt. Everybody wins a T-shirt!',

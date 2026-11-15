@@ -18,7 +18,7 @@ import { HumanoidRig } from '../src/actors/humanoid';
 import { createGltfHumanoid, preloadCharacters } from '../src/actors/gltf';
 import type { Humanoid, HumanoidLook, HumanoidPose, MaterialLibrary } from '../src/core/types';
 
-const POSES: HumanoidPose[] = ['idle', 'walk', 'run', 'jump', 'fall', 'aim', 'aimRifle', 'punch', 'cower', 'handsUp', 'drive', 'ride', 'sit', 'dead'];
+const POSES: HumanoidPose[] = ['idle', 'walk', 'run', 'jump', 'fall', 'aim', 'aimRifle', 'punch', 'cower', 'handsUp', 'point', 'orate', 'drive', 'ride', 'sit', 'dead'];
 const q = new URLSearchParams(location.search);
 const num = (key: string, fallback: number) => (q.has(key) ? Number(q.get(key)) : fallback);
 

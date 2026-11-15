@@ -36,7 +36,7 @@ Checked by running the game, mostly through the headless playtest scripts in `sc
 - **Ground.** No painted driveway crossings. Far hillsides still streak. There are no reflections of lights in wet roads beyond the shine of the surface itself.
 - **A glitch seen twice and not found.** During the art pass two screenshots came back covered in large dark planes. 138 reruns and four drives did not reproduce it; the likeliest cause is a page that loaded while another agent was half-way through an edit, but that is unproven.
 - **One long frame.** Driving in town just after a teleport there was one frame of 43 ms while chunks were still arriving; otherwise the worst was 28 ms.
-- **The familiar faces are simple.** The likeness is in the name, the place and the lines, not the face. Two of them raise both arms to speak, which reads a little like a stick-up. Nobody carries a prop.
+- **The familiar faces are simple.** The likeness is in the name, the place and the lines, not the face. Nobody carries a prop. (The two who used to raise both arms to speak — which read like a stick-up — now hold forth with one open hand raised, a new `orate` pose.)
 - **Live radio leans on other people.** The ten real stations play from their own public streams with no arrangement in place: an address can change or a station can object, and then that line in `src/audio/radio/live.ts` has to go. What they broadcast is today's radio, not 1995's.
 - **AI driving.** Traffic and police still sometimes leave the road, and cars turning into the Square from Colombo Street sometimes clip a parked one.
 - **Integrated graphics are unmeasured.** Every number below is from one M2 Max.

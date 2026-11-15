@@ -307,6 +307,11 @@ export class GltfHumanoid implements Humanoid {
         if (moving) this.locomotion(this.speed, dt, false);
         else this.loop(LOWER, 'Point_Up');
         break;
+      case 'orate':
+        this.loop(UPPER, 'Orate');
+        if (moving) this.locomotion(this.speed, dt, false);
+        else this.loop(LOWER, 'Orate');
+        break;
       case 'drive':
       case 'sit':
       case 'ride': {

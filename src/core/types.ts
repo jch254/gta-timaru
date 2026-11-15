@@ -597,6 +597,7 @@ export type HumanoidPose =
   | 'cower'
   | 'handsUp'
   | 'point' // one arm up, pointing at the sky
+  | 'orate' // one hand raised to the crowd, palm out: holding forth
   | 'drive'
   | 'ride' // motorbike
   | 'sit'
