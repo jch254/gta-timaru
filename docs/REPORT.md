@@ -94,4 +94,4 @@ Earlier screenshots, from before the art pass, are still in `docs/screenshots/` 
 
 ## Housekeeping
 
-`shots/` (about 2.2 GB of working screenshots, plus each agent's notes from the art pass in `shots/round3/*-report.md`) and `assets-staging/` (about 1.4 GB of raw asset downloads) are scratch, ignored by `.gitignore`, and can be deleted. `dev/` holds two viewer pages for the figures and the plants; they are not part of the build. `src/vehicles/models/common.ts` is no longer imported by anything and can go too. None of these has been deleted.
+`shots/` (about 2.2 GB of working screenshots, plus each agent's notes from the art pass in `shots/round3/*-report.md`) and `assets-staging/` (about 1.4 GB of raw asset downloads) are scratch, ignored by `.gitignore`, and can be deleted; neither has been. `dev/` holds two viewer pages for the figures and the plants; they are not part of the build. (`src/vehicles/models/common.ts`, which nothing imported, is gone.)
