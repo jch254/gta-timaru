@@ -65,11 +65,23 @@ export const cathedral: LandmarkBuilder = (p, out) => {
   k.solid(0, 0, 25.7, 5.4, 4.4, 3.4, s.grey);
   k.roof(0, 4.4, 25.6, 3.4, 5.8, 2.6, s.slate, true);
   k.pediment(0, 4.4, 27.3, 5.7, 2.9, 0.4, s.dress);
-  k.geo(lancet(2.9, 4.0, 2.0), s.dress, 0, 0, 27.42).geo(lancet(2.2, 3.6, 1.6), s.door, 0, 0, 27.45);
+  // The west door: three orders of arch stepping in to the doors themselves, split by a stone mullion.
+  k.geo(lancet(3.5, 4.35, 2.4), s.grey, 0, 0, 27.4).geo(lancet(2.9, 4.0, 2.0), s.dress, 0, 0, 27.43).geo(lancet(2.2, 3.6, 1.6), s.door, 0, 0, 27.46);
+  k.box(0, 0, 27.52, 0.2, 3.2, 0.08, s.dress);
+  // Two stone steps up from the Square, and a string course across the front under the lancet arcade.
   k.box(0, 0, 28.3, 6.6, 0.3, 1.8, s.dress);
+  k.box(0, 0, 29.4, 7.8, 0.14, 1.1, s.dress);
+  k.box(0, 6.9, 24.06, 10.3, 0.28, 0.22, s.dress);
+  // The service board by the porch.
+  k.dbox(4.5, 0, 28.5, 0.08, 1.9, 0.08, s.lead).dbox(5.9, 0, 28.5, 0.08, 1.9, 0.08, s.lead);
+  k.box(5.2, 1.08, 28.5, 1.56, 0.62, 0.05, s.dress);
+  k.sign('CHRISTCHURCH CATHEDRAL · SERVICES DAILY', 5.2, 1.39, 28.53, 1.44, 0.5, 0, { bg: '#2c3a34', fg: '#e9dfc2', style: 'paint', aspect: 3 });
   for (const side of [-1, 1]) {
     k.cyl(side * 5.2, 0, 23.7, 0.85, 0.85, 19, s.grey, 8);
     k.geo(cone(1.0, 3.4, 8), s.dress, side * 5.2, 19, 23.7);
+    // Buttresses closing the aisle fronts against the Square.
+    k.box(side * 9.95, 0, 23.4, 0.9, 6.3, 0.8, s.grey);
+    k.geo(pyramid(0.95, 0.85, 0.8), s.dress, side * 9.95, 6.3, 23.4);
   }
 
   // Bell tower at the north-west corner (left of the west front), nearly free-standing, with the spire.
