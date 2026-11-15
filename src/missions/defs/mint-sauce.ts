@@ -1,5 +1,5 @@
 import type { MissionDef, SpotObject } from '../types';
-import { crew, EASTERLY, handles, line, MACK, NEVILLE } from './cast';
+import { cameoRemark, crew, EASTERLY, handles, line, MACK, NEVILLE } from './cast';
 
 const YARD: SpotObject = { place: 'ashburton-stock-agent' };
 const COLLECTORS = handles('collector', 3);
@@ -34,6 +34,11 @@ export const mintSauce: MissionDef = {
         line(NEVILLE, 'Exactly.'),
       ],
     },
+    // Out on East Street the Prime Minister is shaking hands (a cameo: he says this only if he is really there).
+    cameoRemark('jim-boulder', (pm) => [
+      line(pm, "Gidday! Jim Boulder. Off to work, are you? Good on you. It's people like you who keep this country going."),
+      line(MACK, 'Something like that, Prime Minister.'),
+    ]),
     { kind: 'spawnVehicle', as: 'truck', spec: 'farmtruck', at: { place: 'hinds-woolshed', snap: 'verge', out: 2.8 }, health: 1.4 },
     {
       kind: 'goTo',

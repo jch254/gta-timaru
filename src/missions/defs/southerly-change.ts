@@ -1,5 +1,5 @@
 import type { MissionDef, SpotObject } from '../types';
-import { crew, DAZZA, EASTERLY, FLASH, handles, line, MACK, RENA, TIP } from './cast';
+import { crew, DAZZA, EASTERLY, FLASH, handles, line, MACK, onTheRadio, RENA, TIP, withCameo } from './cast';
 
 /** The top of Dyers Pass, facing back down the hill towards the city: the side Mack arrives from. */
 const PASS: SpotObject = { place: 'sign-of-the-kiwi', toward: 'chch-garage' };
@@ -43,7 +43,15 @@ export const southerlyChange: MissionDef = {
         line(DAZZA, "Shotgun's on the bench. V8's out front. Try and bring one of them home."),
       ],
     },
-    { kind: 'setWeather', weather: 'southerly', transition: 240 },
+    {
+      kind: 'setWeather',
+      weather: 'southerly',
+      transition: 240,
+      // The weatherman, on the workshop radio (a cameo).
+      lines: withCameo('jim-hickory', (jim) => [
+        line(onTheRadio(jim), 'A warning for Canterbury tonight: a sharp southerly change is coming up the coast, with heavy rain close behind it.'),
+      ]),
+    },
     { kind: 'giveWeapon', weapon: 'pistol', ammo: 36 },
     { kind: 'giveWeapon', weapon: 'shotgun', ammo: 30, select: true, armour: 100, toast: 'Shotgun, shells and a vest from the bench' },
     { kind: 'spawnVehicle', as: 'v8', spec: 'v8sedan', at: { place: 'chch-garage', snap: 'lane', along: 7, kerb: true }, owned: true, health: 1.6 },

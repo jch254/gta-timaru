@@ -15,7 +15,6 @@ import type { Actor, AudioApi, GameContext, GameEvents, GroundSurface, SfxId, Sy
 import { Ambience, renderRain } from './ambience';
 import { Mixer, renderNoiseBed } from './mixer';
 import { PassBy, Sirens } from './nearby';
-import { stationName } from './radio/dial';
 import { DRUM_IDS, renderDrum } from './radio/drums';
 import { Radio } from './radio/radio';
 import { SOUNDS, renderSound, warmList } from './sfx';
@@ -95,7 +94,9 @@ class AudioSystem implements AudioApi, System {
   private falling = false;
 
   constructor(private ctx: GameContext) {
-    this.tuner = new Radio(this.mixer, (id) => ctx.events.emit('radioChanged', { stationId: id, name: stationName(id) }));
+    this.tuner = new Radio(this.mixer, (id, name) => ctx.events.emit('radioChanged', { stationId: id, name }));
+    // Absent from old settings files: live radio is on unless it has been switched off.
+    this.tuner.setLive(ctx.settings.data.liveRadio !== false);
     this.engine = new VehicleAudio(this.mixer, (v, delay) => this.emit('backfire', v.position.x, v.position.y, v.position.z, 1, 1, delay));
     this.sirens = new Sirens(this.mixer);
     this.passers = new PassBy(this.mixer);
@@ -124,6 +125,7 @@ class AudioSystem implements AudioApi, System {
     this.offs.push(
       ctx.settings.onChange((key) => {
         if (key === 'masterVolume' || key === 'musicVolume' || key === 'sfxVolume') this.volumes();
+        if (key === 'liveRadio') guard(() => tuner.setLive(ctx.settings.data.liveRadio !== false));
       }),
     );
     this.queueLibrary();
@@ -451,7 +453,10 @@ class AudioSystem implements AudioApi, System {
     const hasRadio = vehicle !== null && vehicle.spec.cls !== 'bike' && !vehicle.destroyed;
     if (hasRadio !== this.tuner.audible) this.tuner.setAudible(hasRadio, this.startDelay + 0.45);
     else if (hasRadio) this.tuner.refresh();
-    if (hasRadio && player.controlsEnabled && !ctx.ui.menuOpen && ctx.input.pressed('radioNext')) this.tuner.next();
+    if (hasRadio && player.controlsEnabled && !ctx.ui.menuOpen) {
+      if (ctx.input.pressed('radioNext')) this.tuner.next();
+      else if (ctx.input.pressed('radioPrev')) this.tuner.prev();
+    }
     if (vehicle) this.startDelay = 0;
 
     this.sirens.update(dt, ctx.vehicles.all);
@@ -552,13 +557,14 @@ class AudioSystem implements AudioApi, System {
   }
 
   /** Mixer state for a debug overlay. */
-  debug(): { voices: number; dropped: number; rpm: number; gear: number; station: string | null; running: boolean; errors: number } {
+  debug(): { voices: number; dropped: number; rpm: number; gear: number; station: string | null; live: string; running: boolean; errors: number } {
     return {
       voices: this.mixer.activeVoices(),
       dropped: this.mixer.dropped,
       rpm: this.engine.gearbox.rpm,
       gear: this.engine.gearbox.gear + 1,
       station: this.tuner.station,
+      live: this.tuner.liveState,
       running: this.mixer.running,
       errors: this.errors,
     };

@@ -8,6 +8,7 @@ const DEFAULTS: SettingsData = {
   masterVolume: 0.8,
   musicVolume: 0.7,
   sfxVolume: 0.9,
+  liveRadio: true,
   mouseSensitivity: 1,
   invertY: false,
   showFps: false,

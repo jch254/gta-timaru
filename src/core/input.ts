@@ -17,6 +17,7 @@ const KEYS: Record<Action, string[]> = {
   handbrake: ['Space'],
   horn: ['KeyH'],
   radioNext: ['KeyR'],
+  radioPrev: ['KeyT'],
   lookBack: ['KeyC'],
   camera: ['KeyV'],
   pause: ['Escape', 'KeyP'],

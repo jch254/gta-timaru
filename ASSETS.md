@@ -145,4 +145,17 @@ Fonts: system font stacks only; nothing is downloaded.
 
 ## Names
 
-Real place, street and public landmark names are used. Every business, brand, radio station, vehicle make, organisation and character is invented.
+Real place, street and public landmark names are used. Every business, brand, vehicle make and organisation in the world is invented, and so are six of the radio stations. Every character is invented too. Eleven of them (`src/missions/defs/cameos.ts`) are look-alike parodies of the kind of public figure New Zealand knew in 1995, under invented names; no real person's name appears in the game.
+
+## Live radio streams
+
+Ten real stations are on the car radio dial. Nothing of theirs is in this repository or in the build: the player's browser connects to the station's own public stream. The names are the stations' own and are used only to label the dial. The addresses are in `src/audio/radio/live.ts`.
+
+| Station | Stream host |
+|---|---|
+| The Rock, The Edge, More FM, The Breeze, The Sound | `mediaworks.streamguys1.com` |
+| ZM, The Hits, Radio Hauraki | `playerservices.streamtheworld.com` |
+| Brian FM | `ais-sa1.streamon.fm` |
+| RNZ National | `stream-ice.radionz.co.nz` |
+
+No licence or agreement covers this use; see "Live radio" in the README.

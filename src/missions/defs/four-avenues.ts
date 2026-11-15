@@ -1,5 +1,5 @@
 import type { MissionDef, SpotObject } from '../types';
-import { DAZZA, line, MACK, TAMA, TRACEY } from './cast';
+import { cameoCue, DAZZA, line, MACK, onTheRadio, TAMA, TRACEY } from './cast';
 
 /**
  * The corners of the four avenues, found by road name. If the names on the map differ, each falls back to
@@ -58,6 +58,13 @@ export const fourAvenues: MissionDef = {
       stop: true,
       objective: 'Line up on Moorhouse Ave, by the Deans Ave corner',
       lines: [line(MACK, 'Pulls left under brakes, he says. He might have led with that.')],
+      // The Mayor, on the car radio (a cameo).
+      cues: [
+        ...cameoCue('nicky-roe', 9, (mayor) => [
+          line(onTheRadio(mayor), 'And so it gives me enormous pleasure to declare the Friday night market in the Square open. Drive home safely, everyone!'),
+          line(MACK, 'Will do, Your Worship.'),
+        ]),
+      ],
     },
     {
       kind: 'race',

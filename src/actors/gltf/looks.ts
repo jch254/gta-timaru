@@ -206,11 +206,11 @@ function eyePixels(iris: number): Uint8Array {
   return px;
 }
 
-function atlasTexture(hair: number, shoes: number, iris: number): THREE.DataTexture {
+function atlasTexture(hair: number, shoes: number, iris: number, socks: number): THREE.DataTexture {
   const data = new Uint8Array(ATLAS_W * ATLAS_H * 4);
   const eye = eyePixels(iris);
   const cell = (hex: number, k = 1) => [((hex >> 16) & 255) * k, ((hex >> 8) & 255) * k, (hex & 255) * k];
-  const cells = [cell(hair), cell(shoes), cell(SOCKS), cell(shoes, 0.42).map((v) => v + 14)];
+  const cells = [cell(hair), cell(shoes), cell(socks), cell(shoes, 0.42).map((v) => v + 14)];
   for (let y = 0; y < ATLAS_H; y++) {
     for (let x = 0; x < ATLAS_W; x++) {
       const i = (y * ATLAS_W + x) * 4;
@@ -316,9 +316,10 @@ export function lookMaterials(look: HumanoidLook, body: BodyTemplate, library: M
     return new THREE.MeshStandardMaterial({ color: look.legs, map: f.denim, normalMap: f.clothNormal, normalScale: new THREE.Vector2(0.35, 0.35), roughness: 0.9, metalness: 0, vertexColors: true });
   });
   const iris = pickEye(look);
-  const miscKey = `chr-misc|${look.hair}|${look.shoes}|${iris}`;
+  const socks = look.socks ?? SOCKS;
+  const miscKey = `chr-misc|${look.hair}|${look.shoes}|${iris}|${socks}`;
   const misc = cached(library, miscKey, () => {
-    return new THREE.MeshStandardMaterial({ map: atlasTexture(look.hair, look.shoes, iris), roughness: 0.74, metalness: 0, vertexColors: true, side: THREE.DoubleSide });
+    return new THREE.MeshStandardMaterial({ map: atlasTexture(look.hair, look.shoes, iris, socks), roughness: 0.74, metalness: 0, vertexColors: true, side: THREE.DoubleSide });
   });
   atlasUsers.set(misc, (atlasUsers.get(misc) ?? 0) + 1);
   const hat = cached(library, 'chr-hat', () => new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0, vertexColors: true }));

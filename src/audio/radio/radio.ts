@@ -3,14 +3,18 @@
  * in drops you into the middle of whatever is on, and tuning back later finds it has moved along. Only the
  * tuned station makes sound: a look-ahead scheduler turns the next ~100 ms of its programme into WebAudio
  * events on a 25 ms timer.
+ *
+ * The dial also carries the live stations (live.ts): real radio, streamed from the station's own server. Those
+ * come first on the dial where the browser can play them, and can be switched off in the settings.
  */
 import { Rng } from '../../core/rng';
 import { biquadQ } from '../dsp';
 import type { Mixer } from '../mixer';
 import { renderSound } from '../sfx';
 import { Band } from './band';
-import { STATIONS, nextStation, programItem, stationDef, type Item, type StationInfo } from './dial';
+import { STATIONS, nextStation, programItem, stationDef, stationName, type Item, type StationInfo } from './dial';
 import type { Kit } from './kit';
+import { LIVE_STATIONS, LiveStream, liveStation, type LivePlayer, type LiveState } from './live';
 import type { Ev } from './song';
 import { Lookahead, STEPS_PER_BAR, TICK, firstStepAt, planTick, stepTime, type Timeline } from './timing';
 
@@ -22,11 +26,14 @@ interface Clock {
 }
 
 export class Radio {
-  readonly stations: StationInfo[] = STATIONS;
+  /** Everything on the dial, in order: the live stations (when they can be played), then the invented ones. */
+  readonly stations: StationInfo[] = [];
   /** Dial position, remembered from one vehicle to the next. null = switched off. */
-  station: string | null = STATIONS[0].id;
+  station: string | null;
   /** True while the player is sitting in something with a radio. */
   audible = false;
+
+  private liveOn = true;
 
   private input: GainNode | null = null;
   private reverb: GainNode | null = null;
@@ -47,15 +54,51 @@ export class Radio {
 
   constructor(
     private mixer: Mixer,
-    private onChange: (id: string | null) => void,
-  ) {}
+    private onChange: (id: string | null, name: string) => void,
+    private live: LivePlayer = new LiveStream(),
+  ) {
+    this.fillDial();
+    this.station = this.stations[0].id;
+  }
+
+  /** What the live player is doing, for the debug overlay and the tests. */
+  get liveState(): LiveState {
+    return this.live.state;
+  }
+
+  /** What to call a dial position on screen. */
+  nameOf(id: string | null): string {
+    return liveStation(id)?.name ?? stationName(id);
+  }
+
+  /** The "Live radio stations" setting. Switching it off takes them off the dial and off the air. */
+  setLive(on: boolean): void {
+    if (on === this.liveOn) return;
+    const wasDefault = this.station === this.stations[0]?.id;
+    this.liveOn = on;
+    this.fillDial();
+    if (liveStation(this.station) && !on) this.set(STATIONS[0].id, this.audible);
+    // Nobody has touched the dial yet: keep it on whatever now comes first.
+    else if (wasDefault && !this.audible) this.station = this.stations[0].id;
+  }
+
+  /** Rebuilds `stations` in place (the array is handed out through the audio API). */
+  private fillDial(): void {
+    const live = this.liveOn && this.live.available ? LIVE_STATIONS.map(({ id, name, blurb }) => ({ id, name, blurb })) : [];
+    this.stations.length = 0;
+    this.stations.push(...live, ...STATIONS);
+  }
+
+  private onDial(id: string): boolean {
+    return this.stations.some((s) => s.id === id);
+  }
 
   /** Moves the dial. Emits a change if the position actually changed. */
   set(id: string | null, announce = true): void {
-    if (id !== null && !stationDef(id)) return;
+    if (id !== null && !this.onDial(id)) return;
     if (id === this.station) return;
     this.station = id;
-    if (announce) this.onChange(id);
+    if (announce) this.onChange(id, this.nameOf(id));
     if (!this.audible || !this.mixer.ac) return;
     this.stop(true);
     if (id === null) {
@@ -67,9 +110,21 @@ export class Radio {
     }
   }
 
+  /** Back one position on the dial: off comes before the first station. */
+  prev(): void {
+    const ids: (string | null)[] = [...this.stations.map((s) => s.id), null];
+    const at = ids.indexOf(this.station);
+    this.set(ids[(Math.max(0, at) + ids.length - 1) % ids.length]);
+  }
+
   /** Next position on the dial: each station in turn, then off. */
   next(): void {
-    this.set(nextStation(this.station));
+    this.set(
+      nextStation(
+        this.station,
+        this.stations.map((s) => s.id),
+      ),
+    );
   }
 
   /**
@@ -79,7 +134,7 @@ export class Radio {
   setAudible(on: boolean, delay = 0.2): void {
     if (on === this.audible) return;
     this.audible = on;
-    if (on && this.station) this.onChange(this.station);
+    if (on && this.station) this.onChange(this.station, this.nameOf(this.station));
     if (!this.mixer.ac) return;
     if (!on) {
       this.stop(true);
@@ -91,7 +146,8 @@ export class Radio {
 
   /** Start playing the tuned station if it should be audible (e.g. audio was unlocked while driving). */
   refresh(): void {
-    if (this.audible && this.station && !this.item && this.mixer.ac) this.tune(this.station, 0.1);
+    // A live station that failed stays failed until the dial moves: no reconnecting every frame.
+    if (this.audible && this.station && !this.item && this.live.state === 'off' && this.mixer.ac) this.tune(this.station, 0.1);
   }
 
   private graph(ac: AudioContext): GainNode {
@@ -130,6 +186,17 @@ export class Radio {
     const ac = this.mixer.ac;
     if (!ac) return;
     this.graph(ac);
+    const station = liveStation(id);
+    if (station) {
+      this.live.start(ac, this.graph(ac), station.url, () => {
+        // Still tuned to it: say so, with a burst of static, and leave the dial where it is.
+        if (this.station !== id || !this.audible) return;
+        this.blip('static', this.rng.int(0, 2), 0.3, 0);
+        this.onChange(id, `${station.name}: no signal`);
+      });
+      return;
+    }
+    if (!stationDef(id)) return;
     const at = ac.currentTime + delay;
     let clock = this.clocks.get(id);
     if (!clock) {
@@ -165,6 +232,7 @@ export class Radio {
   }
 
   private stop(fast: boolean): void {
+    this.live.stop();
     if (this.timer !== null) {
       clearInterval(this.timer);
       this.timer = null;

@@ -96,6 +96,8 @@ export class PedsSystem implements PedsApi, System {
       weaponId: options.weaponId,
       persistent: options.persistent ?? false,
       ambient: false,
+      invulnerable: options.invulnerable,
+      onHit: options.onHit,
     });
     this.peds.push(ped);
     this.live++;

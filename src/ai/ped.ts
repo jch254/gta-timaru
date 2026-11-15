@@ -38,6 +38,9 @@ export interface PedSetup {
   persistent: boolean;
   /** Part of the ambient population (spawned and despawned automatically). */
   ambient: boolean;
+  /** A cameo: cannot be hurt, killed or knocked flat. What would have hurt them is passed to `onHit`. */
+  invulnerable?: boolean;
+  onHit?: (info: DamageInfo) => void;
   /** Start on this footpath rather than looking for one. */
   edge?: RoadEdge;
   side?: 1 | -1;
@@ -89,6 +92,8 @@ export class Ped implements PedHandle {
   talkCooldown = 0;
   seatedIn: Vehicle | null = null;
   readonly female: boolean;
+  /** A cameo character: nothing hurts them (see `takeDamage` and `struck`). */
+  readonly invulnerable: boolean;
 
   private humanoid: Humanoid;
   private body: RAPIER.RigidBody;
@@ -173,6 +178,9 @@ export class Ped implements PedHandle {
   private syncY = NaN;
   private syncZ = NaN;
   private hitAndRunReported = false;
+  private onHit: ((info: DamageInfo) => void) | null;
+  /** Bundled aside by a vehicle: cars pass through the capsule until the sidestep is over. */
+  private shoved = false;
 
   constructor(
     private world: PedWorld,
@@ -182,6 +190,8 @@ export class Ped implements PedHandle {
     const { ctx, rng } = world;
     this.kind = setup.kind;
     this.female = !!setup.look.female;
+    this.invulnerable = !!setup.invulnerable;
+    this.onHit = setup.onHit ?? null;
     this.name = setup.name;
     this.health = this.maxHealth = setup.health;
     this.heading = setup.heading;
@@ -283,6 +293,12 @@ export class Ped implements PedHandle {
     this.react = 'none';
   }
 
+  gesture(pose: HumanoidPose, seconds: number, aimPitch = 0) {
+    this.actionPose = pose;
+    this.actionTimer = seconds;
+    this.aimPitch = aimPitch;
+  }
+
   /** Get out of whatever vehicle this pedestrian is riding in. */
   leaveVehicle() {
     if (!this.seatedIn) return;
@@ -296,6 +312,11 @@ export class Ped implements PedHandle {
 
   takeDamage(info: DamageInfo) {
     if (!this.alive || this.removed) return;
+    if (this.invulnerable) {
+      // Nothing lands: no injury, no death, no event for the blood or the police to follow.
+      this.onHit?.(info);
+      return;
+    }
     const { ctx } = this.world;
     let amount = info.amount;
     if (this.armour > 0 && info.kind !== 'fall' && info.kind !== 'drown') {
@@ -353,10 +374,10 @@ export class Ped implements PedHandle {
   dodge(vehicle: Vehicle, side: number) {
     if (!this.alive || this.seatedIn || this.react === 'down' || this.react === 'dodge' || this.react === 'cower' || this.task === 'enter') return;
     if (this.behaviour === 'attack' && this.retaliating <= 0) return;
-    // Not everybody sees it coming: one roll per approaching vehicle.
+    // Not everybody sees it coming: one roll per approaching vehicle. (A cameo always does.)
     const now = this.world.ctx.clock.elapsed;
     if (now < this.frozenUntil) return;
-    if (!this.world.rng.chance(PEDS.dodgeChance)) {
+    if (!this.invulnerable && !this.world.rng.chance(PEDS.dodgeChance)) {
       this.frozenUntil = now + 2.5;
       return;
     }
@@ -380,6 +401,18 @@ export class Ped implements PedHandle {
     const dx = this.position.x - vehicle.position.x;
     const dz = this.position.z - vehicle.position.z;
     const side = dx * Math.cos(vehicle.heading) - dz * Math.sin(vehicle.heading) >= 0 ? 1 : -1;
+    if (this.invulnerable) {
+      // A cameo is bundled out of the way, unhurt: no knock-down, no injury, nothing for the police.
+      this.dodgeX = Math.cos(vehicle.heading) * side;
+      this.dodgeZ = -Math.sin(vehicle.heading) * side;
+      this.resumeFlee = false;
+      this.react = 'dodge';
+      this.reactTimer = 0.9;
+      this.shoved = true;
+      this.collider.setCollisionGroups(this.groupsDown);
+      this.onHit?.({ amount: 0, kind: 'vehicle', source: driver ?? null });
+      return;
+    }
     this.velocity.set(vehicle.velocity.x * 0.55 + Math.cos(vehicle.heading) * side * 1.6, 0, vehicle.velocity.z * 0.55 - Math.sin(vehicle.heading) * side * 1.6);
     this.react = 'down';
     this.reactTimer = rng.range(PEDS.downSeconds[0], PEDS.downSeconds[1]);
@@ -488,9 +521,19 @@ export class Ped implements PedHandle {
           if (this.reactTimer <= 0) this.react = 'none';
           break;
         case 'dodge':
-          this.stepToward(this.position.x + this.dodgeX * 6, this.position.z + this.dodgeZ * 6, this.runSpeed, dt, true, true);
+          // (Someone being shoved aside is already against the car: they step clear of it, not round it.)
+          this.stepToward(this.position.x + this.dodgeX * 6, this.position.z + this.dodgeZ * 6, this.runSpeed, dt, true, !this.shoved);
           this.reactTimer -= dt;
           if (this.reactTimer <= 0) {
+            if (this.shoved) {
+              // Solid again only once clear of the car that did the shoving.
+              if (this.carAt(this.position.x, this.position.z, null)) {
+                this.reactTimer = 0.3;
+                break;
+              }
+              this.shoved = false;
+              this.collider.setCollisionGroups(this.groupsUp);
+            }
             this.react = this.resumeFlee ? 'flee' : 'none';
             this.reactTimer = this.resumeFlee ? 8 : 0;
           }

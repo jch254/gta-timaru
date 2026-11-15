@@ -63,7 +63,7 @@ const CONTROLS: { title: string; rows: ControlRow[] }[] = [
       { label: 'Steer', actions: ['left', 'right'], pad: ['Left stick'] },
       { label: 'Handbrake', actions: ['handbrake'] },
       { label: 'Horn', actions: ['horn'] },
-      { label: 'Change the radio station', actions: ['radioNext'] },
+      { label: 'Radio: next / previous station', actions: ['radioNext', 'radioPrev'] },
       { label: 'Look behind', actions: ['lookBack'] },
       { label: 'Get out', actions: ['interact'] },
     ],
@@ -546,6 +546,7 @@ export class PauseMenu {
     slider('masterVolume', 'Master volume', 0, 1, 0.05, percent);
     slider('musicVolume', 'Radio and music', 0, 1, 0.05, percent);
     slider('sfxVolume', 'Effects', 0, 1, 0.05, percent);
+    choice('liveRadio', 'Live radio stations', [false, true], ['Off', 'On'], 'Real stations in cars, streamed from their own servers. Off keeps the game offline');
     slider('mouseSensitivity', 'Mouse sensitivity', 0.2, 3, 0.1, (v) => `${v.toFixed(1)}×`);
     choice('invertY', 'Invert look up / down', [false, true], ['Off', 'On']);
     choice('showFps', 'Show frame rate', [false, true], ['Off', 'On'], 'Frames, frame time, draw calls, triangles, render scale');

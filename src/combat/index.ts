@@ -209,7 +209,8 @@ class Combat implements CombatApi, System {
       const owner = hit.owner;
       const vehicle = owner && isVehicle(owner) ? owner : null;
       if (owner) this.addHit(owner, damageAtRange(spec.damage, hit.distance, spec.range, feel.falloffStart, feel.falloffMin), hit.point);
-      fx.hint(origin, _pellet, vehicle, feel.blood, false);
+      // (A cameo cannot be hurt: the hit shows as a puff of cloth, never blood.)
+      fx.hint(origin, _pellet, vehicle, owner && !vehicle && (owner as Actor).invulnerable ? 0 : feel.blood, false);
       ctx.events.emit('impact', { position: hit.point, normal: hit.normal, surface: !owner ? 'world' : vehicle ? 'vehicle' : 'flesh' });
       fx.clearHint();
     }
@@ -312,7 +313,7 @@ class Combat implements CombatApi, System {
     const target = bestRank === 0 || bestRank === 1 ? owner : null;
     const heavy = damage >= TUNING.meleeBloodDamage;
     _a.set(attacker.position.x, attacker.position.y + MELEE_ROWS[0], attacker.position.z);
-    this.fx.hint(_a, forward, null, heavy ? feelOf('bat').blood : 0, true);
+    this.fx.hint(_a, forward, null, heavy && !(owner && !isVehicle(owner) && owner.invulnerable) ? feelOf('bat').blood : 0, true);
     ctx.events.emit('impact', { position: best.point, normal: best.normal, surface: !owner ? 'world' : isVehicle(owner) ? 'vehicle' : 'flesh' });
     this.fx.clearHint();
     if (!target) return null;

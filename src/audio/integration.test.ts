@@ -55,7 +55,7 @@ function makeWorld(): World {
   const events = new EventBus<GameEvents>();
   const pressed = new Set<Action>();
   const handlers = new Set<(key: keyof SettingsData) => void>();
-  const data: SettingsData = { quality: 'medium', dynamicResolution: true, masterVolume: 0.8, musicVolume: 0.7, sfxVolume: 0.9, mouseSensitivity: 1, invertY: false, showFps: false };
+  const data: SettingsData = { quality: 'medium', dynamicResolution: true, masterVolume: 0.8, musicVolume: 0.7, sfxVolume: 0.9, liveRadio: true, mouseSensitivity: 1, invertY: false, showFps: false };
   const player = { position: { x: 0, y: 0, z: 0 }, vehicle: null as Vehicle | null, alive: true, controlsEnabled: true, kind: 'player', id: 1 };
   const vehicles: Vehicle[] = [];
   const env = { rain: 0, wind: { x: 3, z: 2 }, night: 0, weather: 'clear' };

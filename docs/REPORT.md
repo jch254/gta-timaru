@@ -2,7 +2,7 @@
 
 Canterbury, 1995. An original open-world crime sandbox for the browser: Vite, TypeScript, Three.js, Rapier. This is the plain account: what works, what is rough, what was cut, and what was measured.
 
-`pnpm dev` runs it. `pnpm build` type-checks and writes a self-contained `dist/` (20 MB, 130 files, hashed names, relative paths); that build was served from a sub-path and loaded and ran with no console errors or failed requests. 1,047 unit tests pass.
+`pnpm dev` runs it. `pnpm build` type-checks and writes a self-contained `dist/` (20 MB, 130 files, hashed names, relative paths); that build was served from a sub-path and loaded and ran with no console errors or failed requests. 1,095 unit tests pass.
 
 It is live at <https://timmaz-hard.603.nz>: a private S3 bucket behind CloudFront, deployed from `main` by CodeBuild (`infrastructure/README.md`). A new game started on that address in headless Chrome ran with no console errors or failed requests.
 
@@ -18,11 +18,14 @@ Checked by running the game, mostly through the headless playtest scripts in `sc
 - **Combat.** A four-against-one shoot-out fought by an aim-and-fire bot with only what the mission hands out (pistol, half armour) was won in 11 seconds for 29 points of damage (`scripts/playtest/fight.js`).
 - **The world.** A compressed Christchurch (the four avenues, Cathedral Square with the cathedral standing, Colombo Street, the Avon, Hagley Park, the Arts Centre, suburbs, Lancaster Park, New Brighton, the Port Hills and Summit Road, the tunnel to Lyttelton) and Timaru (Stafford Street, the Bay Hill, Caroline Bay with its sound shell and carnival, the port, the basilica, Washdyke, Smithfield), joined by State Highway 1 across the plains through Rakaia, Ashburton and Temuka, with the Rakaia and Rangitata bridges and the Alps on the western horizon. Real place and street names, te reo names in the HUD and map, marae in the landscape; every business, vehicle, radio station, gang and person is invented.
 - **Life.** Pedestrians and traffic that follow the roads, keep left and react; drivers you can see at the wheel; boy racers at night; a heritage tram working the city loop, which traffic queues behind and which stops for anything on its track.
-- **Sky and sound.** Day and night, clear, nor'wester (with the arch), overcast, southerly rain and fog; wet roads; six synthesised radio stations; synthesised engines, effects and ambience. Weather set by a mission or by hand now holds for four hours of game time instead of being re-rolled at once.
+- **Familiar faces.** Eleven look-alike parodies of 1995's public figures, under invented names, stand at set places in daytime (the Square, the town hall, the Arts Centre, Lancaster Park, Hagley Park, Lyttelton, the Summit Road, New Brighton, Ashburton, Caroline Bay) and say their lines as you walk up; the weatherman comments on the weather the game is actually having. Three have a line in a mission. They cannot be hurt: punched, shot and blown up in a test, the Mayor lost no health, said her piece and walked off. The cast is one file, `src/missions/defs/cameos.ts`.
+- **Sky and sound.** Day and night, clear, nor'wester (with the arch), overcast, southerly rain and fog; wet roads; ten real New Zealand radio stations streamed live in cars (all ten connected and played when tested with `scripts/playtest/radio.js`), six synthesised stations after them on the dial; synthesised engines, effects and ambience. Weather set by a mission or by hand now holds for four hours of game time instead of being re-rolled at once.
 - **Interface.** HUD, rotating minimap, pause menu with the island map, jobs, controls, settings (four quality levels) and save.
 
 ## What is rough
 
+- **The familiar faces are simple.** They are the ordinary figure in particular clothes, so the likeness is in the name, the place and the lines, not the face. Two of them raise both arms to speak, which reads a little like a stick-up. Nobody carries a prop. Being bundled aside by a car and walking back to their spot afterwards are covered by unit tests but were not watched in the running game.
+- **Live radio leans on other people.** The ten real stations play from their own public streams with no arrangement in place: an address can change or a station can object, and then that line in `src/audio/radio/live.ts` has to go. What they broadcast is today's radio, not 1995's. Only Chrome on a Mac has been tried.
 - **Nobody has played it through by hand.** The scripted player teleports the long drives and, except in the one fight tested honestly, wins fights by cheating. Mission difficulty, timers and police lethality are therefore unbalanced guesses.
 - **Mouse look under pointer lock and gamepads are untested.** The tooling drives the game by key events.
 - **AI driving.** Better than it was: the guard rails that ran across side streets at the Avon bridges are gone (traffic crashes in a 45-second watch there fell from sixteen to four) and traffic sees the tram. Traffic and police still sometimes leave the road (a yard off High Street is one place), and cars turning into the Square from Colombo Street sometimes clip a parked one.
@@ -71,7 +74,7 @@ All taken from the running game at 1600 × 900, quality High.
 | ![Linwood](screenshots/09-linwood-suburb.jpg) A Linwood street | ![Lyttelton](screenshots/10-lyttelton.jpg) Lyttelton |
 | ![Night](screenshots/11-southerly-night.jpg) Moorhouse Avenue at night | ![Hagley Park](screenshots/12-avon-hagley-park.jpg) The Avon and Hagley Park |
 | ![Roadblock](screenshots/13-roadblock.jpg) How the test pursuit ended | ![After the fight](screenshots/14-after-the-fight.jpg) After the boat-shed fight |
-| ![Aiming](screenshots/15-aiming.jpg) Aiming, at the start of the boat-shed fight | |
+| ![Aiming](screenshots/15-aiming.jpg) Aiming, at the start of the boat-shed fight | ![The Warlock](screenshots/16-the-warlock.jpg) The Warlock of the Square, one of the familiar faces |
 
 ## Housekeeping
 

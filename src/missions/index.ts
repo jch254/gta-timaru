@@ -6,9 +6,12 @@
  *  types.ts     the mission data format                             spots.ts   place-relative positions
  *  defs/        the six missions and the cast                       services.ts shops, safehouses, pickups
  *  markers.ts   in-world rings and beams                            tuning.ts  every number worth changing
+ *  cameos.ts    familiar faces about town (cast: defs/cameos.ts)
  */
 import type { GameContext, MissionsApi, MissionSummary, Place, System } from '../core/types';
+import { Cameos } from './cameos';
 import { MACK } from './defs/cast';
+import { CAMEOS } from './defs/cameos';
 import { MISSIONS } from './defs';
 import { Dialogue } from './dialogue';
 import { MarkerPool, type Marker } from './markers';
@@ -64,6 +67,7 @@ class Missions implements MissionsApi, System {
   private markers: MarkerPool;
   private runner: MissionRunner;
   private services: Services;
+  private cameos: Cameos;
   private points: Point[] = [];
   private beacons: Beacon[] = [];
   private ready = false;
@@ -85,6 +89,7 @@ class Missions implements MissionsApi, System {
     this.markers = new MarkerPool(ctx.scene);
     this.runner = new MissionRunner(ctx, MISSIONS, { markers: this.markers, dialogue: this.dialogue });
     this.services = new Services(ctx);
+    this.cameos = new Cameos(ctx, CAMEOS, { talking: () => this.dialogue.busy });
     this.runner.onChange = () => this.sync();
     this.runner.onResult = (def, result) => {
       if (result === 'passed' && def.finale) this.finaleTimer = TUNING.finaleDelay;
@@ -104,6 +109,7 @@ class Missions implements MissionsApi, System {
   init() {
     this.runner.validate();
     this.services.init();
+    this.cameos.init();
     this.buildPoints();
     this.ready = true;
     this.sync();
@@ -155,6 +161,7 @@ class Missions implements MissionsApi, System {
     this.dialogue.update(dt);
     this.runner.update(dt);
     this.services.update(dt);
+    this.cameos.update(dt);
     this.updateStory(dt);
     this.updateInteraction(dt);
     this.updateBeacons();
@@ -344,6 +351,7 @@ class Missions implements MissionsApi, System {
     this.offs.length = 0;
     this.runner.dispose();
     this.services.dispose();
+    this.cameos.dispose();
     for (const beacon of this.beacons) this.ctx.ui.removeBlip(`mission:${beacon.id}`);
     this.beacons.length = 0;
     this.markers.dispose();

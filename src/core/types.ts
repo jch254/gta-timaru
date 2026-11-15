@@ -167,6 +167,7 @@ export type Action =
   | 'handbrake'
   | 'horn'
   | 'radioNext'
+  | 'radioPrev'
   | 'lookBack'
   | 'camera' // cycle camera distance
   | 'pause'
@@ -206,6 +207,8 @@ export interface SettingsData {
   masterVolume: number;
   musicVolume: number;
   sfxVolume: number;
+  /** Real stations on the car radio, streamed from the stations' own servers. */
+  liveRadio: boolean;
   mouseSensitivity: number;
   invertY: boolean;
   showFps: boolean;
@@ -568,6 +571,8 @@ export interface Actor {
   vehicle: Vehicle | null;
   /** Display name for barks / missions. */
   name?: string;
+  /** Cannot be hurt (cameo characters): `takeDamage` changes nothing and a hit draws no blood. */
+  readonly invulnerable?: boolean;
   takeDamage(info: DamageInfo): void;
 }
 
@@ -591,6 +596,7 @@ export type HumanoidPose =
   | 'punch'
   | 'cower'
   | 'handsUp'
+  | 'point' // one arm up, pointing at the sky
   | 'drive'
   | 'ride' // motorbike
   | 'sit'
@@ -606,6 +612,8 @@ export interface HumanoidLook {
   /** Shorts (stubbies) instead of trousers. */
   shorts?: boolean;
   shoes: number;
+  /** Sock colour (default off-white). */
+  socks?: number;
   /** 'none' | 'cap' | 'beanie' | 'brim' | 'police' | 'helmet' */
   hat?: 'none' | 'cap' | 'beanie' | 'brim' | 'police' | 'helmet';
   hatColor?: number;
@@ -887,6 +895,12 @@ export interface PedSpawnOptions {
   weaponId?: string;
   /** Scripted peds are never despawned by the ambient population. */
   persistent?: boolean;
+  /**
+   * Cannot be hurt, killed or knocked down (cameo characters). Hits, blasts and vehicle strikes are
+   * reported to `onHit` instead, so the owner can have them protest and walk off.
+   */
+  invulnerable?: boolean;
+  onHit?(info: DamageInfo): void;
 }
 
 export interface PedHandle extends Actor {
@@ -895,6 +909,8 @@ export interface PedHandle extends Actor {
   goTo(x: number, z: number, run?: boolean): Promise<boolean>;
   say(text: string): void;
   enterVehicle(vehicle: Vehicle, seat?: number): void;
+  /** Hold a pose over the idle for a few seconds (arms raised, pointing at the sky). Optional so test doubles need not provide it. */
+  gesture?(pose: HumanoidPose, seconds: number, aimPitch?: number): void;
   remove(): void;
 }
 

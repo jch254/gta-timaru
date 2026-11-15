@@ -199,6 +199,15 @@ export function buildDerivedClips(scratch: THREE.Object3D, clips: ClipData[], he
   }
   out.push(poser.bake('Hands_Up', stand));
 
+  // Pointing at the sky: right arm straight up and out, index finger extended, eyes following it.
+  poser.load(stand);
+  const sky = v(-0.14, 0.8, 0.58).normalize();
+  poser.reach('r', poser.position('upperarm_r').addScaledVector(sky, 2), v(-1, -0.6, -0.2), { fingers: sky, palm: v(1, -0.35, 0) });
+  for (const joint of ['01', '02', '03']) poser.bone(`index_${joint}_r`).quaternion.copy(poser.rest.get(`index_${joint}_r`)!);
+  poser.turn('neck_01', X, -0.1);
+  poser.turn('Head', X, -0.2);
+  out.push(poser.bake('Point_Up', stand));
+
   // Cowering: crouched, head down, hands clasped over the back of the head.
   const crouch = get('Crouch_Idle_Loop');
   poser.load(crouch);

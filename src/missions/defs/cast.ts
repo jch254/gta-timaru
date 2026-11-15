@@ -1,5 +1,12 @@
 /**
- * The cast, and a few helpers for writing missions. Everyone here is invented.
+ * The cast, and a few helpers for writing missions. Everyone in the story is invented.
+ *
+ * The one exception in spirit is the cameos (./cameos.ts): familiar faces who turn up about town and, here
+ * and there, in a mission. They are affectionate look-alike parodies of the kind of public figure everybody
+ * knew in 1995, always under invented names; no real person's name is used anywhere. They are never part of
+ * the crime: a cameo only ever passes the time of day, or is heard on the radio. Their lines reach a mission
+ * through `withCameo`, `cameoCue` and `cameoRemark` below, so taking a cameo out of ./cameos.ts takes their
+ * lines out of the story as well.
  *
  *  Mack Tully      the player. Fourteen years on the chain at Smithfield, laid off by letter.
  *  Aunty Rena      Mack's aunt. Ngāi Tahu, whānau at Arowhenua. Runs the chip shop on the Bay Hill, knows everyone.
@@ -16,8 +23,9 @@
  *                  that comes in off the sea every afternoon. Run by Flash Harkness, a car dealer; Brick is his
  *                  right hand.
  */
-import type { HumanoidLook } from '../../core/types';
-import type { Line, PedDef, SpotObject } from '../types';
+import type { GameContext, HumanoidLook } from '../../core/types';
+import type { Cue, CustomStep, Line, PedDef, SpotObject } from '../types';
+import { findCameo } from './cameos';
 
 export const MACK = 'Mack';
 export const RENA = 'Aunty Rena';
@@ -69,4 +77,51 @@ export function handles(prefix: string, count: number): string[] {
   const out: string[] = [];
   for (let i = 1; i <= count; i++) out.push(`${prefix}${i}`);
   return out;
+}
+
+// ───────────────────────────── Cameos in the story ─────────────────────────────
+
+/** How a cameo heard over the air is named in the subtitles. */
+export const onTheRadio = (name: string) => `${name}, on the radio`;
+
+/**
+ * Lines that feature a cameo (./cameos.ts), written given their name. An empty list if that cameo has been
+ * taken out of the cast, so removing one never breaks a mission.
+ */
+export function withCameo(id: string, make: (name: string) => Line[]): Line[] {
+  const cameo = findCameo(id);
+  return cameo ? make(cameo.name) : [];
+}
+
+/** A cue carrying a cameo's lines `at` seconds into a step: spread it into `cues`. Nothing if they have left the cast. */
+export function cameoCue(id: string, at: number, make: (name: string) => Line[]): Cue[] {
+  const lines = withCameo(id, make);
+  return lines.length ? [{ at, lines }] : [];
+}
+
+/** Is the cameo of this name standing within `distance` metres of the player right now? */
+function cameoNearby(ctx: GameContext, name: string, distance: number): boolean {
+  const p = ctx.player.position;
+  for (const actor of ctx.actors.all) {
+    if (actor.name === name && actor.invulnerable && actor.alive && Math.hypot(actor.position.x - p.x, actor.position.z - p.z) <= distance) return true;
+  }
+  return false;
+}
+
+/**
+ * A passing remark from a cameo the player is standing near: a one-shot step that queues the lines only if
+ * that cameo really is there (right hours, not scared off). It never waits, so it cannot hold a mission up.
+ * `remark` is the lines, for tests to read.
+ */
+export function cameoRemark(id: string, make: (name: string) => Line[], within = 40): CustomStep & { remark: readonly Line[] } {
+  const name = findCameo(id)?.name;
+  const remark = withCameo(id, make);
+  return {
+    kind: 'custom',
+    id: `cameo:${id}`,
+    remark,
+    enter(run) {
+      if (name !== undefined && remark.length && cameoNearby(run.ctx, name, within)) run.say(remark);
+    },
+  };
 }

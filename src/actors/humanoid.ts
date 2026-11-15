@@ -638,6 +638,13 @@ export class HumanoidRig implements Humanoid {
         t.elbowL = t.elbowR = -0.35;
         break;
       }
+      case 'point': {
+        t.armR = -2.35;
+        t.armROut = 0.12;
+        t.elbowR = -0.08;
+        t.head = -0.2;
+        break;
+      }
       case 'drive':
       case 'sit': {
         t.rootY = -this.hipY + 0.16;

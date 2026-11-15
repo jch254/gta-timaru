@@ -142,7 +142,7 @@ function makeGame() {
   const hits = new Set<Action>();
   const held = new Set<Action>();
   const calls = { capture: 0, release: 0, saves: 0, sounds: 0 };
-  const settingsData: SettingsData = { quality: 'high', dynamicResolution: true, masterVolume: 0.8, musicVolume: 0.7, sfxVolume: 0.9, mouseSensitivity: 1, invertY: false, showFps: true };
+  const settingsData: SettingsData = { quality: 'high', dynamicResolution: true, masterVolume: 0.8, musicVolume: 0.7, sfxVolume: 0.9, liveRadio: true, mouseSensitivity: 1, invertY: false, showFps: true };
   const missions: MissionSummary[] = [
     { id: 'm1', title: 'A Favour for Rena', giver: 'Aunty Rena', blurb: 'Fetch the ute from Smithfield.', reward: 300, state: 'done', placeId: 'timaru-chipshop' },
     { id: 'm2', title: 'North on One', giver: 'Dazza', blurb: 'Run a wagon up to Christchurch.', reward: 800, state: 'available', placeId: 'chch-garage' },
@@ -508,7 +508,7 @@ describe('UI smoke test', () => {
     down();
     frame(['interact']);
     const rows = root.findAll('nw-set');
-    expect(rows).toHaveLength(8);
+    expect(rows).toHaveLength(9);
     expect(rows[0].classList.contains('sel')).toBe(true);
     expect(rows[0].findAll('nw-chip').map((c) => c.classList.contains('on'))).toEqual([false, false, true, false]);
     const right = () => {
@@ -542,7 +542,9 @@ describe('UI smoke test', () => {
     // Mouse on a slider track: half way along.
     rows[3].find('nw-slide-track')!.emit('pointerdown', { clientX: 50 });
     expect(settingsData.musicVolume).toBeCloseTo(0.5);
-    rows[7].findAll('nw-chip')[0].emit('click');
+    rows[5].findAll('nw-chip')[0].emit('click');
+    expect(settingsData.liveRadio).toBe(false);
+    rows[8].findAll('nw-chip')[0].emit('click');
     expect(settingsData.showFps).toBe(false);
     frame(['pause']);
     expect(raw.clock.paused).toBe(true);
