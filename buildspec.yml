@@ -1,0 +1,55 @@
+version: 0.2
+
+# Builds Timmaz Hard and deploys it to S3 behind CloudFront.
+# Triggered by CodeBuild on pushes to the source branch (see infrastructure/).
+
+env:
+  variables:
+    AWS_DEFAULT_REGION: "ap-southeast-2"
+    REMOTE_STATE_BUCKET: "jch254-terraform-remote-state"
+    REMOTE_STATE_REGION: "ap-southeast-4"
+    TF_STATE_KEY: "timmaz-hard-prod-infrastructure"
+  parameter-store:
+    CLOUDFLARE_API_TOKEN: "/timmaz-hard/cloudflare-api-token"
+
+phases:
+  install:
+    commands:
+      - echo Setting up Terraform plugin cache...
+      - export TF_PLUGIN_CACHE_DIR="$HOME/.terraform.d/plugin-cache"
+      - mkdir -p "$TF_PLUGIN_CACHE_DIR"
+      - echo Installing Node dependencies...
+      - corepack enable
+      - corepack prepare pnpm@10.32.0 --activate
+      - pnpm install --frozen-lockfile
+
+  pre_build:
+    commands:
+      - 'test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is required"; exit 1; }'
+
+  build:
+    on-failure: ABORT
+    commands:
+      - echo Deploying infrastructure...
+      - bash ./infrastructure/deploy-infrastructure.bash
+      # Read the bucket and CloudFront distribution the infra just provisioned.
+      - export SITE_BUCKET="$(terraform -chdir=infrastructure/terraform output -raw site_bucket)"
+      - export DISTRIBUTION_ID="$(terraform -chdir=infrastructure/terraform output -raw cloudfront_distribution_id)"
+      - echo Building the game...
+      - pnpm run build
+      - test -s dist/index.html || { echo "Build did not produce dist/index.html"; exit 1; }
+
+  post_build:
+    commands:
+      - echo Syncing dist/ to s3://$SITE_BUCKET ...
+      # Everything except index.html has a content hash in its name, so it can
+      # be cached forever; index.html must always be revalidated.
+      - aws s3 sync dist/ "s3://$SITE_BUCKET" --delete --exclude "*.html" --cache-control "public,max-age=31536000,immutable"
+      - aws s3 sync dist/ "s3://$SITE_BUCKET" --delete --exclude "*" --include "*.html" --cache-control "public,max-age=0,must-revalidate"
+      - echo Invalidating CloudFront distribution $DISTRIBUTION_ID ...
+      - aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths "/*"
+
+cache:
+  paths:
+    - "/root/.terraform.d/plugin-cache/**/*"
+    - "node_modules/**/*"

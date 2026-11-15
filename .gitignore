@@ -10,3 +10,9 @@ shots/
 
 # A stray copy of another project; not part of this repo
 studiodaw/
+
+# Terraform working files
+.terraform/
+.terraform.lock.hcl
+*.tfplan*
+*.tfstate*

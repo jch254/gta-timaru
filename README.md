@@ -7,7 +7,7 @@ Built with Vite, TypeScript, Three.js and Rapier. Client-only: no backend, no ac
 ## Run
 
 ```bash
-pnpm installfir
+pnpm install
 ```
 
 ```bash
@@ -72,6 +72,8 @@ src/assets/          shipped third-party assets (CC0 textures and character mode
 scripts/assets/      scripts that fetch and optimise those assets (not needed to build or run)
 scripts/shot.mjs     headless screenshots and frame-rate measurements of the running dev server
 scripts/playtest/    scripted play sessions for shot.mjs (missions, a police chase, a gunfight)
+infrastructure/      Terraform for S3, CloudFront, certificate, DNS and the CodeBuild deploy project
+buildspec.yml        what CodeBuild runs on a push to main: apply Terraform, build, upload, invalidate
 ```
 
 `docs/DESIGN.md` explains the architecture, the performance budget and (section 8) what changed after the first build, with measured frame rates. `docs/CONTRACT.md` is the interface contract between modules. `docs/REPORT.md` is the plain account of what works, what is rough and what was cut, with screenshots.
@@ -90,4 +92,6 @@ node scripts/shot.mjs --place timaru-spawn --hud --eval "$(cat scripts/playtest/
 
 ## Deploying
 
-Upload the contents of `dist/` to the bucket. All asset URLs are relative, so it works from the bucket root or any prefix. Hashed files under `assets/` can be cached forever; serve `index.html` with a short cache lifetime.
+`infrastructure/` holds the Terraform for a private S3 bucket behind CloudFront, its certificate, the Cloudflare DNS record and a CodeBuild project; `buildspec.yml` is what that project runs on each push to `main`: apply the Terraform, `pnpm run build`, sync `dist/` to the bucket, invalidate CloudFront. [infrastructure/README.md](infrastructure/README.md) has the settings and the one-off first deploy.
+
+To host it some other way, upload the contents of `dist/`. All asset URLs are relative, so it works from a bucket root or any prefix. Hashed files under `assets/` can be cached forever; serve `index.html` with a short cache lifetime.
