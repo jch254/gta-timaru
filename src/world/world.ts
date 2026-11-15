@@ -19,6 +19,15 @@ import { foliageWind, plantModel } from './props/vegetation';
 import { buildChunkLines, buildChunkRoads, createRoadMaterials, type RoadMaterials } from './roadmesh';
 import { SCATTERERS } from './scatter';
 
+// Scratch for the per-frame wet-road glints.
+const UP_Y = new THREE.Vector3(0, 1, 0);
+const _p = new THREE.Vector3();
+const _pv = new THREE.Vector3();
+const _s2 = new THREE.Vector3();
+const _q = new THREE.Quaternion();
+const _m = new THREE.Matrix4();
+const _c2 = new THREE.Color();
+
 const N = 64; // cells per chunk side (4 m)
 const CELL = CHUNK / N;
 const FAR_CELL = 64;
@@ -440,6 +449,9 @@ export class World implements WorldApi, System {
   private scheduleTimer = 0;
   private lamps: THREE.PointLight[] = [];
   private lampTimer = 0;
+  /** The lit lights nearest the player, as `updateLamps` last sorted them (the wet-road glints reuse it). */
+  private litNear: ChunkLight[] = [];
+  private glints: THREE.InstancedMesh | null = null;
 
   /** A fixed pool of point lights hops between the nearest authored light positions after dark. */
   private updateLamps(dt: number, night: number, count: number) {
@@ -455,6 +467,7 @@ export class World implements WorldApi, System {
     const fx = this.focus.x;
     const fz = this.focus.z;
     const near = night > 0.25 ? this.lightsNear(fx, fz, 70).sort((a, b) => Math.hypot(a.x - fx, a.z - fz) - Math.hypot(b.x - fx, b.z - fz)) : [];
+    this.litNear = near;
     this.lamps.forEach((lamp, i) => {
       const source = i < count ? near[i] : undefined;
       if (!source) {
@@ -466,6 +479,78 @@ export class World implements WorldApi, System {
       lamp.distance = source.range;
       lamp.intensity = source.intensity * night;
     });
+  }
+
+  /**
+   * Reflections of the street lights in a wet road: under each of the nearest lit lamps, a soft streak of
+   * the lamp's colour laid on the seal, stretched from the lamp's foot towards the viewer the way light
+   * smears on wet asphalt. One instanced mesh, additive, no depth write; gone when the road is dry or the
+   * sun is up.
+   */
+  private updateGlints(night: number, wetness: number) {
+    const show = Math.min(night * 1.6, 1) * Math.max(0, wetness - 0.12) * 1.5;
+    const COUNT = 14;
+    if (!this.glints) {
+      if (show <= 0.01) return;
+      const geometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+      const canvas = document.createElement('canvas');
+      canvas.width = 32;
+      canvas.height = 64;
+      const g = canvas.getContext('2d')!;
+      const image = g.createImageData(32, 64);
+      for (let y = 0; y < 64; y++) {
+        for (let x = 0; x < 32; x++) {
+          const across = Math.sin((x / 31) * Math.PI);
+          const along = (1 - y / 63) ** 1.9;
+          const o = (y * 32 + x) * 4;
+          image.data[o] = image.data[o + 1] = image.data[o + 2] = 255;
+          image.data[o + 3] = Math.round(165 * across * across * along);
+        }
+      }
+      g.putImageData(image, 0, 0);
+      const texture = new THREE.CanvasTexture(canvas);
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+      this.glints = new THREE.InstancedMesh(geometry, material, COUNT);
+      this.glints.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(COUNT * 3), 3);
+      this.glints.frustumCulled = false;
+      this.glints.matrixAutoUpdate = false;
+      this.glints.renderOrder = 2;
+      this.root.add(this.glints);
+    }
+    const mesh = this.glints;
+    if (show <= 0.01 || !this.ctx) {
+      mesh.visible = false;
+      return;
+    }
+    mesh.visible = true;
+    (mesh.material as THREE.MeshBasicMaterial).opacity = Math.min(1, show);
+    const eye = this.ctx.camera.getWorldPosition(_p);
+    const colors = mesh.instanceColor!.array as Float32Array;
+    let n = 0;
+    for (const source of this.litNear) {
+      if (n >= COUNT) break;
+      const dx = eye.x - source.x;
+      const dz = eye.z - source.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 1.5 || d > 80) continue;
+      const ground = this.heightAt(source.x, source.z);
+      const drop = source.y - ground;
+      if (drop < 1.2) continue; // a window at footpath height has no length to smear
+      const length = Math.min(11, drop * 2.1) * (0.7 + 0.5 * wetness);
+      const width = 0.55 + drop * 0.1;
+      const yaw = Math.atan2(dx / d, dz / d);
+      _q.setFromAxisAngle(UP_Y, yaw);
+      _m.compose(_pv.set(source.x + (dx / d) * (length / 2 + 0.6), ground + 0.06, source.z + (dz / d) * (length / 2 + 0.6)), _q, _s2.set(width, 1, length));
+      _m.toArray(mesh.instanceMatrix.array, n * 16);
+      _c2.set(source.color).multiplyScalar(Math.min(1.2, 0.35 + source.intensity * 0.3));
+      colors[n * 3] = _c2.r;
+      colors[n * 3 + 1] = _c2.g;
+      colors[n * 3 + 2] = _c2.b;
+      n++;
+    }
+    mesh.count = n;
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.instanceColor!.needsUpdate = true;
   }
 
   /** Hand over the game context once every system exists (the world itself is built before them). */
@@ -515,6 +600,7 @@ export class World implements WorldApi, System {
     }
 
     this.updateLamps(dt, this.gfx.night, this.gfx.lampCount);
+    this.updateGlints(this.gfx.night, this.gfx.wetness);
     this.breakables.update(dt);
     // Leaves move with the weather: barely in fog, hard in a nor'wester.
     if (this.ctx) {

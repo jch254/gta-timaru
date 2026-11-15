@@ -318,6 +318,8 @@ export interface GfxApi {
   backdropVariant<T extends THREE.MeshStandardMaterial>(material: T, haze: number): T;
   /** Darkness 0..1 (mirrors `ctx.env.night`) and how many pooled point lights this quality level allows. */
   night: number;
+  /** How wet the roads are, 0 dry … 1 streaming. */
+  wetness: number;
   lampCount: number;
   /** Screen-space effects other systems may trigger. */
   flash(color: number, strength: number, seconds: number): void;

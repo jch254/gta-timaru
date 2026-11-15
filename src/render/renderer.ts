@@ -250,6 +250,10 @@ export class Gfx implements GfxApi {
     return this.atmosphere.night;
   }
 
+  get wetness(): number {
+    return this.atmosphere.wetness;
+  }
+
   get lampCount(): number {
     return this.preset.pointLights;
   }
