@@ -105,8 +105,29 @@ async function neutralSkin(file, size) {
   return { jpeg, gain };
 }
 
-async function normalMap(file, size) {
-  return sharp(file).resize(size, size).removeAlpha().jpeg({ quality: 88, chromaSubsampling: '4:4:4' }).toBuffer();
+/**
+ * The normal map, optionally calmed in places. Each zone is an ellipse (texel centre and radii at `size`,
+ * `keep` = how much of the relief survives at its middle) within which the normals are blended towards
+ * flat. The female's mouth is cut deep in the source map (philtrum groove, corner curls, chin fold) and
+ * the lighting picks the creases out as dark patches on the skin; calmed, the shape stays and the dirt goes.
+ */
+async function normalMap(file, size, calm = []) {
+  if (!calm.length) return sharp(file).resize(size, size).removeAlpha().jpeg({ quality: 88, chromaSubsampling: '4:4:4' }).toBuffer();
+  const { data, info } = await sharp(file).resize(size, size).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  for (const { x, y, rx, ry, keep } of calm) {
+    for (let py = Math.max(0, Math.floor(y - ry)); py <= Math.min(size - 1, Math.ceil(y + ry)); py++) {
+      for (let px = Math.max(0, Math.floor(x - rx)); px <= Math.min(size - 1, Math.ceil(x + rx)); px++) {
+        const d = Math.hypot((px - x) / rx, (py - y) / ry);
+        if (d >= 1) continue;
+        const f = keep + (1 - keep) * smoothstep(0.55, 1, d);
+        const o = (py * info.width + px) * 3;
+        data[o] = Math.round(128 + (data[o] - 128) * f);
+        data[o + 1] = Math.round(128 + (data[o + 1] - 128) * f);
+        data[o + 2] = Math.round(255 - (255 - data[o + 2]) * f);
+      }
+    }
+  }
+  return sharp(data, { raw: { width: info.width, height: info.height, channels: 3 } }).jpeg({ quality: 88, chromaSubsampling: '4:4:4' }).toBuffer();
 }
 
 /** Bilinear luminance lookup into a texture (0..1, linear), for baking hair shading into vertex colours. */
@@ -399,7 +420,7 @@ function girth(mesh, pick, angleOf, zc, lap, bin = 0.03, sectors = 48) {
   };
 }
 
-async function buildBody(name, { gltf, albedo, normal, hairs, collarR, drape }) {
+async function buildBody(name, { gltf, albedo, normal, calm, hairs, collarR, drape }) {
   const doc = await readModel(path.join(BODY_DIR, gltf));
   const sk = readSkeleton(doc);
   const meshes = doc.getRoot().listMeshes();
@@ -661,7 +682,7 @@ async function buildBody(name, { gltf, albedo, normal, hairs, collarR, drape }) 
     .setRoughnessFactor(0.62)
     .setMetallicFactor(0)
     .setBaseColorTexture(out.createTexture('skin').setImage(jpeg).setMimeType('image/jpeg'))
-    .setNormalTexture(out.createTexture('skinNormal').setImage(await normalMap(path.join(BODY_DIR, normal), 1024)).setMimeType('image/jpeg'));
+    .setNormalTexture(out.createTexture('skinNormal').setImage(await normalMap(path.join(BODY_DIR, normal), 1024, calm)).setMimeType('image/jpeg'));
   const prim = out
     .createPrimitive()
     .setAttribute('POSITION', acc('VEC3', position))
@@ -877,7 +898,16 @@ async function buildAnimations(target) {
 
 fs.mkdirSync(OUT, { recursive: true });
 const male = await buildBody('male', { gltf: 'Superhero_Male_FullBody.gltf', albedo: 'T_Superhero_Male_Ligh.png', normal: 'T_Superhero_Male_Normal.png', hairs: MALE_HAIR, collarR: 0.092, drape: { side: 0.88, front: 0.97, back: 0.9 } });
-await buildBody('female', { gltf: 'Superhero_Female_FullBody.gltf', albedo: 'T_Superhero_Female_Light_BaseColor.png', normal: 'T_Superhero_Female_Normal.png', hairs: FEMALE_HAIR, collarR: 0.078, drape: { side: 0.9, front: 0.9, back: 0.9 } });
+await buildBody('female', {
+  gltf: 'Superhero_Female_FullBody.gltf',
+  albedo: 'T_Superhero_Female_Light_BaseColor.png',
+  normal: 'T_Superhero_Female_Normal.png',
+  // The mouth, with the philtrum groove above and the chin fold below (texels at 1024).
+  calm: [{ x: 187, y: 268, rx: 58, ry: 42, keep: 0.25 }],
+  hairs: FEMALE_HAIR,
+  collarR: 0.078,
+  drape: { side: 0.9, front: 0.9, back: 0.9 },
+});
 await buildAnimations(male);
 let total = 0;
 for (const f of fs.readdirSync(OUT)) total += fs.statSync(path.join(OUT, f)).size;

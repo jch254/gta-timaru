@@ -55,6 +55,8 @@ renderer.setPixelRatio(Math.min(2, devicePixelRatio));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true;
 const scene = new THREE.Scene();
+// For poking at materials from the console or a headless screenshot script.
+(window as unknown as { __scene: THREE.Scene }).__scene = scene;
 scene.background = new THREE.Color(0x8fa3b4);
 const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 200);
 const controls = new OrbitControls(camera, canvas);
