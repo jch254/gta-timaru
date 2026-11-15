@@ -5,7 +5,7 @@ import type { ChunkBuilderImpl } from './chunkbuilder';
 import { chunkOf } from './lots';
 import { compileMap, type CompiledMap } from './map';
 import { buildMap } from './mapdata/index';
-import { buildChunkRoads, type RoadMaterials } from './roadmesh';
+import { buildChunkRoads, edgeFurniture, type RoadMaterials } from './roadmesh';
 
 interface Box {
   x: number;
@@ -117,6 +117,40 @@ describe('bridges', () => {
       if (railed < e.length * 0.8) problems.push(`${e.name}: only ${railed.toFixed(0)} m of parapet on a ${e.length.toFixed(0)} m bridge`);
     }
     expect(problems).toEqual([]);
+  });
+});
+
+describe('painted furniture', () => {
+  it('keeps crossings, bus stops and ironwork on the carriageway and clear of junctions', () => {
+    const problems: string[] = [];
+    let zebras = 0;
+    let lids = 0;
+    for (const e of map.graph.edges) {
+      const f = edgeFurniture(map, e);
+      const kerbed = e.footpaths && !e.bridge && !e.tunnel && e.cls !== 'gravel' && e.cls !== 'pedestrian';
+      const all = [...(f.zebra === null ? [] : [f.zebra]), ...f.busStops.map((b) => b.s), ...f.manholes.map((l) => l.s), ...f.sumps.map((p) => p.s)];
+      if (!kerbed && (all.length || f.parking)) problems.push(`${e.name}: furniture on a road with no kerb`);
+      for (const s of all) if (s < 1 || s > e.length - 1) problems.push(`${e.name}: furniture at ${s.toFixed(0)} of ${e.length.toFixed(0)} m`);
+      for (const l of f.manholes) if (Math.abs(l.offset) > e.width / 2 - 0.5) problems.push(`${e.name}: manhole in the channel`);
+      if (f.zebra !== null) {
+        zebras++;
+        // Only on two-lane shopping streets, well back from both corners.
+        if (e.lanes !== 1) problems.push(`${e.name}: zebra crossing over ${e.lanes * 2} lanes`);
+        if (f.zebra < 15 || f.zebra > e.length - 15) problems.push(`${e.name}: zebra crossing at a corner`);
+      }
+      lids += f.manholes.length;
+    }
+    expect(problems).toEqual([]);
+    expect(zebras).toBeGreaterThan(8);
+    expect(lids).toBeGreaterThan(200);
+  });
+
+  it('is the same every time it is asked for, and leaves the graph alone', () => {
+    const e = map.graph.edges.find((o) => edgeFurniture(map, o).zebra !== null)!;
+    const before = JSON.stringify([e.width, e.lanes, e.length, e.samples.length]);
+    expect(edgeFurniture(map, e)).toBe(edgeFurniture(map, e));
+    build(map, e);
+    expect(JSON.stringify([e.width, e.lanes, e.length, e.samples.length])).toBe(before);
   });
 });
 

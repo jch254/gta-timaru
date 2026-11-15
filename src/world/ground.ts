@@ -33,10 +33,10 @@ const mix3 = (a: V3, b: V3, t: number): V3 => [lerp(a[0], b[0], t), lerp(a[1], b
 const C = {
   lawn: tone(0x5c683a),
   lawnDry: tone(0x78744a),
-  park: tone(0x4a6232),
-  bank: tone(0x486032),
+  park: tone(0x566038),
+  bank: tone(0x505a36),
   tussock: tone(0x8a764a),
-  tussockShade: tone(0x68623c),
+  tussockShade: tone(0x766a40),
   rough: tone(0x827c56),
   marram: tone(0x8c8a64),
   scrub: tone(0x545e3c),
@@ -60,7 +60,7 @@ const C = {
   // Paddocks (used by the shader).
   pGreen: tone(0x64723e),
   pDry: tone(0x888468),
-  pIrrigated: tone(0x4e6832),
+  pIrrigated: tone(0x566a3a),
   pHay: tone(0x8f8a6c),
   pWheat: tone(0x968760),
   pStubble: tone(0x9c9478),
@@ -68,7 +68,7 @@ const C = {
   pLucerne: tone(0x3e5c32),
   pBrassica: tone(0x4c6854),
   pFence: tone(0x7c7852),
-  crag: tone(0x5c564e),
+  crag: tone(0x5a5046),
 };
 
 /** Mown grass beside the footpath, as material colours for the neutral grass photograph (roadmesh.ts). */
@@ -82,7 +82,7 @@ export function bermColour(park: boolean): THREE.Color {
 const WATER = {
   sea: tone(0x283e44),
   harbour: tone(0x1c3a30),
-  milky: tone(0x708a92),
+  milky: tone(0x6c8a8c),
   stream: tone(0x2e3a28),
 };
 
@@ -422,7 +422,7 @@ void gndPaddock(vec2 xz, vec2 fw, out vec3 tint, out float dry, out float soil) 
     tint = ${glsl(C.pBrassica)};
     rows = gndRows(c, cw, 0.9) * 0.07;
   }
-  tint *= 1.0 + rows;
+  tint *= 1.0 + rows * 1.7;
   // Rank grass left along the fence lines.
   vec2 e = min(f, 1.0 - f) * vec2(190.0, 150.0);
   float fwm = max(fw.x, fw.y);
@@ -452,7 +452,7 @@ float gB = vGndA.y + vGndA.z + vGndA.w + vGndB.x + vGndB.y + vGndC.y;
 float gA = max(1.0 - gB, 0.0);
 vec3 gTintA = (vColor.rgb + gPadTint * gPad) / max(gA, 0.03);
 // Pasture is never one colour: it drifts greener and browner in drifts tens of metres across.
-gTintA *= mix(vec3(1.07, 1.0, 0.9), vec3(0.92, 1.0, 1.03), smoothstep(0.25, 0.75, gN2.a * 0.6 + gN1.a * 0.4));
+gTintA *= mix(vec3(1.1, 1.0, 0.86), vec3(0.88, 1.0, 1.05), smoothstep(0.25, 0.75, gN2.a * 0.6 + gN1.a * 0.4));
 vec3 gTintB = vGndMin / max(gB, 0.03);
 // Bare ground meets vegetation along a ragged edge rather than a 4 m gradient.
 float gCut = 0.16 + 0.68 * clamp(gN2.a * 0.55 + gFine * 0.45, 0.0, 1.0);
@@ -468,8 +468,10 @@ float gShade = (0.74 + 0.52 * gMottle) * mix(1.0, 0.7 + 0.52 * gGully, gRelief *
 // Outcrops: two scales of noise at an angle to each other and a drift by height, so they gather into
 // broken bands along a face instead of dotting it evenly.
 float gCragN = gN2.a * 0.6 + texture2D(uGndNoise, vec2(gXZ.x * 0.8 - gXZ.y * 0.6, gXZ.x * 0.6 + gXZ.y * 0.8) / 233.0).a * 0.4;
-gCragN += (gN1.a - 0.5) * 0.3 + 0.05 * sin(vGndW.y * 0.19 + gN1.b * 5.0) + (gFine - 0.5) * 0.07;
-float gCrag = smoothstep(0.69, 0.74, gCragN + (gRelief - 1.0) * 0.3) * smoothstep(0.3, 0.7, gRelief);
+// Broken up at the scale of a single bluff, and gathered on the steeper ground where soil will not hold.
+float gTilt = 1.0 - normalize(vGndN).y;
+gCragN += (gN1.a - 0.5) * 0.3 + (texture2D(uGndNoise, gXZ / 21.0 + 0.3).a - 0.5) * 0.2 + (gFine - 0.5) * 0.1 + gTilt * 0.55 - 0.06;
+float gCrag = smoothstep(0.7, 0.725, gCragN + (gRelief - 1.0) * 0.3) * smoothstep(0.3, 0.7, gRelief);
 vec2 gBend = ((gN1.xy - 0.5) * 1.5 + (gN2.xy - 0.5) * 0.9) * gRelief * gFarK;
 `;
 
@@ -491,7 +493,10 @@ gndLayer(1, wDry * gKeep, gTintA, gXZ, gDx, gDy, gNearK, gAlb, gNR);
 gndLayer(2, (wSoilA + wSoilB) * gKeep, (gTintA * wSoilA + gTintB * wSoilB) / max(wSoilA + wSoilB, 0.001), gXZ, gDx, gDy, gNearK, gAlb, gNR);
 gndLayer(3, vGndA.z * gInvB * gKeep, gTintB, gXZ, gDx, gDy, gNearK, gAlb, gNR);
 gndLayer(4, vGndA.w * gInvB * gKeep, gTintB, gXZ, gDx, gDy, gNearK, gAlb, gNR);
-gndLayer(5, wRock + gCrag, (gTintB * wRock + ${glsl(C.crag)} * gCrag) / max(wRock + gCrag, 0.001), gXZ, gDx, gDy, gNearK, gAlb, gNR);
+float gSteep = smoothstep(0.86, 0.68, normalize(vGndN).y);
+vec3 gRockTint = (gTintB * wRock + ${glsl(C.crag)} * gCrag) / max(wRock + gCrag, 0.001);
+gndLayer(5, (wRock + gCrag) * (1.0 - gSteep), gRockTint, gXZ, gDx, gDy, gNearK, gAlb, gNR);
+gndCliff(5, (wRock + gCrag) * gSteep, gRockTint, vGndW, normalize(vGndN), dFdx(vGndW), dFdy(vGndW), gAlb, gNR);
 // Hardstand is laid in slabs: a joint every five metres, no two pours quite the same grey.
 float wHard = vGndB.y * gInvB * gKeep;
 vec3 gHardTint = gTintB;
@@ -508,7 +513,8 @@ gndLayer(7, vGndC.y * gInvB * gKeep, gTintB, gXZ, gDx, gDy, gNearK, gAlb, gNR);
 // Wet margins (tide line, river edge) and rain: darker and smoother.
 float gDamp = smoothstep(0.28, 0.72, vGndB.w + (gFine - 0.5) * 0.22 * step(0.02, vGndB.w));
 gAlb *= gShade * mix(1.0, 0.56, gDamp) * (1.0 - 0.2 * uGndWet);
-gNR.z = mix(gNR.z, 0.28, gDamp * 0.85) * (1.0 - 0.3 * uGndWet);
+// Sand and shingle the water has just left shine like glass.
+gNR.z = mix(gNR.z, 0.16, gDamp * 0.9) * (1.0 - 0.3 * uGndWet);
 gBend += gNR.xy * gNearK;
 diffuseColor.rgb = gAlb;
 `;
@@ -544,6 +550,27 @@ void gndLayer(int i, float w, vec3 tint, vec2 xz, vec2 dx, vec2 dy, float nearK,
   } else {
     nr.z += w * uGndPbr[i].z;
   }
+}
+// A face too steep for a photograph laid flat (cliffs, road cuttings): the rock is projected on from the
+// two sides instead, so it does not smear down the slope, and is bedded in rough horizontal courses.
+void gndCliff(int i, float w, vec3 tint, vec3 p, vec3 n, vec3 dpx, vec3 dpy, inout vec3 alb, inout vec3 nr) {
+  if (w < 0.004) return;
+  float s = uGndPbr[i].x * 0.55;
+  float layer = float(i);
+  vec2 b = pow(abs(n.xz), vec2(4.0));
+  b /= max(b.x + b.y, 0.0001);
+  vec3 cx = textureGrad(uGndAlbedo, vec3(p.zy * s, layer), dpx.zy * s, dpy.zy * s).rgb;
+  vec3 cz = textureGrad(uGndAlbedo, vec3(p.xy * s, layer), dpx.xy * s, dpy.xy * s).rgb;
+  vec3 c = (cx * b.x + cz * b.y) * uGndInv[i];
+  // Lava flows one on another: courses a few metres thick, each a slightly different stone, a dark
+  // weathered joint between them.
+  float bed = p.y / 4.6 + texture2D(uGndNoise, p.xz / 140.0).b * 3.4 + texture2D(uGndNoise, p.xz / 17.0).a * 0.5;
+  float course = fract(sin(floor(bed) * 78.233) * 43758.5453);
+  float joint = 1.0 - smoothstep(0.0, 0.1, abs(fract(bed) - 0.5) * 2.0 - 0.86);
+  // Streaks where water runs down the face.
+  float run = texture2D(uGndNoise, vec2((p.x + p.z) / 9.0, p.y / 70.0)).a;
+  alb += w * tint * c * (0.84 + 0.3 * course) * (1.0 - 0.16 * joint * run) * (0.84 + 0.3 * run);
+  nr.z += w * uGndPbr[i].z;
 }`;
 
 const TERRAIN_FRAG_NORMAL = /* glsl */ `
@@ -596,6 +623,21 @@ float wClear = max(vColor.a * 4.0, 0.05);
 float wT = clamp(wDepth / wClear, 0.0, 1.0);
 float wAlpha = (1.0 - (1.0 - wT) * (1.0 - wT)) * 0.96;
 vec3 wCol = vColor.rgb * mix(1.6, 1.0, wT);
+// A spring-fed stream runs clear over beds of weed that trail and sway in the current, with pale gravel
+// showing between them.
+float wWeed = 0.0;
+if (wStream > 0.01) {
+  vec2 wDir = normalize(vWat.zw + vec2(0.0001, 0.0));
+  vec2 wSt = vec2(dot(wXZ, vec2(-wDir.y, wDir.x)), dot(wXZ, wDir));
+  float wSway = sin(uWatTime * 0.7 + wSt.y * 0.35) * 0.18;
+  float wBeds = texture2D(uWatNormal, vec2(wSt.x + wSway, wSt.y * 0.16) / 5.5).a;
+  float wStrand = texture2D(uWatNormal, vec2((wSt.x + wSway) * 1.9, wSt.y * 0.07 - uWatTime * 0.004)).a;
+  wWeed = smoothstep(0.4, 0.58, wBeds * 0.65 + wStrand * 0.35) * smoothstep(0.12, 0.5, wDepth) * wStream;
+  vec3 wGreen = mix(vec3(0.016, 0.034, 0.014), vec3(0.045, 0.085, 0.028), smoothstep(0.35, 0.75, wStrand));
+  vec3 wBedCol = vec3(0.1, 0.105, 0.085) * (0.7 + 0.5 * wBeds);
+  wCol = mix(mix(wCol, wBedCol, 0.5 * wStream * (1.0 - wT * 0.6)), wGreen, wWeed * 0.8);
+  wAlpha = max(wAlpha, wWeed * 0.9);
+}
 // Surf: a lip of foam that runs up and falls back, and breakers rolling in over the shallows.
 float wFoam = 0.0;
 if (wSea > 0.5 && wDepth < 3.0) {
@@ -621,10 +663,12 @@ const WATER_FRAG_ALPHA = /* glsl */ `
 {
   float wFres = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 5.0);
   float wSpec = dot(totalSpecular, vec3(0.3333));
-  diffuseColor.a = clamp(max(wAlpha, wFoam * 0.92) + wFres * 0.85 + wSpec * 0.5, 0.0, 1.0) * smoothstep(-0.03, 0.05, wDepth);
+  diffuseColor.a = clamp(max(wAlpha, wFoam * 0.92) + (wFres * 0.85 + wSpec * 0.5) * (1.0 - 0.3 * wStream), 0.0, 1.0) * smoothstep(-0.03, 0.05, wDepth);
   // A small stream mirrors the open sky down its middle and its own dark banks along its edges.
   float wBank = wStream * (1.0 - smoothstep(0.1, 0.8, wDepth));
-  outgoingLight -= totalSpecular * (0.22 * wStream + 0.68 * wBank);
+  // Snow-fed braids carry rock flour: opaque and pale in themselves, so they mirror less of the sky.
+  float wMilk = (1.0 - wSea) * (1.0 - wStream);
+  outgoingLight -= totalSpecular * min(0.42 * wStream + 0.45 * wBank + 0.4 * wMilk, 0.9);
 }
 #include <opaque_fragment>`;
 
@@ -659,6 +703,7 @@ export class Ground {
     uGndNear: THREE.IUniform<THREE.Vector3>;
     uGndBounds: THREE.IUniform<THREE.Vector4>;
     uGndWet: THREE.IUniform<number>;
+    uGndNight: THREE.IUniform<number>;
     uWatNormal: THREE.IUniform<THREE.Texture>;
     uWatTime: THREE.IUniform<number>;
     uWatRain: THREE.IUniform<number>;
@@ -689,6 +734,7 @@ export class Ground {
       uGndNear: { value: new THREE.Vector3(0, 0, 0) },
       uGndBounds: { value: new THREE.Vector4(WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX, WORLD_BOUNDS.minZ, WORLD_BOUNDS.maxZ) },
       uGndWet: { value: 0 },
+      uGndNight: { value: 0 },
       uWatNormal: { value: waterNormalTexture(anisotropy) },
       uWatTime: { value: 0 },
       uWatRain: { value: 0 },
@@ -806,8 +852,8 @@ export class Ground {
   }
 
   /** Uniforms the road shaders share: the landform noise and how wet the ground is. */
-  get shared(): { noise: THREE.IUniform<THREE.Texture>; wet: THREE.IUniform<number> } {
-    return { noise: this.uniforms.uGndNoise, wet: this.uniforms.uGndWet };
+  get shared(): { noise: THREE.IUniform<THREE.Texture>; wet: THREE.IUniform<number>; night: THREE.IUniform<number> } {
+    return { noise: this.uniforms.uGndNoise, wet: this.uniforms.uGndWet, night: this.uniforms.uGndNight };
   }
 
   /** Per frame: animate the water, follow the weather, tell the distant stand-ins where the detail is. */
@@ -817,6 +863,7 @@ export class Ground {
     u.uWatTime.value = this.time % 3600;
     u.uGndNear.value.set(focusX, focusZ, nearRadius);
     u.uGndWet.value = this.env?.wetness ?? 0;
+    u.uGndNight.value = this.env?.night ?? 0;
     u.uWatRain.value = this.env?.rain ?? 0;
     this.sea.position.x = focusX;
     this.sea.position.z = focusZ;
@@ -904,7 +951,7 @@ export class Ground {
         // The sun is in the north (−z): a slope that falls towards +z faces away from it.
         const shady = clamp(-gz / Math.max(slope, 0.02), -1, 1) * smooth(0.06, 0.3, slope);
         m.veg(hill, mix3(C.tussock, C.tussockShade, clamp(0.35 + shady * 0.5 + (patch - 0.5) * 0.5, 0, 1)), 1, vary);
-        m.veg(hill * smooth(0.55, 0.75, blotch + shady * 0.2) * 0.5, C.scrub, 0.6, vary);
+        m.veg(hill * smooth(0.6, 0.8, blotch + shady * 0.2) * 0.4, C.scrub, 0.6, vary);
       }
       relief = clamp(hill * 0.8 + smooth(0.12, 0.45, slope) * 0.6, 0, 1);
     }
@@ -988,7 +1035,8 @@ export class Ground {
         } else if (h > 1.6) {
           const metal = smooth(2.8, 0.8, off) * (e.cls === 'gravel' ? 0.9 : 0.75);
           m.bare(metal, C.shoulder, L_GRAVEL, vary, L_SOIL, 0.3);
-          if (!lawn) m.veg(smooth(e.cls === 'highway' ? 12 : 8, 3, off) * (1 - metal) * 0.9, mix3(C.rough, C.pDry, blotch), 1, vary);
+          // Rank dry grass along the fence line, but not across a wharf apron or a factory yard.
+          if (!lawn && open) m.veg(smooth(e.cls === 'highway' ? 12 : 8, 3, off) * (1 - metal) * 0.9, mix3(C.rough, C.pDry, blotch), 1, vary);
         }
       }
     }

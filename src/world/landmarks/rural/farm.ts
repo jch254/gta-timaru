@@ -1,3 +1,5 @@
+// Registers the yard kinds (trailer, timber-stack, woodpile…) and the static cars.
+import '../../props/extra';
 import { TAU } from '../../../core/math';
 import type { LandmarkBuilder } from '../../../core/types';
 import { gableRoof, Geo, Site, walls } from './kit';
@@ -118,6 +120,21 @@ export const woolshed: LandmarkBuilder = (p, out) => {
   const trees = rng.int(1, 3);
   for (let i = 0; i < trees; i++) s.prop('tree-pine', end * (14 + i * 4), -16 - (i % 2) * 3, rng.range(0, 6), rng.range(1, 1.3));
   s.light(end * 10.6, 3.6, -4, 0xffdca0, 1, 16);
+
+  // What gathers round a working shed: the farm wagon, a trailer, diesel drums, a stack of posts, last year's bales.
+  const clutter = (kind: string, lx: number, lz: number, yaw = 0, scale = 1, tint?: number) => {
+    const x = s.wx(lx, lz);
+    const z = s.wz(lx, lz);
+    const road = out.world.graph.nearest(x, z, 20);
+    if (out.world.places.some((q) => Math.hypot(q.x - x, q.z - z) < 7) || (road && road.distance < road.edge.width / 2 + 3)) return;
+    s.prop(kind, lx, lz, yaw, scale, tint);
+  };
+  clutter('car-parked-wagon', end * 2.5, 15.2, end * 1.4 + rng.range(-0.2, 0.2), 1, rng.pick([0x8f959a, 0xc9b78a, 0x2d5a44, 0x6f3a2c, 0xe8e6df]));
+  clutter('trailer', end * 12.5, 15.5, rng.range(0, 3), 1, rng.pick([0x8f959a, 0x6f3a2c, 0x2b4a6b]));
+  for (let i = 0; i < 3; i++) clutter('drum', -end * (10.2 + i * 0.68), 5.4 + (i % 2) * 0.5, 0, 1, [0xb5261e, 0x2b4a6b, 0x8a8d90][i]);
+  clutter('timber-stack', -end * 15.5, 9.5, rng.range(-0.1, 0.1), 0.62);
+  clutter('woodpile', lx - end * 2.2, lz, Math.PI / 2);
+  for (let i = 0; i < 3; i++) clutter(PROP.bale, end * (15.5 + (i % 2) * 1.5), 6.5 + i * 1.45, Math.PI / 2 + rng.range(-0.1, 0.1));
 };
 
 /**

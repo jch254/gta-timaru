@@ -26,7 +26,6 @@ const ORIGIN_X = 5000;
 const ORIGIN_Z = 9000;
 /** Darker than the sun-bleached turf they stand in, or they vanish against it. */
 const TUSSOCK = [0x7d6f3a, 0x8a7c45, 0x6f6a3a, 0x94834a, 0x857540];
-const GORSE = [0xb8c070, 0xd0c860, 0x9aa860];
 const HILL = 28;
 
 export const countryScatter: Scatterer = (area, out) => {
@@ -65,13 +64,20 @@ export const countryScatter: Scatterer = (area, out) => {
           const y = world.heightAt(x, z) - 0.05;
           if (pick < 0.58) out.instance('lupin', x, y, z, turn, 1.2 + unit(h, 14) * 1.1);
           else if (pick < 0.84) out.instance('tussock', x, y, z, turn, 0.9 + unit(h, 14) * 0.6, 0xa9a878);
-          else out.instance('bush', x, y, z, turn, 0.8 + unit(h, 14) * 0.9, 0xc8d0a0);
+          else out.instance((h >>> 26) % 3 === 0 ? 'gorse' : 'broom', x, y, z, turn, 0.9 + unit(h, 14) * 0.7);
         } else {
           if (world.surfaceAt(x, z) !== 'grass') continue;
           const y = world.heightAt(x, z);
           if (y < HILL - 4) continue;
           if (pick < 0.82) out.instance('tussock', x, y - 0.06, z, turn, 1.4 + unit(h, 14) * 1.3, TUSSOCK[h % TUSSOCK.length]);
-          else if (pick < 0.92) out.instance('bush', x, y - 0.1, z, turn, 1 + unit(h, 14) * 0.9, GORSE[h % GORSE.length]);
+          else if (pick < 0.92) {
+            // Gorse and broom come in patches: one or the other over a hundred metres or so, and a second bush beside the first.
+            const kind = hashInts(Math.floor(x / 96), Math.floor(z / 96), 577) % 5 < 3 ? 'gorse' : 'broom';
+            out.instance(kind, x, y - 0.1, z, turn, 1 + unit(h, 14) * 0.7);
+            const bx = x + Math.sin(turn) * 1.6;
+            const bz = z + Math.cos(turn) * 1.6;
+            if ((h >>> 27) % 2 === 0 && world.surfaceAt(bx, bz) === 'grass' && !graph.nearest(bx, bz, 6)) out.instance(kind, bx, world.heightAt(bx, bz) - 0.1, bz, turn * 2, 0.8 + unit(h, 7) * 0.5);
+          }
           else out.instance('rock', x, y - 0.25, z, turn, 0.6 + unit(h, 14) * unit(h, 7) * 2.2);
         }
       }

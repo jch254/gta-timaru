@@ -77,9 +77,17 @@ export function canopy(blobs: [x: number, y: number, z: number, r: number, squas
 
 // ── Core vegetation and street furniture. More kinds are registered in ./extra.ts ──
 
-// Trees and plants are built in ./vegetation.ts (limbs that branch, photographic leaf cards). That file
-// also defines kinds beyond the contract ones named here (`tree-macrocarpa`, `toetoe`, `grass-tuft`,
-// `gorse`, `lupin`): every entry of VEGETATION is registered under its own name.
+// Trees and plants are built in ./vegetation.ts (limbs that branch, photographic leaf cards) and drawn by
+// the plant field in ./foliage.ts, which gives each instance one of its kind's shapes and swaps distant ones
+// for cheap stand-ins. Every entry of VEGETATION is registered under its own name. Beyond the contract kinds:
+//   trees     `tree-macrocarpa`, `tree-english-oak`, `tree-lime`, `tree-plane` (`tree-oak` is a mix of the last
+//             three, one species to a neighbourhood)
+//   shrubs    `gorse`, `broom`, `shrub-hydrangea`, `shrub-rhododendron`, `rose-bush` (`bush` is a mix)
+//   hedges    `hedge-shelter` (4 m of 5 m high macrocarpa shelter hedge along x, laid end to end like `hedge`)
+//   bedding   `flower-bed` (a 2.2 m by 1.3 m drift of one colour), `planter-plants` (the planting of a street
+//             tub: put it on the tub's spot, it grows from PLANTER_SOIL up)
+//   grasses   `toetoe`, `tussock`, `grass-tuft`, `lupin`, `grass-long` (2 m of rank grass along x for fence
+//             lines and verges; near the camera only, High quality and above)
 for (const [kind, factory] of Object.entries(VEGETATION)) registerProp(kind, factory);
 
 registerProp('lamp', (m) => ({

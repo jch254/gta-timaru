@@ -1,4 +1,5 @@
 import type { Mat, Rand, Site } from './kit';
+import { agedSign } from './weathering';
 
 /**
  * Every business in the game is invented here. Real place names are fine (and used for "<suburb> Dairy"),
@@ -87,10 +88,13 @@ export function wrap(text: string, limit = 13): string {
 
 /** Sign material for a text; its colours and lettering always come out the same for the same words. */
 export function signMat(s: Site, text: string, aspect: number, looks: readonly Look[] = CLASSIC): Mat {
-  const look = looks[hashText(text) % looks.length];
-  return look.border === false
-    ? s.m.sign(text, { bg: look.bg, fg: look.fg, style: look.style, aspect, border: false })
-    : s.m.sign(text, { bg: look.bg, fg: look.fg, style: look.style, aspect });
+  const h = hashText(text);
+  const look = looks[h % looks.length];
+  const m = look.border === false ? s.m.sign(text, { bg: look.bg, fg: look.fg, style: look.style, aspect, border: false }) : s.m.sign(text, { bg: look.bg, fg: look.fg, style: look.style, aspect });
+  if (look.style === 'neon') return m;
+  // Nobody has repainted it lately: some boards a little, some a lot, lettering on a bare wall most of all.
+  const wear = { ...s.wear, seed: (s.wear.seed + (h >>> 5)) & 63, age: Math.max(0, Math.min(7, s.wear.age + ((h >>> 3) % 4) - 2)) };
+  return agedSign(s.m, m, wear, looks === WALL_PAINT);
 }
 
 /** A sign board centred at (x, y, z), `w` wide, on a wall facing `yaw`. */

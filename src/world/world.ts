@@ -15,7 +15,7 @@ import { buildMap } from './mapdata';
 import { getProp } from './props';
 import './props/extra';
 import { PROP_PHYSICS } from './props/physics';
-import { foliageWind } from './props/vegetation';
+import { foliageWind, plantModel } from './props/vegetation';
 import { buildChunkLines, buildChunkRoads, createRoadMaterials, type RoadMaterials } from './roadmesh';
 import { SCATTERERS } from './scatter';
 
@@ -37,7 +37,19 @@ interface Chunk {
   disposables: { dispose(): void }[];
   /** Full-resolution and half-resolution ground (shared vertex buffers). */
   ground: [THREE.Mesh, THREE.Mesh] | null;
+  /** Small props and how far from the chunk they are worth a draw call (see `PROP_REACH`). */
+  props: { mesh: THREE.InstancedMesh; reach: number }[];
 }
+
+/**
+ * Street furniture is one instanced mesh per kind per chunk, and with forty chunks loaded a town centre was
+ * spending a fifth of its frame submitting meters, signal poles and sandwich boards hundreds of metres away,
+ * each a few pixels high. A kind is drawn only in chunks within `reach` metres of the player: this many
+ * metres for every metre of the prop's size (it goes when it is under about nine pixels high at 1080p), and
+ * never less than the floor. Lamp posts, power poles and anything else five metres or more are left alone,
+ * as are plants (the plant field has its own distances).
+ */
+const PROP_REACH = { perMetre: 110, floor: 160 };
 
 /** The streamed world: terrain, roads, buildings, water. Implements the WorldApi queries. */
 export class World implements WorldApi, System {
@@ -385,7 +397,7 @@ export class World implements WorldApi, System {
       if (this.chunks.has(key)) continue;
       const cz = (key % 1024) - 512;
       const cx = Math.floor(key / 1024) - 512;
-      const chunk: Chunk = { key, cx, cz, heights: null, group: new THREE.Group(), colliders: [], lights: [], ready: false, disposables: [], ground: null };
+      const chunk: Chunk = { key, cx, cz, heights: null, group: new THREE.Group(), colliders: [], lights: [], ready: false, disposables: [], ground: null, props: [] };
       chunk.group.matrixAutoUpdate = false;
       this.chunks.set(key, chunk);
       this.queue.push({ chunk, job: this.build(chunk) });
@@ -477,6 +489,14 @@ export class World implements WorldApi, System {
       const near = d < CHUNK * 1.6;
       chunk.ground[0].visible = near;
       chunk.ground[1].visible = !near;
+    }
+    // Small props by distance from the chunk's nearest edge.
+    for (const chunk of this.chunks.values()) {
+      if (!chunk.props.length) continue;
+      const dx = Math.max(chunk.cx * CHUNK - this.focus.x, 0, this.focus.x - (chunk.cx + 1) * CHUNK);
+      const dz = Math.max(chunk.cz * CHUNK - this.focus.z, 0, this.focus.z - (chunk.cz + 1) * CHUNK);
+      const away = Math.hypot(dx, dz);
+      for (const prop of chunk.props) prop.mesh.visible = away < prop.reach;
     }
 
     this.updateLamps(dt, this.gfx.night, this.gfx.lampCount);
@@ -708,8 +728,20 @@ export class World implements WorldApi, System {
         if (!list.length) continue;
       }
       const meshes: THREE.InstancedMesh[] = [];
+      // How far out this kind is worth drawing (Infinity: always).
+      let size = 0;
+      for (const part of def.parts) {
+        if (!part.geometry.boundingSphere) part.geometry.computeBoundingSphere();
+        const sphere = part.geometry.boundingSphere!;
+        size = Math.max(size, sphere.radius + sphere.center.length());
+      }
+      const most = list.reduce((m, inst) => Math.max(m, inst.scale), 0);
+      const reach = Math.max(PROP_REACH.floor, size * most * PROP_REACH.perMetre);
+      // Under five metres only: lamp posts and power poles carry the lights that make a distant street at night.
+      const limited = chunk !== undefined && size * most < 5 && reach < this.radius() * CHUNK && !plantModel(kind, this.gfx.materials);
       for (const part of def.parts) {
         const mesh = new THREE.InstancedMesh(part.geometry, part.material, list.length);
+        mesh.name = kind; // for the profiling scripts: what a mesh is
         list.forEach((inst, i) => {
           dummy.position.set(inst.x, inst.y, inst.z);
           dummy.rotation.set(0, inst.heading, 0);
@@ -724,6 +756,7 @@ export class World implements WorldApi, System {
         parent.add(mesh);
         disposables.push(mesh);
         meshes.push(mesh);
+        if (limited) chunk.props.push({ mesh, reach });
       }
       // Collision: the def's own post / trunk, or the physics overlay for this kind (fences, furniture).
       const rule = PROP_PHYSICS[kind];

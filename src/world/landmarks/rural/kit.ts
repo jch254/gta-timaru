@@ -1,3 +1,4 @@
+import { agedLibrary } from '../aged';
 import * as THREE from 'three';
 import { TAU } from '../../../core/math';
 import { hashInts, Rng } from '../../../core/rng';
@@ -540,8 +541,9 @@ export class Site {
     readonly p: LandmarkPlacement,
     readonly out: ChunkBuilder,
   ) {
-    this.m = out.materials;
     this.y = out.world.groundAt(p.x, p.z);
+    // Set dressing (`kind: 'dressing'`, see scatter/setpieces.ts) keeps the library as it is.
+    this.m = p.kind === 'dressing' ? out.materials : agedLibrary(out.materials, p, this.y);
     this.f = out.frameAt(p.x, this.y, p.z, p.heading);
     this.sin = Math.sin(p.heading);
     this.cos = Math.cos(p.heading);

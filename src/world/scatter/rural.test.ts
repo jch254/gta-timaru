@@ -58,7 +58,7 @@ describe('rural scatterer', () => {
         expect(getProp(r.kind!, materials), r.kind).not.toBeNull();
         // Everything belongs to the area that asked for it and stands on the ground. A gate sits mid-span, so
         // it and its letterbox may hang just over the edge; a shelter belt stands a few metres off its fence.
-        const slack = r.kind === PROP.gate || r.kind === PROP.letterbox ? 12 : r.kind!.startsWith('tree-') || r.kind === 'tussock' ? 5 : 0;
+        const slack = r.kind === PROP.gate || r.kind === PROP.letterbox ? 12 : r.kind!.startsWith('tree-') || r.kind === 'tussock' || r.kind === 'hedge-shelter' || r.kind === 'grass-long' ? 5 : 0;
         expect(r.x).toBeGreaterThanOrEqual(cx * SIZE - slack);
         expect(r.x).toBeLessThan((cx + 1) * SIZE + slack);
         expect(r.z).toBeGreaterThanOrEqual(cz * SIZE - slack);
@@ -66,14 +66,15 @@ describe('rural scatterer', () => {
         // Round 2: rank grass and the highway's edge marker posts are sunk a few centimetres, and the marker
         // posts stand on the shoulder (1.25 m outside the seal) rather than back at the fence line; the grass grows
         // on the verge between the two.
-        const soft = r.kind === 'tussock' || r.kind === 'marker-post';
+        // Round 3: so are the shelter hedges and the long grass under the roadside wire.
+        const soft = r.kind === 'tussock' || r.kind === 'marker-post' || r.kind === 'hedge-shelter' || r.kind === 'grass-long';
         if (soft) expect(Math.abs(r.y - 10)).toBeLessThan(0.08);
         else expect(r.y).toBeCloseTo(10, 5);
         expect(roadDistance(r.x, r.z), `${r.kind} near a road`).toBeGreaterThanOrEqual(r.kind === 'marker-post' ? 5 : r.kind === 'tussock' ? 6 : 8);
       }
     }
     // Sixteen areas of plains with SH1 through them: all the furniture turns up.
-    for (const kind of [PROP.post, PROP.sheep, PROP.bale, PROP.gate, PROP.letterbox, PROP.pole, PROP.trough, 'tree-pine']) expect(totals.get(kind) ?? 0, kind).toBeGreaterThan(0);
+    for (const kind of [PROP.post, PROP.sheep, PROP.bale, PROP.gate, PROP.letterbox, PROP.pole, PROP.trough, 'tree-pine', 'hedge-shelter', 'grass-long']) expect(totals.get(kind) ?? 0, kind).toBeGreaterThan(0);
     expect((totals.get(PROP.cow) ?? 0) + (totals.get(PROP.friesian) ?? 0)).toBeGreaterThan(0);
     expect(totals.get(PROP.sheep)!).toBeGreaterThan(totals.get(PROP.cow) ?? 0);
   });

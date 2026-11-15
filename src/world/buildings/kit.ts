@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { hashInts, Rng } from '../../core/rng';
 import type { ChunkBuilder, CityId, Lot, LotBuilder, MaterialLibrary, SurfaceKind, WorldApi } from '../../core/types';
+import { type Wear, weathered } from './weathering';
 
 /**
  * Shared kit for the building archetypes: a per-lot `Site`, primitive wrappers that work in the lot's
@@ -28,7 +29,7 @@ export type Rand = Parameters<LotBuilder>[2];
 export type Mat = THREE.Material;
 
 /** What `windows()` draws (mirrors GlazingStyle in render/glazing.ts; the kit talks to it through the material library only). */
-export type PaneStyle = 'glass' | 'sash' | 'casement' | 'shop' | 'office' | 'curtain' | 'door' | 'shopdoor' | 'roller' | 'lamp' | 'steel' | 'louvre' | 'fret' | 'picket' | 'leaded';
+export type PaneStyle = 'glass' | 'sash' | 'casement' | 'shop' | 'office' | 'curtain' | 'door' | 'shopdoor' | 'roller' | 'lamp' | 'steel' | 'louvre' | 'fret' | 'picket' | 'leaded' | 'fitting' | 'aerial';
 export interface PaneSpec {
   w: number;
   h: number;
@@ -93,6 +94,12 @@ export interface Site {
   cos: number;
   /** Window joinery for this building (shared by raised copies of the site). */
   j: Joinery;
+  /** How this building has weathered: every surface `mat` hands out carries it (see weathering.ts). */
+  wear: Wear;
+  /** Walls sheltered by eaves: no dirt washes down them from the top. */
+  eaves?: boolean;
+  /** Set once the building has its television aerial. */
+  aerials?: number;
 }
 
 /** Forwards to the chunk builder while counting the triangles a lot emits. */
@@ -162,7 +169,16 @@ export function site(lot: Lot, target: ChunkBuilder, rng: Rand, budget = BUDGET)
     sin: Math.sin(lot.heading),
     cos: Math.cos(lot.heading),
     j: { style: 'sash', variant: 0, frame: 0xf2efe6, trim: 0xf3eddc, wall: 'timber' },
+    wear: { ground: lot.y, seed: hashInts(lot.seed, 77) & 63, age: ageOf(lot) },
+    eaves: budget === HOUSE_BUDGET,
   };
+}
+
+/** How run-down a building is, 1 (looked after) to 7: sheds and wharves the worst, the city's offices the best. */
+function ageOf(lot: Lot): number {
+  const type = lot.district.type;
+  const base = type === 'industrial' || type === 'port' ? 4 : type === 'rural' || type === 'township' ? 3.4 : type === 'cbd' ? 2 : type === 'shops' ? 3 : 2.6;
+  return Math.max(1, Math.min(7, Math.round(base + ((hashInts(lot.seed, 78) % 1000) / 1000) * 3.2 - 1)));
 }
 
 // ───────────────────────────── Palette ─────────────────────────────
@@ -194,11 +210,34 @@ export const NEON_RED = 0xff5a3c;
 
 /** A surface in the lot's material library; colour-only variants batch together. */
 export const mat = (s: Site, surface: SurfaceKind, color?: number): Mat => {
-  const m = color === undefined ? s.m.get(surface) : s.m.get(surface, { color });
+  const m = weathered(s.m, surface, color, s.wear) ?? (color === undefined ? s.m.get(surface) : s.m.get(surface, { color }));
   MADE_OF.set(m, { surface, color });
   return m;
 };
-export const trim = (s: Site, color = CREAM): Mat => s.m.get('plain', { color });
+/** Paint on timber and steel: fascias, posts, sills, pipes. */
+export const trim = (s: Site, color = CREAM): Mat => (WEATHER_TRIM ? weathered(s.m, 'plain', color, s.wear) : null) ?? s.m.get('plain', { color });
+/** Paintwork weathers too (it costs one more batch in a chunk where other things use the plain surface). */
+const WEATHER_TRIM = true;
+
+/**
+ * The same surface as `mt` with rain running down it from `top` (site height): a parapet, a wall that stops
+ * at a flat roof. `datum` moves the ground it stands on (site height) when that is not the site's own.
+ */
+export function under(s: Site, mt: Mat, top: number, datum = 0): Mat {
+  const made = MADE_OF.get(mt);
+  if (!made) return mt;
+  const m = weathered(s.m, made.surface, made.color, { ...s.wear, ground: s.wear.ground + datum, top: top - datum });
+  if (!m) return mt;
+  MADE_OF.set(m, made);
+  return m;
+}
+
+/** The library's own clean material for what `mt` is made of: ground slabs, which must take the rain like the road. */
+export function unweathered(s: Site, mt: Mat): Mat {
+  const made = MADE_OF.get(mt);
+  if (!made) return mt;
+  return made.color === undefined ? s.m.get(made.surface) : s.m.get(made.surface, { color: made.color });
+}
 
 /** What each wall material handed out by `mat` is, so `tone` can ask for the same surface a shade off. */
 const MADE_OF = new WeakMap<Mat, { surface: SurfaceKind; color?: number }>();
@@ -243,7 +282,7 @@ export function frame(s: Site, x: number, y: number, z: number, yaw = 0, pitch =
 
 /** The same site with its origin lifted (or dropped) by `y`: houses sit on their own ground rather than at footpath level. */
 export function raised(s: Site, y: number): Site {
-  return { ...s, f: frame(s, 0, y, 0), y0: s.y0 + y };
+  return { ...s, f: frame(s, 0, y, 0), y0: s.y0 + y, wear: { ...s.wear, ground: s.wear.ground + y } };
 }
 
 /** Local plot coordinates → world x/z. */
@@ -316,7 +355,11 @@ export function slope(s: Site, ax: number, ay: number, az: number, bx: number, b
 /** Wall block from the ground up to `top`. */
 export function walls(s: Site, cx: number, cz: number, w: number, d: number, top: number, mt: Mat, bottom?: number) {
   const y = bottom ?? footing(s, cx, cz, w, d);
-  s.out.box(s.f, cx, (y + top) / 2, cz, w, top - y, d, mt);
+  // The wall weathers from the ground it actually stands on, and (under a parapet) from its own top down.
+  const hx = w / 2;
+  const hz = d / 2;
+  const g = (ground(s, cx - hx, cz - hz) + ground(s, cx + hx, cz - hz) + ground(s, cx - hx, cz + hz) + ground(s, cx + hx, cz + hz)) / 4;
+  s.out.box(s.f, cx, (y + top) / 2, cz, w, top - y, d, under(s, mt, s.eaves ? g : top, g));
 }
 
 /** The one static collider for a building body. */
@@ -327,7 +370,7 @@ export function solid(s: Site, cx: number, cz: number, w: number, d: number, top
 /** Thin ground slab (yard, apron, forecourt) that reaches down far enough to meet falling ground. */
 export function pad(s: Site, cx: number, cz: number, w: number, d: number, mt: Mat, top = 0.04) {
   const y = Math.max(-3, footing(s, cx, cz, w, d) + 0.2);
-  s.out.box(s.f, cx, (y + top) / 2, cz, w, top - y, d, mt);
+  s.out.box(s.f, cx, (y + top) / 2, cz, w, top - y, d, unweathered(s, mt));
 }
 
 /** True when the plot is close enough to level for a whole-yard slab to sit well. */
@@ -627,6 +670,7 @@ export function bargeboards(s: Site, cx: number, y: number, z: number, span: num
 /** Roof deck on a parapet building (seen from the hills and upper floors). */
 export function flatRoof(s: Site, cx: number, cz: number, w: number, d: number, y: number, color = 0x6f6d68) {
   box(s, cx, y, cz, Math.max(0.5, w - 0.7), 0.07, Math.max(0.5, d - 0.7), mat(s, 'concrete', color));
+  if (s.near) rooftop(s, cx, cz, w - 1.6, d - 1.6, y + 0.07);
 }
 
 /** Low parapet wall round the edge of a flat roof (four thin boxes) with a capping line. */
@@ -644,6 +688,56 @@ export function chimney(s: Site, x: number, z: number, y: number, h: number, mt:
   box(s, x, y + h - 0.16, z, 0.74, 0.1, 0.74, mt);
   box(s, x, y + h, z, 0.68, 0.07, 0.68, mat(s, 'concrete', 0x9a968c));
   if (pot) cyl(s, x, y + h + 0.07, z, 0.11, 0.4, trim(s, 0xa5502f), 6, 0.09);
+  // The aerial goes on the chimney, strapped to the side away from the weather.
+  if (s.fx.chance(0.5) && !s.aerials) {
+    s.aerials = 1;
+    aerial(s, x + 0.36, y + h - 0.9, z + 0.1, s.fx.range(2.2, 3.1), s.fx.range(0, 3));
+  }
+}
+
+/**
+ * Television aerial on a mast whose foot is at (x, y, z); the boom points along `yaw`. Four cut-out panes
+ * (boom and elements, each seen from both sides), so it reads as an aerial from anywhere for eight triangles.
+ */
+export function aerial(s: Site, x: number, y: number, z: number, h = 2.2, yaw = 0, color = 0xb4b8ba) {
+  for (let i = 0; i < 4; i++) pane(s, 'aerial', x, y + h / 2, z, i % 2 ? 1.1 : 1.5, h, yaw + (i * Math.PI) / 2, { color, variant: i % 2 });
+}
+
+/** What ends up on a flat commercial roof (deck at `y`, centred on cx, cz): vent pipes, a skylight, a tank, a condenser, an aerial. */
+export function rooftop(s: Site, cx: number, cz: number, w: number, d: number, y: number) {
+  if (w < 4 || d < 5) return;
+  const r = s.fx;
+  const at = (): [number, number] => [cx + r.range(-0.36, 0.36) * w, cz + r.range(-0.3, 0.36) * d];
+  // Soil and vent pipes: grey stacks with a cowl.
+  const pipes = r.int(1, 3);
+  for (let i = 0; i < pipes && s.spare(1); i++) {
+    const [px, pz] = at();
+    const h = r.range(0.9, 1.9);
+    box(s, px, y, pz, 0.11, h, 0.11, trim(s, r.pick([0x6f6d68, 0x8a8d90, 0x4a4d50])));
+    if (s.spare(1)) box(s, px, y + h, pz, 0.24, 0.07, 0.24, trim(s, 0x4a4d50));
+  }
+  // A skylight over the back shop: a kerb with a pitched pane of wired glass.
+  if (r.chance(0.45) && s.spare(3)) {
+    const [px, pz] = at();
+    const sw = r.range(1.2, 2.2);
+    box(s, px, y, pz, sw + 0.16, 0.3, 1.36, trim(s, 0x8f8b82));
+    pane(s, 'steel', px, y + 0.42, pz, sw, 1.24, 0, { color: 0x5a5d60, lit: 1, variant: 1, pitch: -1.33 });
+  }
+  // A header tank on bearers, or a condenser with its louvres.
+  if (r.chance(0.3) && s.spare(5)) {
+    const [px, pz] = at();
+    box(s, px, y, pz, 1.5, 0.35, 0.2, trim(s, 0x5a4634));
+    cyl(s, px, y + 0.35, pz, 0.72, 1.2, mat(s, 'corrugated', 0xa9a79d), 9);
+  } else if (r.chance(0.4) && s.spare(2)) {
+    const [px, pz] = at();
+    const yaw = r.pick([0, Math.PI / 2, Math.PI]);
+    s.out.box(frame(s, px, y, pz, yaw), 0, 0.42, 0, 1.1, 0.74, 0.6, trim(s, 0xbfc2c0));
+    pane(s, 'louvre', px + Math.sin(yaw) * 0.305, y + 0.44, pz + Math.cos(yaw) * 0.305, 0.9, 0.56, yaw, { color: 0x8a8d90 });
+  }
+  if (r.chance(0.4) && s.spare(1)) {
+    const [px, pz] = at();
+    aerial(s, px, y, pz, r.range(2.6, 3.6), r.range(0, 3));
+  }
 }
 
 /** Round downpipe on a wall facing `yaw`, from `y0` up to `y1`, with a rainhead at the top. */
@@ -705,6 +799,16 @@ export function win(s: Site, x: number, y: number, z: number, w: number, h: numb
       const facing = trim(s, j.trim);
       s.out.quad(s.f, x + sx * 0.047, y, z + cz * 0.047, w + 0.2, h + 0.18, facing, yaw);
       ledge(s, x + sx * 0.06, y - h / 2 - 0.1, z + cz * 0.06, w + 0.32, 0.05, 0.13, yaw, facing);
+      // A sun hood on brackets over a window that faces north (-z in the world), where the summer sun gets in.
+      if (o.hood && Math.cos(s.lot.heading + yaw) < -0.45 && s.spare(3)) {
+        const top = y + h / 2 + 0.1;
+        slope(s, x + sx * 0.02, top + 0.26, z + cz * 0.02, x + sx * 0.5, top + 0.06, z + cz * 0.5, w + 0.36, 0.04, mat(s, 'corrugated', 0x8f959a));
+        for (const e of [-1, 1]) {
+          const bx = x + e * cz * (w / 2 + 0.08);
+          const bz = z - e * sx * (w / 2 + 0.08);
+          slope(s, bx + sx * 0.03, top - 0.22, bz + cz * 0.03, bx + sx * 0.42, top + 0.06, bz + cz * 0.42, 0.045, 0.045, facing);
+        }
+      }
     }
   } else if (j.wall !== 'plain') {
     reveal = j.wall === 'masonry' ? 1 : j.wall === 'stone' ? 2 : 3;
@@ -763,6 +867,8 @@ export function parapet(s: Site, x0: number, x1: number, y: number, z: number, k
   const w = x1 - x0;
   const cx = (x0 + x1) / 2;
   const zc = z - 0.19;
+  // Nothing shelters a parapet: the dirt on it starts at its own top.
+  wall = under(s, wall, y + (kind === 'ornate' ? 1.2 : kind === 'stepped' ? h * 1.4 : kind === 'pediment' ? h * 0.7 : h));
   if (kind === 'ornate') {
     // Open balustrade between piers, a pediment over the middle, urns on the ends.
     box(s, cx, y, zc, w, 0.3, 0.4, dress);
@@ -892,6 +998,8 @@ export interface ShopfrontOptions {
   recessed?: boolean;
   /** Leadlight toplights above a transom. */
   toplights?: boolean;
+  /** What is in the window: 0 general goods, 1 drapery, 2 paper (cards, books, notices), 3 food. */
+  display?: number;
 }
 
 /** Glazed shopfront: stall riser, display windows either side of a door. */
@@ -912,10 +1020,19 @@ export function shopfront(s: Site, o: ShopfrontOptions) {
     box(s, cx, y - 0.3, o.z + 0.03, span, sill + 0.3, 0.1, o.riser);
     if (s.spare()) box(s, cx, y + sill - 0.02, o.z + 0.06, span + 0.04, 0.05, 0.18, trim(s, shade(color, 0.9)));
   }
+  // The glass stands in a frame with some depth to it: a post each side and a head rail over the top, so
+  // the window has a reveal and throws a shadow instead of lying flat on the wall.
+  if (s.spare(3)) {
+    const fm = trim(s, modern ? 0x8a8d90 : shade(color, 0.82));
+    const jw = modern ? 0.07 : 0.13;
+    const out = modern ? 0.13 : 0.17;
+    for (const jx of [x0 - jw / 2 + 0.01, x1 + jw / 2 - 0.01]) box(s, jx, y - 0.3, o.z + out / 2, jw, head + 0.3, out, fm);
+    box(s, cx, y + head, o.z + out / 2 + 0.02, span + jw * 2, modern ? 0.1 : 0.17, out + 0.04, fm);
+  }
   const spans: [number, number][] = dx === null ? [[x0, x1]] : [[x0, dx - dw / 2 - 0.04], [dx + dw / 2 + 0.04, x1]];
   for (const [a, b] of spans) {
     if (b - a < 0.6) continue;
-    pane(s, 'shop', (a + b) / 2, y + (sill + head) / 2 + 0.01, o.z + 0.09, b - a, head - sill - 0.02, 0, { color, lit: level, variant: (modern ? 1 : 0) + (o.toplights ? 2 : 0) });
+    pane(s, 'shop', (a + b) / 2, y + (sill + head) / 2 + 0.01, o.z + 0.09, b - a, head - sill - 0.02, 0, { color, lit: level, variant: (modern ? 1 : 0) + (o.toplights ? 2 : 0), wall: o.display });
   }
   if (dx !== null) {
     pane(s, 'shopdoor', dx, y + head / 2, o.z + 0.08, dw, head, 0, { color: o.doorColor ?? color, lit: level, variant: modern ? (o.recessed ? 3 : 2) : o.recessed ? 1 : 0 });
@@ -932,9 +1049,12 @@ export function patches(s: Site, x0: number, x1: number, z: number, y0: number, 
     const t = s.fx.range(0.06, 0.94);
     const h = Math.min(y1 - y0, s.fx.pick([2.4, 2.4, 3, 1.8]));
     const y = s.fx.chance(0.6) ? y0 + h / 2 : y1 - h / 2;
-    const tone = s.fx.chance(0.3) ? 0x8a5a3a : shade(color, s.fx.pick([0.86, 0.93, 1.08]));
+    const rusty = s.fx.chance(0.3);
+    const tone = rusty ? 0x8a5a3a : shade(color, s.fx.pick([0.86, 0.93, 1.08]));
     const p = x0 + (x1 - x0) * t;
-    quad(s, along ? z + Math.sin(yaw) * 0.012 : p, y, along ? p : z + Math.cos(yaw) * 0.012, 0.76 * s.fx.int(1, 2), h, mat(s, 'corrugated', tone), yaw, true);
+    // A sheet that has gone rusty all over, or a newer one that has not had time to weather.
+    const sheet = mat(rusty ? s : { ...s, wear: { ...s.wear, fresh: true } }, 'corrugated', tone);
+    quad(s, along ? z + Math.sin(yaw) * 0.012 : p, y, along ? p : z + Math.cos(yaw) * 0.012, 0.76 * s.fx.int(1, 2), h, sheet, yaw, true);
   }
 }
 

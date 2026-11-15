@@ -1,5 +1,5 @@
 import type { ChunkBuilder, LandmarkBuilder, LandmarkPlacement } from '../../../core/types';
-import { DRESSING_OFF } from '../../scatter/util';
+import { DRESSING_OFF, ROUND3_OFF } from '../../scatter/util';
 import { asphalt, bronze, lawn, statue, stoneSet, whiteLine } from './common';
 import { Kit, cone, disc, lancet, pyramid, ring, sphere, steps, tartan, wedge } from './kit';
 
@@ -193,6 +193,24 @@ export const cathedralSquare: LandmarkBuilder = (p, out) => {
   for (const x of [-42, -25.5, 25.5, 42]) put('chch-bench', x, 57.9, EAST, 0.9);
   for (const [x, z] of [[-12.5, 37.6], [12.5, 37.6], [-9.6, 61], [9.6, 73], [-9.6, 76], [42, 38.2], [-42, 38.2]]) put('chch-planter', x, z, x, 1);
 
+  // Bedding displays in stone-edged beds: `n` drifts side by side along local x (or along z when `turned`).
+  const soil = m.get('plain', { color: 0x3f3226 });
+  const edging = m.get('bluestone');
+  const bed = (lx: number, lz: number, n: number, turned = false) => {
+    const len = n * 2.2 + 0.5;
+    if (ROUND3_OFF || !ok(lx, lz, 1.2) || !ok(lx + (turned ? 0 : len / 2 - 1), lz + (turned ? len / 2 - 1 : 0), 1.2) || !ok(lx - (turned ? 0 : len / 2 - 1), lz - (turned ? len / 2 - 1 : 0), 1.2)) return;
+    const c = k.sub(lx, 0, lz, turned ? Math.PI / 2 : 0);
+    c.dbox(0, 0, 0, len + 0.36, 0.24, 2.16, edging).dbox(0, 0.2, 0, len, 0.08, 1.8, soil);
+    for (let i = 0; i < n; i++) {
+      const o = (i - (n - 1) / 2) * 2.2;
+      k.prop('flower-bed', turned ? lx : lx + o, turned ? lz + o : lz, turned ? Math.PI / 2 : 0, 1, undefined, 0.26);
+    }
+  };
+  for (const x of [-59.5, -46.5, 46.5, 59.5]) bed(x, 38.6, 2);
+  for (const x of [-34, 34]) bed(x, 61.5, 3);
+  for (const z of [-9, 17]) bed(-33.5, z, 2, true);
+  for (const z of [-27, -12]) bed(41.5, z, 2, true);
+
   // ── West front: lamps either side of the door, bike stands, the speaker's ladder under the tower ──
   put('chch-lamp-standard', -5.4, 32.6, 0, 0.3);
   put('chch-lamp-standard', 5.4, 32.6, 0, 0.3);
@@ -234,7 +252,7 @@ export const cathedralSquare: LandmarkBuilder = (p, out) => {
     c.sign('1914 – 1918', 0, 1.9, 1.31, 3, 0.46, 0, { bg: '#d9d4c6', fg: '#4a4438', style: 'block', border: false });
     lit(-39, 4, 4, 0xfff0d0, 130, 18);
   }
-  for (const z of [-50, -35, -20, 24]) put('tree-oak', -36, z, z * 0.7, 2.6, 0.82 + ((z + 60) % 7) / 40);
+  for (const z of [-50, -35, -20, 24]) put('tree-plane', -36, z, z * 0.7, 2.6, 0.82 + ((z + 60) % 7) / 40);
   for (const z of [-42, -27, 15, 31]) put('chch-bench', -45.6, z, NORTH, 0.9);
   for (const z of [-34, -12, 23]) put('chch-lamp-standard', -47.4, z, 0, 0.3);
 
@@ -260,12 +278,12 @@ export const cathedralSquare: LandmarkBuilder = (p, out) => {
   put('bin', 31, 33.6, 0, 0.4);
   put('bin', 31, 2.4, 0, 0.4);
   pigeons(33, 12, 6, 4);
-  for (const z of [-50, -35, -20, -5, 37]) put('tree-oak', 37, z, z * 0.9, 2.6, 0.82 + ((z + 60) % 9) / 50);
+  for (const z of [-50, -35, -20, -5, 37]) put('tree-plane', 37, z, z * 0.9, 2.6, 0.82 + ((z + 60) % 9) / 50);
   for (const z of [-42, -27, -12, 31]) put('chch-bench', 45.6, z, SOUTH, 0.9);
   for (const z of [-34, -5, 23]) put('chch-lamp-standard', 47.4, z, 0, 0.3);
 
   // ── Behind the apse: a grove and seats ──
-  for (const [x, z] of [[-27, -46], [-9, -49], [9, -49], [27, -46], [0, -42]]) put('tree-oak', x, z, x + z, 2.6, 0.78 + (Math.abs(x) % 5) / 25);
+  for (const [x, z] of [[-27, -46], [-9, -49], [9, -49], [27, -46], [0, -42]]) put('tree-plane', x, z, x + z, 2.6, 0.78 + (Math.abs(x) % 5) / 25);
   for (const x of [-18, 18]) put('chch-bench', x, -55.5, EAST, 0.9);
 
   // ── Outside the loop: buses laid up at their stops under a row of trees, north and south ──
@@ -283,7 +301,7 @@ export const cathedralSquare: LandmarkBuilder = (p, out) => {
     put('chch-bench', side * 66.4, 9, side === 1 ? NORTH : SOUTH, 0.9);
     put('chch-bench', side * 66.4, 14, side === 1 ? NORTH : SOUTH, 0.9);
     put('bin', side * 64.6, 7, 0, 0.4);
-    for (const z of [-33, -19, 22, 33]) put('tree-oak', side * 69, z, z * side, 2.6, 0.8 + ((z + 40) % 6) / 30);
+    for (const z of [-33, -19, 22, 33]) put('tree-plane', side * 69, z, z * side, 2.6, 0.8 + ((z + 40) % 6) / 30);
   }
 
   // ── North-west corner: the founder's statue facing the cathedral, and the giant chess set ──
@@ -313,8 +331,8 @@ export const cathedralSquare: LandmarkBuilder = (p, out) => {
     put('chch-bench', -30.5, 69.6, EAST, 0.9);
     put('chch-bench', -35.4, 65, SOUTH, 0.9);
   }
-  put('tree-oak', -43, 60.5, 1, 2.6, 0.85);
-  put('tree-oak', -22.5, 72.5, 2, 2.6, 0.8);
+  put('tree-plane', -43, 60.5, 1, 2.6, 0.85);
+  put('tree-plane', -22.5, 72.5, 2, 2.6, 0.8);
 
   // ── South-west corner: police kiosk and the taxi rank ──
   if (ok(22, 66.5, 3.4)) {
@@ -342,7 +360,7 @@ export const cathedralSquare: LandmarkBuilder = (p, out) => {
     k.sign('TAXIS', 30.2, 2.35, 59.24, 0.9, 0.36, 0, { bg: '#f2c020', fg: '#1a1a1a', style: 'block' });
     k.sign('TAXIS', 30.2, 2.35, 59.16, 0.9, 0.36, Math.PI, { bg: '#f2c020', fg: '#1a1a1a', style: 'block' });
   }
-  put('tree-oak', 40.5, 66.5, 3, 2.6, 0.8);
+  put('tree-plane', 40.5, 66.5, 3, 2.6, 0.8);
   k.flush();
 };
 
@@ -413,14 +431,14 @@ export function cathedralSquareAnnex(p: LandmarkPlacement, out: ChunkBuilder, al
   out.light(wx(x0 + 13, 82), e[13] + 5, wz(x0 + 13, 82), 0xffe2b0, 120, 22);
 
   k.pave(steps(23, 47, 8), steps(74, 124, 10), () => lawn(m), 0.05);
-  for (const x of [28, 38]) for (const z of [79, 90, 101, 112, 121]) put('tree-oak', x + (z % 2) * 4, z, x * z, 2.4, 0.84 + ((x + z) % 7) / 40);
+  for (const x of [28, 38]) for (const z of [79, 90, 101, 112, 121]) put('tree-plane', x + (z % 2) * 4, z, x * z, 2.4, 0.84 + ((x + z) % 7) / 40);
   for (const z of [84, 106]) put('bench', 49.2, z, SOUTH, 0.9);
   for (const x of [30, 40]) put('bench', x, 72.6, EAST, 0.9);
   put('picnic-table', 31.5, 95.5, 0.4, 1.3);
   put('picnic-table', 38.5, 117, 1.9, 1.3);
 
   // A row of planes along the south edge, where Colombo Street comes in.
-  for (const z of [-30, -10, 10, 30]) put('tree-oak', 81.5, z, z + 5, 2.4, 0.86 + ((z + 40) % 9) / 60);
+  for (const z of [-30, -10, 10, 30]) put('tree-plane', 81.5, z, z + 5, 2.4, 0.86 + ((z + 40) % 9) / 60);
   for (const z of [-20, 0, 20]) put('bench', 80.6, z, -Math.PI / 2, 0.9);
   k.flush();
 }

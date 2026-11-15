@@ -1,8 +1,9 @@
 import { Rng, hashInts } from '../../core/rng';
 import type { Scatterer } from '../../core/types';
 // Registers the chch-* instanced props (punt, skiff, bench, flower bed, rugby posts…).
-import '../landmarks/christchurch/props';
+import { flowerBed } from '../landmarks/christchurch/props';
 import { SCATTERERS } from './registry';
+import { ROUND3_OFF } from './util';
 
 /**
  * City life for Christchurch: punts and rowing skiffs on the Avon with weeping willows on its banks, benches and
@@ -163,7 +164,7 @@ export const urbanScatter: Scatterer = (area, out) => {
       const z = minZ + (j + rng.next()) * plot;
       const roll = rng.next();
       const turn = rng.next() * Math.PI * 2;
-      if (roll > 0.33) continue;
+      if (roll > (ROUND3_OFF ? 0.33 : 0.55)) continue;
       // Not on a playing field.
       if (fields.some((f) => Math.abs((x - f.x) * f.sin + (z - f.z) * f.cos) < 58 && Math.abs((x - f.x) * f.cos - (z - f.z) * f.sin) < 38)) continue;
       const d = world.districtAt(x, z);
@@ -173,9 +174,28 @@ export const urbanScatter: Scatterer = (area, out) => {
         const road = world.graph.nearest(x, z, 30);
         out.instance('chch-bench', x, y, z, road ? Math.atan2(road.x - x, road.z - z) : turn);
       } else if (roll < 0.26) {
-        out.instance('chch-flowerbed', x, y, z, turn);
-      } else {
+        flowerBed(out, x, y, z, turn);
+      } else if (roll < 0.33) {
         out.instance('picnic-table', x, y, z, turn);
+      } else if (roll < 0.44) {
+        // A clump of rhododendrons.
+        const kind = 'shrub-rhododendron';
+        for (let k = 0; k < 3; k++) {
+          const a = turn + k * 1.7;
+          const r = k === 0 ? 0 : 1.5 + (k % 2) * 0.5;
+          out.instance(kind, x + Math.sin(a) * r, y, z + Math.cos(a) * r, a, 1.25 + (k % 3) * 0.22);
+        }
+      } else if (roll < 0.51) {
+        // A rose bed: an oval of dug soil with bush roses in two rows.
+        out.instance('chch-flowerbed', x, y, z, turn);
+        for (let k = 0; k < 6; k++) {
+          const lx = -1.75 + (k >> 1) * 1.75;
+          const lz = k % 2 === 0 ? -0.5 : 0.5;
+          out.instance('rose-bush', x + lx * Math.cos(turn) + lz * Math.sin(turn), y + 0.08, z - lx * Math.sin(turn) + lz * Math.cos(turn), turn + k, 0.95 + (k % 3) * 0.08);
+        }
+      } else if (open(x, z, 4)) {
+        // A specimen oak standing on its own in the grass.
+        out.instance('tree-oak', x, y, z, turn, 1.05 + (roll - 0.51) * 4);
       }
     }
   }

@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "file": "extra.webp",
+  "height": 512,
+  "cells": {
+    "plane": {
+      "x": 8,
+      "y": 8,
+      "w": 384,
+      "h": 384,
+      "anchor": "bottom",
+      "mean": [
+        0.345,
+        0.44,
+        0.182
+      ]
+    },
+    "broom": {
+      "x": 408,
+      "y": 8,
+      "w": 256,
+      "h": 288,
+      "anchor": "bottom",
+      "mean": [
+        0.778,
+        0.701,
+        0.143
+      ]
+    },
+    "hydrangea": {
+      "x": 680,
+      "y": 8,
+      "w": 256,
+      "h": 256,
+      "anchor": "bottom",
+      "mean": [
+        0.235,
+        0.362,
+        0.304
+      ]
+    },
+    "rhododendron": {
+      "x": 952,
+      "y": 8,
+      "w": 256,
+      "h": 256,
+      "anchor": "bottom",
+      "mean": [
+        0.179,
+        0.227,
+        0.146
+      ]
+    },
+    "rose-red": {
+      "x": 1224,
+      "y": 8,
+      "w": 224,
+      "h": 224,
+      "anchor": "bottom",
+      "mean": [
+        0.311,
+        0.209,
+        0.115
+      ]
+    },
+    "rose-pink": {
+      "x": 1464,
+      "y": 8,
+      "w": 224,
+      "h": 224,
+      "anchor": "bottom",
+      "mean": [
+        0.315,
+        0.336,
+        0.239
+      ]
+    },
+    "rose-yellow": {
+      "x": 1704,
+      "y": 8,
+      "w": 224,
+      "h": 224,
+      "anchor": "bottom",
+      "mean": [
+        0.333,
+        0.407,
+        0.241
+      ]
+    },
+    "bed-red": {
+      "x": 936,
+      "y": 280,
+      "w": 256,
+      "h": 160,
+      "anchor": "bottom",
+      "mean": [
+        0.374,
+        0.266,
+        0.112
+      ]
+    },
+    "bed-gold": {
+      "x": 1208,
+      "y": 280,
+      "w": 256,
+      "h": 160,
+      "anchor": "bottom",
+      "mean": [
+        0.403,
+        0.414,
+        0.107
+      ]
+    },
+    "bed-blue": {
+      "x": 1480,
+      "y": 280,
+      "w": 256,
+      "h": 160,
+      "anchor": "bottom",
+      "mean": [
+        0.232,
+        0.285,
+        0.469
+      ]
+    },
+    "bed-white": {
+      "x": 1752,
+      "y": 280,
+      "w": 256,
+      "h": 160,
+      "anchor": "bottom",
+      "mean": [
+        0.485,
+        0.562,
+        0.446
+      ]
+    },
+    "grass-long": {
+      "x": 408,
+      "y": 312,
+      "w": 512,
+      "h": 192,
+      "anchor": "bottom",
+      "mean": [
+        0.495,
+        0.509,
+        0.266
+      ]
+    },
+    "solid": {
+      "x": 1960,
+      "y": 8,
+      "w": 64,
+      "h": 64,
+      "anchor": "centre",
+      "mean": [
+        1,
+        1,
+        1
+      ]
+    }
+  },
+  "sources": [
+    {
+      "key": "palmate",
+      "asset": "LeafSet025",
+      "library": "ambientcg",
+      "licence": "CC0-1.0",
+      "use": "palmate leaves (lupin)"
+    },
+    {
+      "key": "box",
+      "asset": "LeafSet002",
+      "library": "ambientcg",
+      "licence": "CC0-1.0",
+      "use": "small-leaved sprigs (hedging)"
+    },
+    {
+      "key": "lime",
+      "asset": "LeafSet004",
+      "library": "ambientcg",
+      "licence": "CC0-1.0",
+      "use": "heart-shaped leaves (poplar)"
+    },
+    {
+      "key": "willow",
+      "asset": "shrub_02",
+      "library": "polyhaven",
+      "licence": "CC0-1.0",
+      "use": "long willow-like leaves"
+    },
+    {
+      "key": "blade",
+      "asset": "Foliage001",
+      "library": "ambientcg",
+      "licence": "CC0-1.0",
+      "use": "long grass blades"
+    },
+    {
+      "key": "plume",
+      "asset": "Foliage002",
+      "library": "ambientcg",
+      "licence": "CC0-1.0",
+      "use": "grass seed heads (toetoe plumes)"
+    }
+  ]
+}

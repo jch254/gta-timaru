@@ -1,3 +1,5 @@
+import { ROUND3_OFF } from '../../scatter/util';
+import { agedLibrary } from '../aged';
 import * as THREE from 'three';
 import type { ChunkBuilder, LandmarkPlacement, MaterialLibrary, RailLine, SignOptions, WorldApi } from '../../../core/types';
 import { mergeGeometries } from '../../props/index';
@@ -40,7 +42,7 @@ export class Kit {
     /** True while local y = 0 is ground level: boxes and cylinders standing on it are sunk a little into the ground. */
     private readonly grounded = true,
   ) {
-    this.m = out.materials;
+    this.m = agedLibrary(out.materials, p, f.elements[13]);
     this.world = out.world;
   }
 
@@ -184,7 +186,16 @@ export class Kit {
   prop(kind: string, lx: number, lz: number, yaw = 0, scale = 1, tint?: number, ly?: number): this {
     _p.set(lx, 0, lz).applyMatrix4(this.f);
     const y = ly === undefined ? this.world.groundAt(_p.x, _p.z) : this.f.elements[13] + ly;
-    this.out.instance(kind, _p.x, y, _p.z, this.heading + yaw, scale, tint);
+    const x = _p.x;
+    const z = _p.z;
+    const h = this.heading + yaw;
+    this.out.instance(kind, x, y, z, h, scale, tint);
+    // A tub is stood with its planting; an oval bed with three drifts of bedding on its soil.
+    if (ROUND3_OFF) return this;
+    if (kind === 'chch-planter') this.out.instance('planter-plants', x, y, z, h, scale);
+    if (kind === 'chch-flowerbed') {
+      for (const [lx2, lz2] of [[-1.45, 0], [0.75, -0.42], [0.75, 0.42]]) this.out.instance('flower-bed', x + lx2 * Math.cos(h) + lz2 * Math.sin(h), y + 0.1, z - lx2 * Math.sin(h) + lz2 * Math.cos(h), h);
+    }
     return this;
   }
 

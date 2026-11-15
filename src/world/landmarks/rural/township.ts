@@ -1,3 +1,6 @@
+// Registers the static cars, sandwich boards and yard kinds.
+import { hashInts } from '../../../core/rng';
+import '../../props/extra';
 import { TAU } from '../../../core/math';
 import type { LandmarkBuilder } from '../../../core/types';
 import { type Batch, bench, flagpole, gableRoof, Geo, picnicTable, Site, sub, walls, windowRow } from './kit';
@@ -196,6 +199,29 @@ export const countryPub: LandmarkBuilder = (p, out) => {
   b.flush();
   s.light(0, 2.8, 4, 0xffdca0, 1.4, 18);
   s.light(adSide * 12, 4, -3, 0xffdca0, 0.8, 14);
+
+  // The forecourt: utes and cars nosed in towards the verandah, a board out by the road, crates and empties by
+  // the bottle store. Nothing stands near a mission marker or on anybody's carriageway.
+  const clear = (lx: number, lz: number, r: number): boolean => {
+    const x = s.wx(lx, lz);
+    const z = s.wz(lx, lz);
+    if (out.world.places.some((q) => Math.hypot(q.x - x, q.z - z) < r + 5)) return false;
+    const hit = out.world.graph.nearest(x, z, 24);
+    return !hit || hit.distance > hit.edge.width / 2 + r + 1.5;
+  };
+  const TINTS = [0xe8e6df, 0x8f959a, 0x9a1f1c, 0x1f3f7a, 0xc9b78a, 0x2d5a44, 0x6f3a2c, 0xd9d6cc];
+  for (let i = 0; i < 7; i++) {
+    const x = -8.7 + i * 2.9;
+    const kind = rng.pick(['car-parked', 'car-parked', 'car-parked-wagon', 'van-parked']);
+    // (Not `rng.pick`: four draws a car line the generator's low bits up, and every car comes out the same colour.)
+    const tint = TINTS[hashInts(s.seed, i, 311) % TINTS.length];
+    const skew = rng.range(-0.06, 0.06);
+    if (rng.chance(0.45) || Math.abs(x - doorX) < 1.7 || !clear(x, 10.4, 2.4)) continue;
+    s.prop(kind, x, 10.4 + rng.range(-0.3, 0.3), Math.PI + skew, 1, tint);
+  }
+  if (clear(far * 0.6, 15.5, 0.6)) s.prop('sandwich-board', far * 0.6, 15.5, Math.PI / 2 + 0.2, 1, 0x2a2c2e);
+  s.prop('pallet', far + 2.4, 2.9, 0.3);
+  for (const [dx, dz] of [[1.2, 2.7], [1.75, 2.75], [1.45, 3.2]] as const) s.prop('drum', far + dx - 3.6, dz, 0, 0.62, 0xb4b8bc);
 };
 
 /** Lancet window on a wall whose outward direction is local +z. */

@@ -1,6 +1,9 @@
 import type * as THREE from 'three';
 import { TAU } from '../../../core/math';
 import type { LandmarkBuilder } from '../../../core/types';
+// Registers the yard kinds (timber-stack, skip-bin, trailer…) and the static cars.
+import '../../props/extra';
+import { quayFrontage } from '../quay';
 import { bench, gableRoof, Geo, Site, sub, type V3, walls, windowRow } from '../rural/kit';
 
 /**
@@ -159,9 +162,21 @@ export const port: LandmarkBuilder = (p, out) => {
   // ── Wharf ──
   out.box(f, 0, -1.9, zW + 7, 210, 4, 14, concrete);
   out.collider(f, 0, -1.9, zW + 7, 210, 4, 14);
-  out.box(f, 0, 0.2, zW + 0.4, 210, 0.3, 0.5, s.mat('timber', 0x4f4338));
+  // The timber kerb and the bollards only where the wharf really fronts the water: where the built land carries
+  // on past it (the mole bends away to the north-west) the quay wall stands at the true edge instead.
   const bollards = b.g(s.mat('paintedMetal', 0x2a2c2e));
-  for (let x = -96; x <= 96; x += 16) bollards.lathe(x, 0.1, zW + 1.6, [[0.28, 0], [0.22, 0.5], [0.36, 0.55], [0.36, 0.7], [0, 0.72]], 8);
+  for (let x = -96; x <= 96; x += 16) {
+    if (foundWater && !wet(x, zW - 3)) continue;
+    out.box(f, x, 0.2, zW + 0.4, x === -96 || x === 96 ? 17 : 16, 0.3, 0.5, s.mat('timber', 0x4f4338));
+    bollards.lathe(x, 0.1, zW + 1.6, [[0.28, 0], [0.22, 0.5], [0.36, 0.55], [0.36, 0.7], [0, 0.72]], 8);
+  }
+  quayFrontage(p, out, (x, z) => {
+    const dx = x - p.x;
+    const dz = z - p.z;
+    const lx = dx * Math.cos(p.heading) - dz * Math.sin(p.heading);
+    const lz = dx * Math.sin(p.heading) + dz * Math.cos(p.heading);
+    return Math.abs(lx) < 106 && lz > zW - 2.5 && lz < zW + 14;
+  });
 
   // ── Grain silos, gallery, headhouse and shiploader ──
   for (let i = 0; i < 6; i++) {
@@ -299,6 +314,21 @@ export const port: LandmarkBuilder = (p, out) => {
     s.fence(fence, [[-74, 100], [-17, 100]], { height: 2, spacing: 3, rails: 2, post: 0.07, rail: [0.04, 0.04] });
     s.fence(fence, [[10, 100], [74, 100]], { height: 2, spacing: 3, rails: 2, post: 0.07, rail: [0.04, 0.04] });
   }
+
+  // ── The yard inside the gate: sawn timber for export, skips, drums, the staff's cars, a trailer or two ──
+  for (let i = 0; i < 6; i++) for (const z of [62, 75]) if (rng.chance(0.85)) s.prop('timber-stack', -60 + i * 6.4 + rng.range(-0.3, 0.3), z + rng.range(-0.5, 0.5), rng.range(-0.04, 0.04));
+  for (const [x, z, yaw, tint] of [[-28, 52, 0.2, 0x2f5d3a], [38, 58, 1.5, 0xc9a23a], [88, 62, 0.1, 0x2b4a6b], [-70, 90, 1.62, 0x8a2f2a]] as const) s.prop('skip-bin', x, z, yaw, 1, tint);
+  const TINTS = [0xe8e6df, 0x8f959a, 0x9a1f1c, 0x1f3f7a, 0xc9b78a, 0x2d5a44, 0xd9d6cc];
+  for (let i = 0; i < 9; i++) {
+    if (rng.chance(0.3)) continue;
+    const kind = rng.pick(['car-parked', 'car-parked', 'car-parked-wagon', 'van-parked']);
+    s.prop(kind, 20 + i * 2.95, 93.2 + rng.range(-0.3, 0.3), rng.range(-0.05, 0.05), 1, kind === 'van-parked' ? 0xe8e6df : rng.pick(TINTS));
+  }
+  s.prop('trailer', 51, 80, 1.9, 1, 0x8f959a);
+  s.prop('trailer', -8, 70, 0.3, 1, 0x6f3a2c);
+  s.prop('boat-trailer', 70, 78, 1.5);
+  for (const [x, z] of [[-14, 58], [-13, 59.2], [-15.2, 58.8], [30, 70], [31.1, 70.4], [-44, 88], [60, 66]] as const) s.prop('drum', x, z, 0, 1, rng.pick([0x2b4a6b, 0xb5261e, 0x8a8d90, 0x2d6a4f]));
+  for (const [x, z] of [[-36, 84], [-33.4, 85], [12, 62], [44, 72], [76, 88]] as const) s.prop('pallet', x, z, rng.range(0, 3));
   b.flush();
 };
 

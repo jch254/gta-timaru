@@ -4,7 +4,7 @@ import type { LandmarkPlacement, RailLine, RoadEdge, RoadGraph, Scatterer } from
 import { Geo } from '../landmarks/rural/kit';
 import { GATE_HALF, POLE_WIRES, PROP } from '../landmarks/rural/props';
 import { SCATTERERS } from './registry';
-import { DRESSING_OFF } from './util';
+import { DRESSING_OFF, ROUND3_OFF } from './util';
 
 /**
  * Dresses the Canterbury Plains: post-and-wire fences along roads and paddock edges, mobs of sheep, a few
@@ -98,7 +98,7 @@ function edgeTraits(a: number, b: number, vertical: boolean) {
   const belt = (h & 0xff) / 255;
   return {
     fenced: ((h >>> 17) & 0xff) / 255 > 0.06,
-    belt: belt < 0.25 ? 'tree-pine' : belt < 0.33 ? 'tree-poplar' : null,
+    belt: belt < 0.25 ? 'tree-pine' : belt < 0.33 ? 'tree-poplar' : belt < 0.45 ? 'hedge-shelter' : null,
     race: ((h >>> 8) & 0xff) / 255 < 0.1,
     side: (h >>> 16) & 1 ? 1 : -1,
   };
@@ -277,6 +277,7 @@ export const ruralScatterer: Scatterer = (area, out) => {
   // ── Road-boundary fences, gates with letterboxes, and SH1's power poles ──
   const edges = new Set<RoadEdge>();
   let tussocks = 0;
+  let rank = 0;
   for (const r of roads) edges.add(r.edge);
   for (const edge of [...edges].sort((a, b) => a.index - b.index)) {
     if (edge.bridge || edge.tunnel || edge.footpaths || edge.cls === 'pedestrian') continue;
@@ -330,6 +331,16 @@ export const ruralScatterer: Scatterer = (area, out) => {
           }
         }
         const q = i + 2 < n - 2 ? post(i + 2) : null;
+        // Long grass under the wire, where neither the mower nor the stock can get at it.
+        if (out.lod === 0 && !DRESSING_OFF && !ROUND3_OFF && rank < 280 && g % 7 !== 0) {
+          const turn = Math.atan2(-s.tz, s.tx);
+          out.instance('grass-long', p[0], p[1] - 0.03, p[2], turn, 0.9 + ((g >>> 20) % 100) / 300);
+          if (q) {
+            const [hx, hz] = at(i + 1);
+            if (roadDistance(hx, hz) >= ROAD_CLEAR) out.instance('grass-long', hx, (p[1] + q[1]) / 2 - 0.03, hz, turn + Math.PI, 0.85 + ((g >>> 24) % 100) / 280);
+          }
+          rank += 2;
+        }
         if (!q) continue;
         const dx = q[0] - p[0];
         const dz = q[2] - p[2];
@@ -416,6 +427,7 @@ export const ruralScatterer: Scatterer = (area, out) => {
   const water = new Geo();
   const banks = new Geo();
   let trees = 0;
+  let hedges = 0;
   const boundary = (fixed: number, vertical: boolean, line: number) => {
     const lo = vertical ? minZ : minX;
     const hi = lo + size;
@@ -441,7 +453,7 @@ export const ruralScatterer: Scatterer = (area, out) => {
     // Shelter belt: a straight row a few metres inside one paddock.
     for (let t = Math.ceil(lo / 6) * 6; t < hi; t += 6) {
       const tr = traits(t);
-      if (!tr.belt || trees >= 150) continue;
+      if (!tr.belt || tr.belt === 'hedge-shelter' || trees >= 150) continue;
       const h = hashInts(Math.round(fixed), t, 31);
       if (h % 19 === 0) continue;
       const [x, z] = point(t, tr.side * (3.4 + ((h >>> 8) % 100) / 125));
@@ -450,6 +462,17 @@ export const ruralScatterer: Scatterer = (area, out) => {
       const pine = tr.belt === 'tree-pine';
       out.instance(tr.belt, x, y, z, (h % 628) / 100, (pine ? 1.0 : 0.9) + ((h >>> 16) % 100) / (pine ? 280 : 300));
       trees++;
+    }
+    // Shelter hedge: clipped macrocarpa in 4 m lengths laid end to end just inside the fence, with the odd gap.
+    for (let t = Math.ceil(lo / 4) * 4; t < hi; t += 4) {
+      const tr = traits(t + 2);
+      if (tr.belt !== 'hedge-shelter' || hedges >= 130 || DRESSING_OFF || ROUND3_OFF) continue;
+      if (hashInts(Math.round(fixed), Math.floor(t / 4), 37) % 29 === 0) continue;
+      const [x, z] = point(t + 2, tr.side * 2.6);
+      const y = place(x, z, 14, 4);
+      if (y === null) continue;
+      out.instance('hedge-shelter', x, y - 0.06, z, vertical ? Math.PI / 2 : 0);
+      hedges++;
     }
     // Water race: a narrow channel between low banks on the other side of the fence.
     for (let t = Math.floor(lo / 16) * 16; t < hi; t += 16) {
