@@ -2,37 +2,102 @@
 <html lang="en-NZ">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Timmaz Hard</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23151212'/%3E%3Crect x='2.5' y='2.5' width='27' height='27' rx='4' fill='none' stroke='%23c9ccd1'/%3E%3Cpath d='M5 9h10v3h-3.5v11h-3V12H5zM17 9h3v5.5h4V9h3v14h-3v-5.5h-4V23h-3z' fill='%23d8dbe0'/%3E%3C/svg%3E" />
+    <!-- viewport-fit=cover: on a phone the picture runs under the notch from the first paint (src/touch asks for the same once the game is up). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Timmaz Hard: an open-world sandbox set in Canterbury, New Zealand, in 1995. Timaru to Christchurch, by whatever you can drive." />
+    <meta name="theme-color" content="#14181f" />
+    <meta name="color-scheme" content="dark" />
+    <!-- Added to a phone's home screen it opens full screen, in landscape, with no browser bars. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Timmaz Hard" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Timmaz Hard · Canterbury, 1995</title>
+    <!-- A motorway sign: green plate, white keyline, TH. -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f6b47'/%3E%3Crect x='2.6' y='2.6' width='26.8' height='26.8' rx='4.8' fill='none' stroke='%23fff' stroke-width='1.9'/%3E%3Cpath d='M6.2 9.8h9.4v3.1h-3.1v9.3H9.3v-9.3H6.2zM17.2 9.8h3.1v4.5h3.4V9.8h3.1v12.4h-3.1v-4.8h-3.4v4.8h-3.1z' fill='%23fff'/%3E%3C/svg%3E" />
   </head>
   <body>
     <canvas id="scene"></canvas>
     <div id="title">
-      <div class="sub">Canterbury &middot; 1995</div>
-      <h1>Timmaz Hard</h1>
-      <div id="title-buttons">
-        <button id="btn-new">New game</button>
-        <button id="btn-continue" hidden>Continue</button>
-        <button id="btn-controls">Controls</button>
-      </div>
+      <img id="title-photo" src="/src/assets/ui/title.jpg" alt="" decoding="async" />
+      <div class="title-shade"></div>
+      <main class="title-main">
+        <div class="title-head">
+          <div class="sub">Canterbury &middot; 1995</div>
+          <h1>Timmaz Hard</h1>
+          <p class="epigraph">&ldquo;Fourteen years on the chain at Smithfield, and they finish you with a letter and a frozen leg of lamb.&rdquo;</p>
+        </div>
+        <div class="title-body">
+          <div id="title-buttons">
+            <button id="btn-new" type="button">New game</button>
+            <button id="btn-continue" type="button" hidden>Continue</button>
+            <button id="btn-controls" type="button" aria-expanded="false" aria-controls="controls-panel">Controls</button>
+            <div class="title-hint" aria-hidden="true"><kbd>&uarr;</kbd><kbd>&darr;</kbd><span>Choose</span><kbd>Enter</kbd><span>Select</span></div>
+          </div>
+          <div id="loading" hidden>
+            <div class="load-sign">
+              <div class="load-kicker" id="load-kicker">Next stop</div>
+              <div class="load-place" id="load-place">The Bay Hill, Timaru</div>
+              <div class="load-reo" id="load-reo">Te Tihi-o-Maru</div>
+            </div>
+            <div class="load-line">
+              <span id="load-status" role="status" aria-live="polite">Loading&hellip;</span>
+              <span id="load-pct">0%</span>
+            </div>
+            <div id="load-track" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="load-bar"></div></div>
+            <p id="load-colour"></p>
+          </div>
+        </div>
+      </main>
       <div id="controls-panel" hidden>
-        <table>
-          <tr><td>W A S D</td><td>Walk / drive</td><td>Mouse</td><td>Look</td></tr>
-          <tr><td>Shift</td><td>Sprint</td><td>Space</td><td>Jump / handbrake</td></tr>
-          <tr><td>F</td><td>Get in or out, interact</td><td>H</td><td>Horn</td></tr>
-          <tr><td>Right mouse</td><td>Aim</td><td>Left mouse</td><td>Fire</td></tr>
-          <tr><td>R</td><td>Reload / radio</td><td>Q</td><td>Melee</td></tr>
-          <tr><td>E / Z</td><td>Change weapon</td><td>C</td><td>Look behind</td></tr>
-          <tr><td>M</td><td>Map</td><td>Esc</td><td>Pause, settings</td></tr>
-          <tr><td>X</td><td>Skip a line of talk</td><td>V</td><td>Camera distance</td></tr>
-        </table>
-        <p>Gamepads work too. The full list is in the pause menu.</p>
+        <h2>Controls</h2>
+        <!-- On a touch screen (html.touch-first, set by main.ts from src/touch/device) the second list shows instead. -->
+        <div class="ctl-grid ctl-touch">
+          <div class="ctl"><span class="keys"><kbd>Left thumb</kbd></span><span>Walk; push to the rim to run. Steers a car</span></div>
+          <div class="ctl"><span class="keys"><kbd>Drag</kbd></span><span>Look around (anywhere on the right)</span></div>
+          <div class="ctl"><span class="keys"><kbd>Punch</kbd><kbd>Fire</kbd></span><span>Hit or shoot; hold to keep going</span></div>
+          <div class="ctl"><span class="keys"><kbd>Jump</kbd><kbd>Use</kbd></span><span>Use shows when there is something to get into, pick up or talk to</span></div>
+          <div class="ctl"><span class="keys"><kbd>Aim</kbd><kbd>Reload</kbd></span><span>With a firearm; Weapon changes it</span></div>
+          <div class="ctl"><span class="keys"><kbd>Go</kbd><kbd>Brake</kbd></span><span>Pedals; slide a thumb between them</span></div>
+          <div class="ctl"><span class="keys"><kbd>Hand brake</kbd><kbd>Out</kbd></span><span>In a car</span></div>
+          <div class="ctl"><span class="keys"><kbd>Horn</kbd><kbd>Radio</kbd></span><span>And Behind, to look back</span></div>
+          <div class="ctl"><span class="keys"><kbd>II</kbd><kbd>Map</kbd><kbd>View</kbd></span><span>Top-left: pause, island map, camera distance</span></div>
+          <div class="ctl"><span class="keys"><kbd>Skip</kbd></span><span>Skip a line of talk</span></div>
+        </div>
+        <div class="ctl-grid ctl-keys">
+          <div class="ctl"><span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Walk / drive</span></div>
+          <div class="ctl"><span class="keys"><kbd>Mouse</kbd></span><span>Look</span></div>
+          <div class="ctl"><span class="keys"><kbd>Shift</kbd></span><span>Sprint</span></div>
+          <div class="ctl"><span class="keys"><kbd>Space</kbd></span><span>Jump / handbrake</span></div>
+          <div class="ctl"><span class="keys"><kbd>F</kbd></span><span>Get in or out, interact</span></div>
+          <div class="ctl"><span class="keys"><kbd>H</kbd></span><span>Horn</span></div>
+          <div class="ctl"><span class="keys"><kbd>Right mouse</kbd></span><span>Aim</span></div>
+          <div class="ctl"><span class="keys"><kbd>Left mouse</kbd></span><span>Fire</span></div>
+          <div class="ctl"><span class="keys"><kbd>R</kbd></span><span>Reload / radio</span></div>
+          <div class="ctl"><span class="keys"><kbd>Q</kbd></span><span>Melee</span></div>
+          <div class="ctl"><span class="keys"><kbd>E</kbd><kbd>Z</kbd></span><span>Change weapon</span></div>
+          <div class="ctl"><span class="keys"><kbd>C</kbd></span><span>Look behind</span></div>
+          <div class="ctl"><span class="keys"><kbd>M</kbd></span><span>Map</span></div>
+          <div class="ctl"><span class="keys"><kbd>Esc</kbd></span><span>Pause, settings</span></div>
+          <div class="ctl"><span class="keys"><kbd>X</kbd></span><span>Skip a line of talk</span></div>
+          <div class="ctl"><span class="keys"><kbd>V</kbd></span><span>Camera distance</span></div>
+        </div>
+        <p class="ctl-keys">Gamepads work too. The full list is in the pause menu.</p>
+        <p class="ctl-touch">Keyboards and gamepads work too. The full list is in the pause menu.</p>
       </div>
-      <div id="load-status" hidden></div>
-      <div id="load-track"><div id="load-bar"></div></div>
-      <div class="legal">A work of fiction. Real places; the people and businesses in it are invented, and a few are parodies. The live radio stations are real and play from their own streams.</div>
-      <div class="credit"><a href="https://jch254.com/" target="_blank" rel="noopener">&copy; Jordan Hornblow 2026</a> | <a href="https://github.com/jch254/timmaz-hard" target="_blank" rel="noopener">GitHub</a></div>
+      <!-- A touch screen held upright: the same card the game shows (src/touch), so the title matches. -->
+      <div id="title-turn" role="alert">
+        <div class="turn-phone"></div>
+        <div class="turn-title">Turn your phone sideways</div>
+        <div class="turn-text">Timmaz Hard is played in landscape.</div>
+      </div>
+      <footer class="title-foot">
+        <div class="legal">A work of fiction. Real places; the people and businesses in it are invented, and a few are parodies. The live radio stations are real and play from their own streams.</div>
+        <div class="credit"><a href="https://jch254.com/" target="_blank" rel="noopener">&copy; Jordan Hornblow 2026</a> | <a href="https://github.com/jch254/timmaz-hard" target="_blank" rel="noopener">GitHub</a></div>
+        <div class="caption">The Bay Hill, Timaru, at dusk<small>Te Tihi-o-Maru</small></div>
+      </footer>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

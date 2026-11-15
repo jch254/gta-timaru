@@ -14,7 +14,6 @@ const POST = '#f4c417';
 const RUST = '#c2462b';
 const TEAL = '#2f9d96';
 const GOLD = '#e8a92e';
-const SIGN = '#0f6b47';
 
 type G = CanvasRenderingContext2D;
 
@@ -120,14 +119,14 @@ export function paintIcon(g: G, kind: IconKind, cx: number, cy: number, s: numbe
       break;
     case 'north':
       disc(g, cx, cy, s * 0.42);
-      fillStroke(g, '#ffffff', s, SIGN);
+      fillStroke(g, PAPER, s, INK);
       g.beginPath();
       g.moveTo(cx - s * 0.15, cy + s * 0.2);
       g.lineTo(cx - s * 0.15, cy - s * 0.2);
       g.lineTo(cx + s * 0.15, cy + s * 0.2);
       g.lineTo(cx + s * 0.15, cy - s * 0.2);
       g.lineWidth = Math.max(1.2, s * 0.11);
-      g.strokeStyle = SIGN;
+      g.strokeStyle = INK;
       g.stroke();
       break;
   }

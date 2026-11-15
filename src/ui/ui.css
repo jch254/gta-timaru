@@ -11,6 +11,15 @@
  *
  * Everything is sized in em from one viewport-derived font size on .nw-ui, so the whole interface scales
  * from 800×600 to 2560×1440. System fonts only (all of them carry the macrons te reo Māori needs).
+ *
+ * Materials, and what each is for:
+ *   green sign plate ...... a place name (location card; the loading card on the title screen)
+ *   black plate ........... a number or a key (speed, ammo, timer, clock, keycaps, the radio's faceplate)
+ *   dark glass ............ words spoken or asked (subtitles, prompt, vitals)
+ *   yellow fingerpost ..... where to go and what to choose (objective, menus)
+ *   paper ................. anything printed (maps, money, toasts, sheets, dialogs)
+ * Plates and glass share one radius, one shadow and one way of arriving (--nw-radius, --nw-lift, --nw-in);
+ * paper keeps square corners.
  */
 
 .nw-ui {
@@ -25,20 +34,32 @@
   --nw-plate: #0c0d10;
   --nw-silver: #dfe3e6;
   --nw-ledger-ink: #1c2430;
-  --nw-rule: rgba(88, 134, 176, 0.24);
+  --nw-rule: rgba(88, 134, 176, 0.2);
   --nw-margin: rgba(196, 72, 60, 0.5);
-  --nw-data: 'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
-  --nw-serif: Superclarendon, Rockwell, 'Rockwell Nova', Clarendon, 'Bookman Old Style', Georgia, 'Times New Roman', serif;
-  --nw-reo: 'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, 'Times New Roman', serif;
-  --nw-mono: Menlo, Consolas, 'DejaVu Sans Mono', monospace;
-  --nw-shadow: 0 0.06em 0.12em rgba(0, 0, 0, 0.9), 0 0 0.5em rgba(0, 0, 0, 0.5);
+  /* The type system lives in src/style.css (:root), shared with the title screen; src/ui/type.ts mirrors it for canvas. */
+  --nw-data: var(--th-text, 'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif);
+  --nw-serif: var(--th-display, Superclarendon, Rockwell, 'Rockwell Nova', Clarendon, 'Bookman Old Style', Georgia, 'Times New Roman', serif);
+  --nw-reo: var(--th-reo, 'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, 'Times New Roman', serif);
+  --nw-mono: var(--th-mono, Menlo, Consolas, 'DejaVu Sans Mono', monospace);
+  --nw-shadow: 0 0.06em 0.12em rgba(0, 0, 0, 0.9), 0 0 0.5em rgba(0, 0, 0, 0.55);
+  /* Edge treatment shared by everything that floats over the game. */
+  --nw-edge: 1.4em;
+  /* Left and right edges keep clear of a phone's notch and rounded corners (zero everywhere else). */
+  --nw-l: max(var(--nw-edge), env(safe-area-inset-left, 0px));
+  --nw-r: max(var(--nw-edge), env(safe-area-inset-right, 0px));
+  --nw-glass: rgba(12, 13, 16, 0.74);
+  --nw-radius: 0.5em;
+  --nw-lift: 0 0.3em 0.9em rgba(0, 0, 0, 0.45);
+  --nw-hairline: inset 0 0 0 1px rgba(255, 255, 255, 0.13);
+  /* How things arrive and leave: quick, eased, never a pop. */
+  --nw-in: 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
 
   position: fixed;
   inset: 0;
   z-index: 10;
   overflow: hidden;
   pointer-events: none;
-  font: 600 clamp(10px, min(1.5vh, 1.15vw), 22px) / 1.2 var(--nw-data);
+  font: 600 var(--th-size, clamp(10px, min(1.6vh, 1.15vw), 22px)) / 1.2 var(--nw-data);
   letter-spacing: 0.01em;
   color: #fff;
   cursor: default;
@@ -110,11 +131,11 @@
 .nw-loc {
   background: var(--nw-sign);
   color: #fff;
-  border: 0.16em solid #fff;
-  border-radius: 0.6em;
+  border: 0.14em solid #fff;
+  border-radius: var(--nw-radius);
   box-shadow:
-    0 0 0 0.14em var(--nw-sign),
-    0 0.35em 1em rgba(0, 0, 0, 0.45);
+    0 0 0 0.12em var(--nw-sign),
+    var(--nw-lift);
 }
 
 /* ───────────── HUD: damage vignette ───────────── */
@@ -177,15 +198,16 @@
 
 .nw-loc {
   position: absolute;
-  left: 1.4em;
-  bottom: 17.5em;
+  left: var(--nw-l);
+  /* Sits on top of the minimap (15em) with the same gap the corner column uses. */
+  bottom: calc(var(--nw-edge) + 15em + 0.7em);
   max-width: 36em;
-  padding: 0.5em 1em 0.55em;
+  padding: 0.45em 1em 0.5em;
   opacity: 0;
-  transform: translateX(calc(-100% - 3em));
+  transform: translateX(-1.2em);
   transition:
-    transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 0.35s;
+    transform var(--nw-in),
+    opacity var(--nw-in);
 }
 
 .nw-loc.on {
@@ -194,15 +216,15 @@
 }
 
 .nw-loc-title {
-  font-size: 1.55em;
+  font-size: 1.5em;
   font-weight: 700;
   line-height: 1.1;
 }
 
 .nw-loc-sub {
   display: none;
-  margin-top: 0.2em;
-  font-size: 0.98em;
+  margin-top: 0.15em;
+  font-size: 0.95em;
   font-weight: 500;
   letter-spacing: 0.03em;
   opacity: 0.94;
@@ -229,7 +251,7 @@
 .nw-top {
   position: absolute;
   left: 50%;
-  top: 1.3em;
+  top: var(--nw-edge);
   transform: translateX(-50%);
   width: max-content;
   /* Stops short of the clock and heat lamps in the top-right corner, however narrow the window. */
@@ -238,6 +260,51 @@
   align-items: stretch;
   gap: 0.6em;
   filter: drop-shadow(0 0.25em 0.5em rgba(0, 0, 0, 0.45));
+}
+
+/*
+ * Arriving and leaving. These pieces are display:none when off (so they take no room in their rows); where the
+ * browser can animate that (allow-discrete with @starting-style) they ease in and out, and elsewhere they
+ * simply appear as before.
+ */
+.nw-timer,
+.nw-obj,
+.nw-drive {
+  opacity: 0;
+  transform: translateY(-0.5em);
+  transition:
+    opacity var(--nw-in),
+    transform var(--nw-in),
+    display 0.26s allow-discrete;
+}
+
+.nw-drive {
+  transform: translateY(0.6em);
+}
+
+.nw-timer.on,
+.nw-obj.on,
+.nw-drive.on {
+  opacity: 1;
+  transform: none;
+}
+
+@starting-style {
+  .nw-timer.on,
+  .nw-obj.on {
+    opacity: 0;
+    transform: translateY(-0.5em);
+  }
+
+  .nw-drive.on {
+    opacity: 0;
+    transform: translateY(0.6em);
+  }
+
+  .nw-prompt.on {
+    opacity: 0;
+    transform: translate(-50%, 0.5em);
+  }
 }
 
 .nw-timer {
@@ -251,7 +318,7 @@
   background: var(--nw-plate);
   color: var(--nw-silver);
   border: 0.12em solid var(--nw-silver);
-  border-radius: 0.35em;
+  border-radius: var(--nw-radius);
 }
 
 .nw-timer.on {
@@ -265,7 +332,7 @@
 }
 
 .nw-timer.counts .nw-timer-label {
-  font-size: 0.72em;
+  font-size: max(0.76em, 9px);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   opacity: 0.8;
@@ -367,8 +434,8 @@
 
 .nw-status {
   position: absolute;
-  right: 1.4em;
-  top: 1.3em;
+  right: var(--nw-r);
+  top: var(--nw-edge);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -390,13 +457,13 @@
   padding: 0.32em 0.45em 0.28em;
   background: var(--nw-plate);
   border: 0.1em solid #2c3038;
-  border-radius: 0.45em;
-  box-shadow: 0 0.2em 0.6em rgba(0, 0, 0, 0.5);
+  border-radius: var(--nw-radius);
+  box-shadow: var(--nw-lift);
   opacity: 0;
-  transform: translateX(0.5em);
+  transform: translateX(0.6em);
   transition:
-    opacity 0.3s,
-    transform 0.3s;
+    opacity var(--nw-in),
+    transform var(--nw-in);
 }
 
 .nw-heat.on {
@@ -461,15 +528,20 @@
   }
 }
 
+/* The clock sits on dark glass so it reads against a white sky as well as at night. */
 .nw-clock {
   display: flex;
   align-items: baseline;
   gap: 0.5em;
-  text-shadow: var(--nw-shadow);
+  padding: 0.14em 0.65em 0.12em;
+  background: var(--nw-glass);
+  border-radius: var(--nw-radius);
+  box-shadow: var(--nw-hairline), var(--nw-lift);
 }
 
 .nw-clock-day {
-  font-size: 0.9em;
+  font-size: 0.86em;
+  font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--nw-gold);
@@ -486,8 +558,8 @@
   padding: 0.2em 0.7em 0.24em 1.5em;
   color: var(--nw-ledger-ink);
   background: var(--nw-paper) linear-gradient(90deg, transparent 0.95em, var(--nw-margin) 0.95em, var(--nw-margin) calc(0.95em + 1px), transparent calc(0.95em + 1px));
-  border-radius: 0.18em;
-  box-shadow: 0 0.2em 0.6em rgba(0, 0, 0, 0.45);
+  border-radius: 0.15em;
+  box-shadow: var(--nw-lift);
   font-size: 1.35em;
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -533,19 +605,31 @@
 
 /* ───────────── HUD: minimap (bottom-left) ───────────── */
 
+/* A corner torn from the road atlas: cream margin, ink neatline, square paper corners. */
 .nw-mini {
   position: absolute;
-  left: 1.4em;
-  bottom: 1.4em;
+  left: var(--nw-l);
+  bottom: var(--nw-edge);
   width: 15em;
   height: 15em;
   overflow: hidden;
-  background: var(--nw-sign);
-  border: 0.18em solid #fff;
-  border-radius: 1.5em;
+  background: #ece3c8;
+  border: 0.3em solid #f1eadb;
+  border-radius: 0.2em;
   box-shadow:
-    0 0 0 0.16em var(--nw-sign-deep),
-    0 0.4em 1.2em rgba(0, 0, 0, 0.5);
+    0 0 0 1px rgba(20, 24, 31, 0.6),
+    var(--nw-lift);
+}
+
+/* The neatline, and a little age in the corners of the paper. */
+.nw-mini::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow:
+    inset 0 0 0 max(1px, 0.07em) rgba(29, 35, 44, 0.75),
+    inset 0 0 1.6em rgba(96, 70, 28, 0.2);
+  pointer-events: none;
 }
 
 .nw-mini-canvas {
@@ -558,29 +642,33 @@
 
 .nw-corner {
   position: absolute;
-  right: 1.4em;
-  bottom: 1.4em;
+  right: var(--nw-r);
+  bottom: var(--nw-edge);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.55em;
+  gap: 0.7em;
 }
 
 /* Radio: a car-stereo strip. */
+/* Same cut as the location sign (keyline, radius, shadow, type sizes), in the stereo's black. */
 .nw-radio {
   display: flex;
   align-items: center;
-  gap: 0.6em;
-  max-width: 22em;
-  padding: 0.4em 0.8em;
-  background: rgba(12, 13, 16, 0.88);
-  border: 0.08em solid #3a3f47;
-  border-radius: 0.3em;
+  gap: 0.7em;
+  max-width: 26em;
+  padding: 0.45em 1em 0.5em 0.85em;
+  background: #101216;
+  border: 0.14em solid #b9bfc5;
+  border-radius: var(--nw-radius);
+  box-shadow:
+    0 0 0 0.12em #101216,
+    var(--nw-lift);
   opacity: 0;
-  transform: translateX(1em);
+  transform: translateX(1.2em);
   transition:
-    opacity 0.3s,
-    transform 0.3s;
+    opacity var(--nw-in),
+    transform var(--nw-in);
 }
 
 .nw-radio.on {
@@ -590,8 +678,8 @@
 
 .nw-radio-led {
   flex: none;
-  width: 0.5em;
-  height: 0.5em;
+  width: 0.55em;
+  height: 0.55em;
   border-radius: 50%;
   background: var(--nw-gold);
   box-shadow: 0 0 0.5em var(--nw-gold);
@@ -605,21 +693,23 @@
 
 .nw-radio-name {
   overflow: hidden;
-  font-size: 1.1em;
+  font-size: 1.5em;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  line-height: 1.1;
   white-space: nowrap;
   text-overflow: ellipsis;
-  color: #ffe2a0;
+  color: #ffd98a;
 }
 
 .nw-radio-blurb {
   overflow: hidden;
-  font-size: 0.82em;
+  margin-top: 0.15em;
+  font-size: 0.95em;
   font-weight: 500;
+  letter-spacing: 0.03em;
   white-space: nowrap;
   text-overflow: ellipsis;
-  color: #c9cdd2;
+  color: #dfe3e6;
 }
 
 .nw-radio-blurb:empty {
@@ -664,7 +754,8 @@
 }
 
 .nw-cond-word {
-  font-size: 0.85em;
+  font-size: max(0.85em, 9.5px);
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #d5f3e6;
@@ -776,38 +867,50 @@
 }
 
 .nw-plate-unit {
-  font-size: 0.6em;
+  font-size: max(0.62em, 8px);
   letter-spacing: 0.08em;
   opacity: 0.8;
 }
 
-/* Weapon and ammo. */
+/* What you are carrying and how you are doing: one pane of dark glass. */
+.nw-kit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
+  padding: 0.5em 0.65em 0.6em;
+  background: var(--nw-glass);
+  border-radius: var(--nw-radius);
+  box-shadow: var(--nw-hairline), var(--nw-lift);
+}
+
 .nw-weapon {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.7em;
-  text-shadow: var(--nw-shadow);
+  min-height: 1.75em;
 }
 
 .nw-weapon-name {
+  font-size: 0.95em;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
-.nw-weapon.unarmed {
-  opacity: 0.6;
+.nw-weapon.unarmed .nw-weapon-name {
+  opacity: 0.72;
 }
 
 .nw-ammo {
   display: none;
   align-items: baseline;
   gap: 0.25em;
-  padding: 0.1em 0.5em;
+  padding: 0 0.5em;
   background: var(--nw-plate);
   color: var(--nw-silver);
-  border: 0.08em solid var(--nw-silver);
-  border-radius: 0.25em;
-  text-shadow: none;
+  border: 0.09em solid var(--nw-silver);
+  border-radius: 0.28em;
+  line-height: 1.5;
   font-variant-numeric: tabular-nums;
 }
 
@@ -816,8 +919,9 @@
 }
 
 .nw-ammo-clip {
-  font-size: 1.45em;
+  font-size: 1.3em;
   font-weight: 800;
+  line-height: 1.15;
 }
 
 .nw-ammo.empty .nw-ammo-clip {
@@ -837,9 +941,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.35em;
-  padding: 0.5em 0.6em;
-  background: rgba(12, 13, 16, 0.62);
-  border-radius: 0.4em;
 }
 
 .nw-vital {
@@ -1043,16 +1144,24 @@
   display: none;
   align-items: center;
   gap: 0.5em;
-  padding: 0.45em 0.9em;
-  background: rgba(12, 13, 16, 0.76);
-  border-radius: 0.4em;
-  box-shadow: 0 0.2em 0.6em rgba(0, 0, 0, 0.35);
+  padding: 0.45em 1em 0.45em 0.8em;
+  background: var(--nw-glass);
+  border-radius: var(--nw-radius);
+  box-shadow: var(--nw-hairline), var(--nw-lift);
   font-size: 1.15em;
   white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, 0.5em);
+  transition:
+    opacity var(--nw-in),
+    transform var(--nw-in),
+    display 0.26s allow-discrete;
 }
 
 .nw-prompt.on {
   display: flex;
+  opacity: 1;
+  transform: translateX(-50%);
 }
 
 .nw-prompt .nw-cap {
@@ -1087,18 +1196,24 @@
   width: max-content;
   max-width: min(66vw, 48em);
   padding: 0.4em 1em 0.45em;
-  background: rgba(12, 13, 16, 0.68);
-  border-radius: 0.35em;
+  background: var(--nw-glass);
+  border-radius: var(--nw-radius);
+  box-shadow: var(--nw-hairline), var(--nw-lift);
   font-size: 1.3em;
   font-weight: 500;
   line-height: 1.3;
   text-align: center;
+  text-wrap: balance;
   opacity: 0;
-  transition: opacity 0.2s;
+  transform: translate(-50%, 0.35em);
+  transition:
+    opacity var(--nw-in),
+    transform var(--nw-in);
 }
 
 .nw-sub.on {
   opacity: 1;
+  transform: translateX(-50%);
 }
 
 .nw-sub-who {
@@ -1229,8 +1344,8 @@
 
 .nw-toasts {
   position: absolute;
-  right: 1.4em;
-  top: 8.6em;
+  right: var(--nw-r);
+  top: 8.8em;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -1240,7 +1355,7 @@
 
 /* On the pause screen the slips move up into the empty corner, clear of the sheet. */
 .nw-ui.nw-paused .nw-toasts {
-  top: 1.4em;
+  top: var(--nw-edge);
 }
 
 .nw-toast {
@@ -1250,12 +1365,17 @@
   color: var(--nw-ledger-ink);
   border-left: 0.3em solid var(--nw-gold);
   border-radius: 0.15em;
-  box-shadow: 0 0.25em 0.7em rgba(0, 0, 0, 0.45);
+  box-shadow: var(--nw-lift);
   line-height: 1.25;
+  opacity: 0;
+  transition:
+    opacity 0.3s ease-out,
+    display 0.3s allow-discrete;
 }
 
 .nw-toast.on {
   display: block;
+  opacity: 1;
 }
 
 .nw-toast.in-a {
@@ -1397,6 +1517,16 @@
 
 .nw-pause.on {
   display: block;
+  animation: nw-pause-in 0.18s ease-out;
+}
+
+@keyframes nw-pause-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .nw-pause-main {
@@ -1511,6 +1641,8 @@
   max-width: 52em;
   max-height: 100%;
   padding: 1.3em 1.5em 1.2em 3em;
+  /* Every row on a sheet carries its own dotted rule, so the paper keeps only its margin line. */
+  background-image: linear-gradient(90deg, transparent 2.2em, var(--nw-margin) 2.2em, var(--nw-margin) calc(2.2em + 1px), transparent calc(2.2em + 1px));
 }
 
 .nw-panel.focus {
@@ -1546,7 +1678,7 @@
 
 .nw-para.nw-note {
   margin-top: 1em;
-  font-size: 0.92em;
+  font-size: max(0.92em, 10.5px);
   color: #55606e;
 }
 
@@ -1562,7 +1694,8 @@
   flex: none;
   width: 7.5em;
   padding-top: 0.2em;
-  font-size: 0.8em;
+  font-size: max(0.82em, 9.5px);
+  font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #6a5a3a;
@@ -1609,7 +1742,7 @@
   padding: 0.1em 0.5em;
   border: 0.14em solid currentColor;
   border-radius: 0.2em;
-  font-size: 0.78em;
+  font-size: max(0.8em, 9.5px);
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -1632,7 +1765,8 @@
 
 .nw-job-giver {
   margin-top: 0.15em;
-  font-size: 0.8em;
+  font-size: max(0.82em, 9.5px);
+  font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #6a5a3a;
@@ -1671,17 +1805,34 @@
   font-size: 1.02em;
 }
 
+/* The column heads stay put while the list scrolls under them. */
 .nw-ctl-row.nw-ctl-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--nw-paper);
   border-bottom: 1px solid rgba(28, 36, 48, 0.5);
-  font-size: 0.78em;
+  font-size: max(0.82em, 9.5px);
+  font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #6a5a3a;
 }
 
-.nw-ctl-group {
+.nw-ctl-group,
+.nw-set-group {
   margin: 1em 0 0.2em;
   font: 700 1.15em / 1.2 var(--nw-serif);
+}
+
+.nw-set-group {
+  margin: 1.1em 0 0.15em;
+  padding: 0 0.6em 0.3em;
+  border-bottom: 1px solid rgba(28, 36, 48, 0.5);
+}
+
+.nw-set-group:first-child {
+  margin-top: 0.1em;
 }
 
 .nw-ctl-label {
@@ -1722,8 +1873,9 @@
 
 .nw-set-note {
   margin-top: 0.15em;
-  font-size: 0.74em;
+  font-size: max(0.8em, 10px);
   font-weight: 500;
+  line-height: 1.25;
   color: #55606e;
 }
 
@@ -1824,18 +1976,32 @@
 
 .nw-shield-plate {
   padding: 0.6em 1.1em;
-  background: rgba(12, 13, 16, 0.84);
-  border-radius: 0.4em;
+  background: var(--nw-glass);
+  border-radius: var(--nw-radius);
+  box-shadow: var(--nw-hairline), var(--nw-lift);
   font-size: 1.25em;
 }
 
 /* ───────────── Island map ───────────── */
 
 .nw-map {
+  /* Clear of the page border the canvas draws round the screen (1.5em; see BORDER_EM in fullmap.ts). */
+  --nw-page: 2.7em;
   position: absolute;
   inset: 0;
   display: none;
-  background: #cfc4a6;
+  background: #e3d9bf;
+}
+
+/* A printed panel on the sheet: paper, with the double rule of a title cartouche. */
+.nw-cartouche {
+  color: var(--nw-ledger-ink);
+  background: var(--nw-paper);
+  border: 0.1em solid var(--nw-ledger-ink);
+  box-shadow:
+    inset 0 0 0 0.2em var(--nw-paper),
+    inset 0 0 0 0.26em var(--nw-ledger-ink),
+    var(--nw-lift);
 }
 
 .nw-pause.map .nw-map {
@@ -1858,52 +2024,70 @@
 
 .nw-map-head {
   position: absolute;
-  left: 1.4em;
-  top: 1.4em;
+  left: var(--nw-page);
+  top: var(--nw-page);
   max-width: 44em;
-  padding: 0.55em 1.1em 0.6em;
+  padding: 0.85em 1.4em 0.8em;
   pointer-events: none;
+}
+
+.nw-map-kicker {
+  font-size: max(0.8em, 9.5px);
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--nw-rust);
 }
 
 .nw-map-title {
   display: inline;
-  font-size: 1.7em;
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: 0.02em;
+  font: 700 2.2em / 1.1 var(--nw-serif);
 }
 
 .nw-map-reo {
   display: inline;
-  margin-left: 0.6em;
-  font: italic 500 1.15em / 1 var(--nw-reo);
+  margin-left: 0.5em;
+  font: italic 500 1.4em / 1 var(--nw-reo);
   letter-spacing: 0;
-  color: #ffe9a3;
+  color: #3d4654;
 }
 
+/* "You are here", under a rule. */
 .nw-map-where {
-  margin-top: 0.25em;
-  font-size: 0.98em;
-  font-weight: 500;
-  opacity: 0.94;
+  margin-top: 0.45em;
+  padding-top: 0.4em;
+  border-top: 1px solid rgba(28, 36, 48, 0.55);
+  font-size: 1em;
+  font-weight: 600;
 }
 
 .nw-map-legend {
   position: absolute;
-  right: 1.4em;
-  bottom: 1.4em;
-  min-width: 12em;
-  padding: 0.9em 1.1em 0.8em 1.2em;
-  background-image: none;
+  right: var(--nw-page);
+  bottom: var(--nw-page);
+  padding: 1em 1.3em 0.9em;
   font-size: 0.92em;
   pointer-events: none;
 }
 
 .nw-legend-title {
-  margin-bottom: 0.45em;
+  margin-bottom: 0.5em;
   padding-bottom: 0.3em;
-  border-bottom: 3px double var(--nw-ledger-ink);
-  font: 700 1.25em / 1 var(--nw-serif);
+  border-bottom: 1px solid rgba(28, 36, 48, 0.55);
+  font: 700 1.3em / 1 var(--nw-serif);
+}
+
+.nw-legend-cols {
+  display: flex;
+  gap: 1.8em;
+}
+
+/* A square of the land-use tint, as printed. */
+.nw-legend-land {
+  flex: none;
+  width: 1.5em;
+  height: 0.95em;
+  border: 1px solid #6f6753;
 }
 
 .nw-legend-row {
@@ -1956,31 +2140,34 @@
 }
 
 .nw-legend-note {
-  margin-top: 0.5em;
-  font-size: 0.85em;
-  font-style: italic;
-  font-weight: 500;
-  color: #55606e;
+  margin-top: 0.55em;
+  font: italic 500 0.95em / 1.2 var(--nw-reo);
+  letter-spacing: 0;
+  color: #4a5361;
+}
+
+.nw-legend-note + .nw-legend-note {
+  margin-top: 0.2em;
 }
 
 .nw-legend-note:empty {
   display: none;
 }
 
+/* Key hints sit over the scale in the bottom-left corner, clear of the plate when the whole island is in view. */
 .nw-map-foot {
   position: absolute;
-  left: 50%;
-  bottom: 1.4em;
-  transform: translateX(-50%);
+  left: var(--nw-page);
+  bottom: calc(var(--nw-page) + 4.9em);
   width: max-content;
-  max-width: 72vw;
+  max-width: 34vw;
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   gap: 0.5em 1.4em;
   padding: 0.5em 1em;
-  background: rgba(12, 13, 16, 0.84);
-  border-radius: 0.4em;
+  background: rgba(12, 13, 16, 0.86);
+  border-radius: var(--nw-radius);
+  box-shadow: var(--nw-lift);
   font-size: 0.9em;
   color: #e9edf0;
   pointer-events: none;
@@ -1996,4 +2183,345 @@
   .nw-money.tick .nw-money-value {
     animation: none;
   }
+}
+
+/* ───────────── Phone landscape (844 × 390 and its like) ─────────────
+ *
+ * The touch controller (src/touch) lies over the HUD on a phone and keeps the top-left 228 × 52, a "Back" pill
+ * top-right in menus, and the bottom-right 260 × 290 bar the lowest 40 px. So on a short screen the HUD moves:
+ * the map under the button row, the objective between the buttons and the clock, and weapon, health and speed
+ * into one strip along the bottom edge.
+ */
+@media (max-height: 480px) {
+  .nw-ui {
+    --nw-edge: 1.2em;
+  }
+
+  .nw-top {
+    left: 250px;
+    right: 20em;
+    top: 0.8em;
+    transform: none;
+    width: auto;
+    max-width: none;
+    justify-content: center;
+  }
+
+  .nw-obj-post {
+    min-height: 2em;
+    padding: 0.3em 1.9em 0.3em 1em;
+    font-size: 1.1em;
+  }
+
+  .nw-status {
+    top: 0.8em;
+  }
+
+  .nw-toasts {
+    top: 7.2em;
+    max-width: 22em;
+  }
+
+  .nw-mini {
+    top: 64px;
+    bottom: auto;
+    width: 10.4em;
+    height: 10.4em;
+  }
+
+  .nw-loc {
+    left: calc(var(--nw-l) + 11.2em);
+    top: 64px;
+    bottom: auto;
+    max-width: 22em;
+  }
+
+  .nw-fps {
+    top: calc(64px + 11em);
+  }
+
+  /* One strip along the bottom, read right to left: weapon and health, then speed and the car's condition. */
+  .nw-corner {
+    bottom: 0.8em;
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: 0.6em;
+  }
+
+  .nw-kit {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.9em;
+    padding: 0.3em 0.6em;
+  }
+
+  .nw-weapon {
+    min-height: 0;
+    gap: 0.5em;
+  }
+
+  .nw-vital-bar {
+    width: 8em;
+  }
+
+  /* No room for the dial: the plate alone gives the speed. */
+  .nw-drive {
+    align-items: center;
+    gap: 0.6em;
+  }
+
+  .nw-dial {
+    width: auto;
+    height: auto;
+  }
+
+  .nw-dial-face,
+  .nw-needle,
+  .nw-dial-hub {
+    display: none;
+  }
+
+  .nw-plate {
+    position: static;
+    transform: none;
+    padding: 0.2em 0.5em 0.16em;
+  }
+
+  .nw-cond {
+    padding-bottom: 0;
+  }
+
+  /* The radio and the name of the car come up under the clock and the objective instead. */
+  .nw-radio {
+    position: fixed;
+    right: calc(var(--nw-r) + 272px);
+    top: 5.4em;
+    max-width: 20em;
+  }
+
+  .nw-veh {
+    position: fixed;
+    left: calc(var(--nw-l) + 11.2em);
+    top: calc(64px + 5.4em);
+  }
+
+  .nw-sub {
+    left: 45%;
+    bottom: 3.8em;
+    max-width: min(46vw, 40em);
+    font-size: 1.2em;
+  }
+
+  .nw-prompt {
+    left: 45%;
+    bottom: 27%;
+  }
+
+  .nw-banner {
+    top: 20%;
+  }
+}
+
+/* A bigger touch screen (a tablet): the corner column steps left of the controller's buttons. */
+@media (min-height: 481px) {
+  html.th-touch-on .nw-corner {
+    right: calc(var(--nw-r) + 272px);
+  }
+}
+
+/* Fingers, not a mouse pointer: everything that can be pressed in a menu is at least 44 px. */
+@media (pointer: coarse), (max-height: 480px) {
+  .nw-post,
+  .nw-option {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .nw-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .nw-slide-track {
+    height: 44px;
+  }
+
+  .nw-set {
+    padding-top: 0.3em;
+    padding-bottom: 0.3em;
+  }
+}
+
+/* Pause on a phone: the fingerposts become a row of tabs across the top, the sheet takes the rest. */
+@media (max-height: 480px) {
+  .nw-pause-main {
+    padding: 10px max(1.4em, env(safe-area-inset-right, 0px)) 10px max(1.4em, env(safe-area-inset-left, 0px));
+  }
+
+  /* One line, and short of the controller's "Back" pill in the top-right corner. */
+  .nw-pause-head {
+    display: flex;
+    align-items: baseline;
+    gap: 1em;
+    min-height: 44px;
+    padding-right: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .nw-pause-kicker {
+    display: none;
+  }
+
+  .nw-pause-title {
+    margin: 0;
+    font-size: 26px;
+  }
+
+  .nw-pause-status {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .nw-pause-body {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .nw-menu {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+    width: auto;
+    padding: 0;
+  }
+
+  .nw-menu::before {
+    display: none;
+  }
+
+  .nw-post,
+  .nw-post.sel {
+    flex: 1 1 auto;
+    width: auto;
+    padding: 0 1.5em 0 0.95em;
+    font-size: 1.12em;
+    letter-spacing: 0.04em;
+  }
+
+  .nw-panel {
+    max-width: none;
+    min-height: 0;
+    padding: 0.9em 1.2em 0.8em 2.8em;
+  }
+
+  .nw-panel-title {
+    font-size: 1.4em;
+  }
+
+  .nw-pause-foot,
+  .nw-map-foot {
+    display: none;
+  }
+
+  .nw-ui.nw-paused .nw-toasts {
+    top: 60px;
+  }
+
+  /* The island map: its title steps down from under the corner a thumb rests on, and the key is set smaller. */
+  .nw-map-head {
+    padding: 0.6em 1.1em 0.55em;
+  }
+
+  .nw-map-title {
+    font-size: 1.7em;
+  }
+
+  .nw-map-legend {
+    padding: 0.7em 1em 0.6em;
+    font-size: 0.86em;
+  }
+
+  .nw-legend-icon {
+    width: 1.3em;
+    height: 1.3em;
+  }
+
+  .nw-choose-card {
+    max-height: 94vh;
+    padding: 1em 1.4em 0.8em 2.8em;
+  }
+}
+
+/* ───────────── Fingers or keys ─────────────
+ * The touch controller (src/touch) puts `th-touch-on` on <html> while it is showing. Anything that names a key
+ * carries .nw-if-keys and has a twin worded for fingers that carries .nw-if-touch; one or the other shows.
+ */
+.nw-if-touch {
+  display: none;
+}
+
+html.th-touch-on .nw-if-keys,
+html.th-touch-on .nw-pause-foot {
+  display: none;
+}
+
+html.th-touch-on .nw-choose-foot.nw-if-touch,
+html.th-touch-on .nw-map-zoom.nw-if-touch,
+html.th-touch-on .nw-map-foot {
+  display: flex;
+}
+
+html.th-touch-on .nw-ctl-touch.nw-if-touch {
+  display: block;
+  margin-bottom: 1.2em;
+}
+
+.nw-ctl-touch .nw-ctl-group:first-child {
+  margin-top: 0.1em;
+}
+
+.nw-touch-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr);
+  align-items: center;
+  gap: 0.8em;
+  padding: 0.32em 0;
+  border-bottom: 1px dotted rgba(28, 36, 48, 0.25);
+  font-size: 1.02em;
+}
+
+/* Plus and minus on the island map: 44 px each, on the left edge between the title and the scale. */
+.nw-map-zoom {
+  position: absolute;
+  left: var(--nw-page);
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nw-map-zoom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: var(--nw-paper);
+  color: var(--nw-ledger-ink);
+  border: 0.1em solid var(--nw-ledger-ink);
+  box-shadow: var(--nw-lift);
+  font: 800 24px / 1 var(--nw-data);
+  cursor: pointer;
+}
+
+.nw-map-zoom-btn:active {
+  background: var(--nw-post);
 }
