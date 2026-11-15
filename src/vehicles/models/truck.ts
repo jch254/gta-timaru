@@ -1,7 +1,6 @@
 import type { MaterialLibrary, VehicleModel, VehicleSpec } from '../../core/types';
-import { cornerLens } from './cars';
-import { AMBER, CHROME, curve, DARK, dice, HEAD, LENS, PAINT, PLASTIC, RED_LENS, RUBBER, STEEL, TAIL, tint, WINDOW, type V3 } from './kit';
-import { assemble, Face, handles, wipers, type CarPlan } from './parts';
+import { AMBER, CHROME, curve, DARK, dice, PAINT, PLASTIC, RED_GLASS, RED_LENS, RUBBER, STEEL, TAIL, tint, WINDOW, type V3 } from './kit';
+import { assemble, cornerLens, Face, FARM, handles, shadeBand, wipers, type CarPlan } from './parts';
 
 /**
  * Cab-over farm truck: a rounded forward-control cab over the front axle, a bare chassis, a timber deck
@@ -64,8 +63,9 @@ export function buildFarmTruck(spec: VehicleSpec, color: number, m: MaterialLibr
     twin: spec.wheelCount === 6,
     rearTrack: 2 * (half - spec.wheelWidth / 2 - 0.02),
     rim: 0xcfc8b0,
+    ageing: FARM,
     dress(k, shell, cab) {
-      const F = new Face(k, zf, 1);
+      const F = new Face(k, shell, 'front');
       // Engine cover between the seats, back window in the cab's rear wall.
       k.pad(tint(0x26282b, 'satin'), 0.5, 0.36, 0.9, 0, 1.12, 2.1, 0.05);
       const zb = cabRear + 0.014;
@@ -75,23 +75,17 @@ export function buildFarmTruck(spec: VehicleSpec, color: number, m: MaterialLibr
       k.boxes(RUBBER, 0.02, 0.4, 0.012, 0.51, 1.91, zb + 0.004);
 
       // Face: slotted grille, round lamps in bright bezels, indicators on the corners, white bumper.
-      F.box(DARK, 1.25, 0.22, 0, 1.22, 0.02, 0.004);
-      for (const dy of [-0.055, 0, 0.055]) F.box(CHROME, 1.25, 0.016, 0, 1.22 + dy, 0.012, 0.014);
+      F.grille(0, 1.22, 1.25, 0.22, { bars: 4, upright: 3, depth: 0.07 });
       F.box(CHROME, 0.14, 0.07, 0, 1.4, 0.01, 0.01);
-      for (const s of [1, -1]) {
-        k.drum(CHROME, 0.125, 0.03, s * 0.7, 0.98, zf - 0.006, 'z', 14);
-        k.drum(HEAD, 0.1, 0.008, s * 0.7, 0.98, zf + 0.012, 'z', 14);
-        const lens: V3[] = [];
-        for (let i = 0; i < 12; i++) lens.push([s * 0.7 + 0.104 * Math.cos((i / 12) * Math.PI * 2), 0.98 + 0.104 * Math.sin((i / 12) * Math.PI * 2), zf + 0.02]);
-        k.poly(LENS, lens, [0, 1, 0]);
-      }
-      cornerLens(k, shell, AMBER, zf - 0.09, 1.0, 0.1, 0.11);
+      F.roundLamps(0.7, 0.98, 0.105);
+      cornerLens(k, shell, 'front', AMBER, 1.0, 0.11, 0.2);
       k.pad(white, spec.width - 0.02, 0.2, 0.14, 0, 0.7, zf + 0.03, 0.02, undefined, true);
       // Split screen, sun visor, wipers, mirrors on arms, cab-roof marker lamps.
       k.beam(PAINT, cab.screen(0, 0.0, 0.01), cab.screen(0, 1.0, 0.01), 0.04, 0.016);
       const v0 = cab.screen(0, 1.0, 0.02);
       k.pad(PAINT, 2 * cabW - 0.25, 0.022, 0.26, 0, v0[1] + 0.03, v0[2] + 0.1, 0.01, [0.35, 0, 0]);
       wipers(k, cab, { opposed: true, span: 0.42 });
+      shadeBand(k, cab, 0.12);
       for (const s of [1, -1]) {
         const x = s * (shell.F(zf - 0.42, belt) + 0.17);
         k.pipe(DARK, [[s * (cabW - 0.05), 2.1, zf - 0.42], [x, 2.08, zf - 0.33], [x, 1.62, zf - 0.33], [s * (cabW - 0.02), 1.56, zf - 0.42]], 0.011, 5);
@@ -139,8 +133,11 @@ export function buildFarmTruck(spec: VehicleSpec, color: number, m: MaterialLibr
       k.box(DARK, spec.width - 0.1, 0.11, 0.06, 0, 0.84, rear + 0.05);
       const tx = half - 0.26;
       k.boxes(RED_LENS, 0.28, 0.085, 0.03, tx, 0.84, rear + 0.015);
+      // (Queued as a bare pane on the distant version, where a box this small would be dropped.)
+      if (k.lo) for (const s of [1, -1]) k.tris(TAIL, [s * tx - 0.13, 0.8, rear - 0.004, s * tx + 0.13, 0.88, rear - 0.004, s * tx + 0.13, 0.8, rear - 0.004, s * tx - 0.13, 0.8, rear - 0.004, s * tx - 0.13, 0.88, rear - 0.004, s * tx + 0.13, 0.88, rear - 0.004], { flat: true });
       k.boxes(TAIL, 0.13, 0.062, 0.03, tx + 0.06, 0.84, rear + 0.008);
       k.boxes(AMBER, 0.08, 0.062, 0.03, tx - 0.07, 0.84, rear + 0.008);
+      for (const s of [1, -1]) k.poly(RED_GLASS, [[s * tx - 0.13, 0.805, rear - 0.008], [s * tx + 0.13, 0.805, rear - 0.008], [s * tx + 0.13, 0.875, rear - 0.008], [s * tx - 0.13, 0.875, rear - 0.008]], [s * tx, 0.84, rear + 1]);
 
       // Timber deck and stock crate.
       const timber = m.get('timber', { color: 0xb3a68e });

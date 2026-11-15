@@ -1,8 +1,7 @@
 import type { MaterialLibrary, VehicleModel, VehicleSpec } from '../../core/types';
 import type { PaneKind } from './body';
-import { cornerLens, scuttle } from './cars';
 import { AMBER, CHROME, curve, DARK, dice, PLASTIC, RUBBER, STEEL, tint, type Pt } from './kit';
-import { aerial, assemble, bumper, exhaust, Face, fuelFlap, handles, mirrors, wipers, type CarPlan } from './parts';
+import { aerial, assemble, bumper, cornerLens, exhaust, Face, fuelFlap, handles, mirrors, scuttle, wipers, type CarPlan } from './parts';
 
 /** Invented firms for the signwriting. `rack` puts a roof rack and a couple of lengths of pipe on top. */
 const FIRMS: { text: string; fg: string; style: 'paint' | 'block' | 'script'; rack?: boolean }[] = [
@@ -77,12 +76,13 @@ export function buildVan(spec: VehicleSpec, color: number, m: MaterialLibrary): 
       frame: RUBBER,
     },
     interior: { floor: 0.6, z0: 0.56, z1: 1.96, seats, dash: { z: 1.52, y: 1.03 }, cargo: { y: 0.6, z: -h + 0.08 }, cloth: tint(0x4d5258, 'cloth'), back: 0.56 },
-    wheel: 'steel',
+    wheel: dice.chance(0.3) ? 'cap' : 'steel',
     rim: 0xdcdcd6,
     belly: 0.2,
+    ageing: { dirt: [0.2, 0.7], fade: 0.3, rust: 0.25 },
     dress(k, shell, cab) {
-      const F = new Face(k, h, 1);
-      const R = new Face(k, -h, -1);
+      const F = new Face(k, shell, 'front');
+      const R = new Face(k, shell, 'rear');
       // Seat box over the front wheels and engine.
       k.box(tint(0x26282b, 'satin'), 2 * (shell.sx(1) - 0.06), 0.22, 0.62, 0, 0.65, 1.0);
 
@@ -91,10 +91,9 @@ export function buildVan(spec: VehicleSpec, color: number, m: MaterialLibrary): 
       for (const end of ['front', 'rear'] as const) bumper(k, shell, end, steel, blade, { zStart: (end === 'front' ? 1 : -1) * (ax + ar + 0.04), y: 0.47 });
       // Face: rectangular lamps, a slot between them, indicators on the corners.
       F.headlamps(0.52, 0.76, 0.28, 0.15, { bezel: PLASTIC });
-      F.box(DARK, 0.7, 0.09, 0, 0.76, 0.02, 0.003);
-      F.box(PLASTIC, 0.7, 0.012, 0, 0.76, 0.012, 0.01);
+      F.grille(0, 0.76, 0.7, 0.09, { bars: 2, surface: PLASTIC, depth: 0.05 });
       F.box(CHROME, 0.09, 0.045, 0, 0.9, 0.01, 0.008);
-      cornerLens(k, shell, AMBER, h - 0.07, 0.76, 0.09, 0.13);
+      cornerLens(k, shell, 'front', AMBER, 0.76, 0.13, 0.14);
       // Tail: upright lamps, tailgate shut lines, handle, wiper.
       const xe = shell.P(-h) - 0.02;
       R.taillamps(xe - 0.07, 0.82, 0.11, 0.4, { upright: true });

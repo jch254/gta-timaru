@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { MaterialLibrary, VehicleModel, VehicleSpec } from '../../core/types';
 import { ALLOY, AMBER, CHROME, DARK, HEAD, Kit, LENS, PAINT, PLASTIC, RED_LENS, RUBBER, STEEL, TAIL, tint, type Pt, type Surface, type V3 } from './kit';
+import { CHERISHED, stanceOf, weather } from './parts';
 
 /** Steering-head rake (radians from vertical). The fork runs from the front axle up this line. */
 const RAKE = 0.45;
@@ -75,14 +76,14 @@ function guard(k: Kit, surface: Surface, cy: number, cz: number, radius: number,
  * axis through the front axle. Returns `wheels` as [front, rear].
  */
 export function buildBike(spec: VehicleSpec, color: number, m: MaterialLibrary): VehicleModel {
-  const k = new Kit(m, color);
+  const k = new Kit(m, color, undefined, false, weather(CHERISHED), stanceOf(spec));
   const r = spec.wheelRadius;
   const a = spec.wheelbase / 2;
   // The rider's hips sit 0.4 m above the seat position, hands 0.5 m ahead of it and 0.72 m up.
   const seat = { x: -0.001, y: 0.44, z: -0.26 };
   const seatTop = seat.y + 0.33;
 
-  k.cached('bike', (c) => {
+  const body = (c: Kit) => {
     const frame = tint(0x141416, 'satin');
     // Frame: backbone, twin downtubes into a cradle, seat rails and stays.
     const head: V3 = [0, r + Math.cos(RAKE) * 0.66, a - Math.sin(RAKE) * 0.66];
@@ -162,7 +163,10 @@ export function buildBike(spec: VehicleSpec, color: number, m: MaterialLibrary):
     c.box(TAIL, 0.11, 0.04, 0.012, 0, 0.775, -1.045);
     guard(c, tint(0x141416, 'satin'), r, -a, r + 0.045, 0.75, 2.75, 0.085);
     c.box(DARK, 0.03, 0.14, 0.012, 0, 0.6, -a - r - 0.012, [0.25, 0, 0]);
-  });
+    // (A bare pane on the distant version, where the little lamp itself is dropped.)
+    if (c.lo) c.tris(TAIL, [-0.07, 0.74, -1.05, 0.07, 0.81, -1.05, 0.07, 0.74, -1.05, -0.07, 0.74, -1.05, -0.07, 0.81, -1.05, 0.07, 0.81, -1.05], { flat: true });
+  };
+  k.cached('bike', body);
   k.plates(Number.NaN, 0, -a - r - 0.03, 0.58, 'new', 0.6, 0.25);
 
   // Steering assembly, built in the pivot's own frame: y runs up the fork from the axle.
@@ -221,9 +225,26 @@ export function buildBike(spec: VehicleSpec, color: number, m: MaterialLibrary):
   front.position.set(0, r, a);
   rear.position.set(0, r, -a);
   k.group.add(front, rear);
+  k.nearOnly.push(steerPivot);
+
+  // From a distance: the same frame less its small parts, a plain fork and lamp, and two discs for wheels.
+  const far = new Kit(m, color, k.paint, true);
+  far.cached('bike', (c) => {
+    body(c);
+    const top: V3 = [0, r + Math.cos(RAKE) * 0.78, a - Math.sin(RAKE) * 0.78];
+    c.tube(tint(0x9a9da1, 'alloy'), [0, r, a], top, 0.05, 5, true);
+    c.box(DARK, 0.62, 0.05, 0.05, 0, top[1] + 0.08, top[2] - 0.12);
+    const y = top[1] - 0.16;
+    const z = top[2] + 0.12;
+    c.tris(HEAD, [-0.08, y - 0.08, z, 0.08, y - 0.08, z, 0.08, y + 0.08, z, -0.08, y - 0.08, z, 0.08, y + 0.08, z, -0.08, y + 0.08, z], { flat: true });
+    for (const wz of [a, -a]) {
+      c.drum(TYRE, r, spec.wheelWidth, 0, r, wz, 'x', 8, true);
+      c.drum(ALLOY, r * 0.62, spec.wheelWidth + 0.01, 0, r, wz, 'x', 8);
+    }
+  });
 
   return {
-    group: k.finish(),
+    group: k.finish(far),
     wheels: [front, rear],
     // x is a hair negative so the door-side logic treats the rider like any driver (on and off from the right).
     seats: [seat, { x: -0.001, y: seat.y + 0.05, z: -0.68 }].slice(0, spec.seats),
