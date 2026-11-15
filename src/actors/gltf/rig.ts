@@ -60,6 +60,7 @@ interface Slot {
 }
 
 const X = new THREE.Vector3(1, 0, 0);
+const Y = new THREE.Vector3(0, 1, 0);
 const _qa = new THREE.Quaternion();
 const _qb = new THREE.Quaternion();
 const _qc = new THREE.Quaternion();
@@ -98,6 +99,14 @@ export class GltfHumanoid implements Humanoid {
   private spineBase = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
   private spineOut = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
   private spineBent = false;
+  /** The glance layer: an occasional head turn, with the same held-pose bookkeeping as the spine. */
+  private head: THREE.Object3D;
+  private headBase = new THREE.Quaternion();
+  private headOut = new THREE.Quaternion();
+  private headTurned = false;
+  private glance = 0;
+  private glanceTarget = 0;
+  private glanceTimer = 1 + Math.random() * 4;
   private rootY: number;
   private standY: number;
   private size: number;
@@ -136,6 +145,7 @@ export class GltfHumanoid implements Humanoid {
     this.standY = this.rootY = body.lift * this.size;
     this.model.position.y = this.rootY;
     const head = bone('Head');
+    this.head = head;
 
     // Body parts and materials for this look.
     const style = look.topStyle ?? 'tee';
@@ -360,6 +370,7 @@ export class GltfHumanoid implements Humanoid {
       this.applyAim(pose === 'aimRifle' ? 'Rifle_Aim' : 'Pistol_Aim_Neutral');
       for (let i = 0; i < this.spine.length; i++) this.spineOut[i].copy(this.spine[i].quaternion);
     }
+    this.applyGlance(dt, pose);
     if (this.held) this.syncHold();
   }
 
@@ -478,6 +489,31 @@ export class GltfHumanoid implements Humanoid {
   }
 
   // ───────────── procedural layers ─────────────
+
+  /**
+   * Now and then the head turns to look at something for a moment and comes back: figures stop reading as
+   * mannequins staring dead ahead. Poses that own the head (aiming, a punch, cowering, holding forth) hold
+   * it still. The mixer only writes a bone when its value changes, so the same base/out bookkeeping as the
+   * spine keeps a held pose's glance from compounding.
+   */
+  private applyGlance(dt: number, pose: HumanoidPose) {
+    const q = this.head.quaternion;
+    if (this.headTurned && q.equals(this.headOut)) q.copy(this.headBase);
+    else this.headBase.copy(q);
+    this.glanceTimer -= dt;
+    if (this.glanceTimer <= 0) {
+      this.glanceTimer = 2.5 + Math.random() * 6.5;
+      this.glanceTarget = Math.random() < 0.45 ? 0 : (Math.random() - 0.5) * 1.05;
+    }
+    const busy = this.aimWeight > 0.05 || pose === 'punch' || pose === 'cower' || pose === 'dead' || pose === 'handsUp' || pose === 'orate' || pose === 'point' || pose === 'jump' || pose === 'fall';
+    const want = busy ? 0 : this.glanceTarget;
+    this.glance += (want - this.glance) * Math.min(1, dt * 3.2);
+    this.headTurned = Math.abs(this.glance) > 0.012;
+    if (this.headTurned) {
+      q.multiply(_rx.setFromAxisAngle(Y, this.glance));
+      this.headOut.copy(q);
+    }
+  }
 
   /** Tilt the torso (and with it the arms and head) to the aim pitch; keep it square while the legs walk. */
   private applyAim(clip: string) {

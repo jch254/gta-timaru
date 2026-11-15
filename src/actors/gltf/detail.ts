@@ -34,6 +34,12 @@ export interface Traits {
   /** Head a little wider or narrower, longer or shorter than the base (multipliers). */
   wide: number;
   long: number;
+  /** How much of their own colour the lips carry (women vary the most). */
+  lip: number;
+  /** Extra weight shaded under the brow line (0 = the sculpted brows alone). */
+  brow: number;
+  /** The hairline, a little higher or lower than the base (metres). */
+  fringe: number;
 }
 
 /** A stable set of features for a look: the same look always gets the same face, and cameos keep theirs. */
@@ -58,6 +64,9 @@ export function traitsOf(look: HumanoidLook): Traits {
     scalp: bald ? (grey ? 0.06 : 0.2) : 1,
     wide: 0.965 + 0.07 * next(),
     long: 0.97 + 0.06 * next(),
+    lip: look.female ? 0.25 + 0.55 * next() : 0.06 + 0.14 * next(),
+    brow: next() < 0.4 ? 0 : 0.15 + 0.35 * next(),
+    fringe: bald ? 0 : -0.016 + 0.034 * next(),
   };
 }
 
@@ -66,8 +75,9 @@ const SKIN_FRAGMENT = /* glsl */ `
   float y = vBind.y - uHead.x;
   float front = smoothstep(uHead.y - 0.085, uHead.y - 0.04, vBind.z);
   // The hairline runs from the top of the forehead down behind the ears to the nape; above it the scalp
-  // shows the hair's colour, so a thin or short hairpiece never leaves a bare patch.
-  float line = mix(-0.07, 0.052, smoothstep(uHead.z + 0.03, uHead.y - 0.03, vBind.z));
+  // shows the hair's colour, so a thin or short hairpiece never leaves a bare patch. Each face wears it a
+  // little higher or lower.
+  float line = mix(-0.07, 0.052, smoothstep(uHead.z + 0.03, uHead.y - 0.03, vBind.z)) + uFace2.z;
   float scalp = smoothstep(line, line + 0.014, y) * (1.0 - smoothstep(uHead.w + 0.002, uHead.w + 0.008, abs(vBind.x))) * uFace.w;
   float lips = (1.0 - smoothstep(0.016, 0.03, abs(vBind.x))) * (1.0 - smoothstep(0.007, 0.014, abs(y + 0.072)));
   float jaw = smoothstep(-0.03, -0.05, y) * smoothstep(-0.15, -0.125, y) * front * (1.0 - lips);
@@ -76,6 +86,10 @@ const SKIN_FRAGMENT = /* glsl */ `
   vec3 skin = diffuseColor.rgb;
   float grey = dot(skin, vec3(0.3, 0.5, 0.2));
   skin = mix(skin, skin * vec3(1.13, 0.9, 0.87), flush * uFace.y);
+  // Lips in their own colour, deeper on some faces; heavier shading under some brow lines.
+  skin = mix(skin, skin * vec3(1.05, 0.68, 0.62), lips * uFace2.x);
+  float brows = (1.0 - smoothstep(0.046, 0.06, abs(vBind.x))) * smoothstep(0.012, 0.02, y) * (1.0 - smoothstep(0.034, 0.044, y)) * front;
+  skin = mix(skin, uHair * 0.55 + skin * 0.15, brows * uFace2.y);
   skin = mix(skin, mix(skin, vec3(grey), 0.45) * 0.8 + uHair * 0.05, jaw * uFace.x * 0.6);
   skin = mix(skin, uHair * 0.9 + skin * 0.1, scalp * 0.85);
   skin = mix(skin, vec3(grey) * vec3(1.05, 0.98, 0.94), uFace.z * 0.24);
@@ -87,18 +101,20 @@ const SKIN_FRAGMENT = /* glsl */ `
 }`;
 
 /** Shader patch for a skin material. `key` goes to the program cache: every skin shares one program. */
-export const SKIN_PATCH = 'chr-skin-6';
+export const SKIN_PATCH = 'chr-skin-7';
 export function skinPatch(head: HeadMetrics, traits: Traits, hair: number): (shader: Shader) => void {
   const face = new THREE.Vector4(traits.stubble, traits.flush, traits.age, traits.scalp);
+  const face2 = new THREE.Vector4(traits.lip, traits.brow, traits.fringe, 0);
   const where = new THREE.Vector4(head.eyeY, head.z1, head.skullZ0, head.rx);
   const colour = new THREE.Color(hair);
   return (shader) => {
     shader.uniforms.uFace = { value: face };
+    shader.uniforms.uFace2 = { value: face2 };
     shader.uniforms.uHead = { value: where };
     shader.uniforms.uHair = { value: colour };
     BIND_VERTEX(shader);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vBind;\nuniform vec4 uFace;\nuniform vec4 uHead;\nuniform vec3 uHair;')
+      .replace('#include <common>', '#include <common>\nvarying vec3 vBind;\nuniform vec4 uFace;\nuniform vec4 uFace2;\nuniform vec4 uHead;\nuniform vec3 uHair;')
       .replace('#include <color_fragment>', `#include <color_fragment>\n${SKIN_FRAGMENT}`);
   };
 }
