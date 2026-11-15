@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import type { HumanoidLook, MaterialLibrary } from '../../core/types';
 import type { BodyTemplate } from './assets';
+import { SKIN_PATCH, TOP_PATCH, detailDebug, skinPatch, topPatch, traitsOf, type Traits } from './detail';
+import { FAR_CELLS, FAR_CELL_COUNT, type LodMesh } from './lods';
 
 /**
  * Turns a HumanoidLook into what one figure draws: which index ranges of the shared body (sleeve and
@@ -158,7 +160,7 @@ function getFabrics(uvMetres: number): Fabrics {
     clothNormal: tile(clothNormal, 0.36),
     cloth: tile(cloth, 0.18),
     denim: tile(denim, 0.18),
-    plaid: tile(plaid, 0.09),
+    plaid: tile(plaid, 0.062),
     hoops: tile(hoops, 0.54, 0.18),
     hiVis: tile(hiVis, 0.54, 0.54),
   };
@@ -243,12 +245,15 @@ interface Cache {
 }
 const caches = new WeakMap<MaterialLibrary, Cache>();
 
-function cached(library: MaterialLibrary, key: string, make: () => THREE.MeshStandardMaterial): THREE.MeshStandardMaterial {
+type Patch = { key: string; apply: (shader: THREE.WebGLProgramParametersWithUniforms) => void };
+
+function cached(library: MaterialLibrary, key: string, make: () => THREE.MeshStandardMaterial, patch?: Patch): THREE.MeshStandardMaterial {
   let cache = caches.get(library);
   if (!cache) caches.set(library, (cache = { materials: new Map() }));
   let material = cache.materials.get(key);
   if (!material) {
-    material = library.register(make());
+    // A shader patch needs the library's help to survive its own patching; without that the material is plain.
+    material = patch && library.registerPatched ? library.registerPatched(make(), patch.key, patch.apply) : library.register(make());
     material.name = key;
     cache.materials.set(key, material);
   }
@@ -260,22 +265,24 @@ export function sleevesOf(style: TopStyle): Sleeves {
   return style === 'singlet' ? 'none' : style === 'tee' ? 'short' : 'long';
 }
 
-function topMaterial(style: TopStyle, hex: number, library: MaterialLibrary, uvMetres: number): THREE.MeshStandardMaterial {
+function topMaterial(style: TopStyle, hex: number, library: MaterialLibrary, body: BodyTemplate): THREE.MeshStandardMaterial {
   const color = style === 'hiVis' ? HI_VIS : hex;
   const pattern = style === 'bushShirt' ? 'plaid' : style === 'jersey' ? 'hoops' : style === 'hiVis' ? 'hiVis' : style === 'jacket' ? 'jacket' : 'cloth';
-  return cached(library, `chr-top|${pattern}|${color}`, () => {
-    const f = getFabrics(uvMetres);
+  const make = () => {
+    const f = getFabrics(body.uvMetres);
     const map = pattern === 'plaid' ? f.plaid : pattern === 'hoops' ? f.hoops : pattern === 'hiVis' ? f.hiVis : f.cloth;
     return new THREE.MeshStandardMaterial({
       color,
       map,
       normalMap: f.clothNormal,
-      normalScale: new THREE.Vector2(0.4, 0.4),
-      roughness: pattern === 'jacket' ? 0.72 : 0.92,
+      normalScale: new THREE.Vector2(0.55, 0.55),
+      roughness: pattern === 'jacket' ? 0.66 : 0.94,
       metalness: 0,
       vertexColors: true,
     });
-  });
+  };
+  // One material per style, colour and sex: the trim is laid out from that body's measurements.
+  return cached(library, `chr-top|${style}|${color}|${body.female ? 'f' : 'm'}`, make, { key: TOP_PATCH, apply: topPatch(body.fit, style) });
 }
 
 /** A stable choice from a look, so the same look always gets the same eyes. */
@@ -287,10 +294,50 @@ function pickEye(look: HumanoidLook): number {
   return EYES[h % EYES.length];
 }
 
+/** Average brightness of a grey fabric texture (linear), so the far level's flat colour matches the pattern's. */
+function meanOf(texture: THREE.Texture): number {
+  const data = (texture as THREE.DataTexture).image.data as Uint8Array;
+  let total = 0;
+  for (let i = 0; i < data.length; i += 4) total += (data[i] / 255) ** 2.2;
+  return total / (data.length / 4);
+}
+
+/** The far level's palette: one texel per cell of FAR_CELLS. */
+function farPalette(look: HumanoidLook, uvMetres: number): THREE.DataTexture {
+  const f = getFabrics(uvMetres);
+  const style = look.topStyle ?? 'tee';
+  const data = new Uint8Array(FAR_CELL_COUNT * 4);
+  const c = new THREE.Color();
+  const put = (cell: number, hex: number, gain = 1) => {
+    c.set(hex).multiplyScalar(gain).convertLinearToSRGB();
+    data.set([Math.min(255, c.r * 255), Math.min(255, c.g * 255), Math.min(255, c.b * 255), 255], cell * 4);
+  };
+  const hatted = look.hat && look.hat !== 'none';
+  const hatColor = look.hatColor ?? 0x25304a;
+  put(FAR_CELLS.skin, look.skin);
+  put(FAR_CELLS.top, style === 'hiVis' ? HI_VIS : look.top, meanOf(style === 'bushShirt' ? f.plaid : style === 'jersey' ? f.hoops : style === 'hiVis' ? f.hiVis : f.cloth));
+  put(FAR_CELLS.legs, look.legs, meanOf(f.denim));
+  put(FAR_CELLS.hair, look.hat === 'helmet' ? hatColor : look.hair);
+  put(FAR_CELLS.crown, hatted ? hatColor : look.hair);
+  put(FAR_CELLS.shoes, look.shoes);
+  put(FAR_CELLS.socks, look.socks ?? SOCKS);
+  put(FAR_CELLS.sole, look.shoes, 0.3);
+  const tex = new THREE.DataTexture(data, FAR_CELL_COUNT, 1, THREE.RGBAFormat);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.magFilter = tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 export interface LookMaterials {
   /** Indexed by the group's materialIndex: 0 skin, 1 top, 2 legs, 3 hair / shoes / socks / eyes. */
   list: THREE.MeshStandardMaterial[];
   hat: THREE.MeshStandardMaterial;
+  /** The single flat-coloured material of the far level (made the first time the figure is that far away). */
+  far(): THREE.MeshStandardMaterial;
+  /** The face this look was given. */
+  traits: Traits;
   /** Hand the look back when its figure is disposed (frees the painted atlas once nobody uses it). */
   release(): void;
 }
@@ -300,20 +347,26 @@ const atlasUsers = new Map<THREE.Material, number>();
 
 export function lookMaterials(look: HumanoidLook, body: BodyTemplate, library: MaterialLibrary): LookMaterials {
   const sex = body.female ? 'f' : 'm';
-  const skin = cached(library, `chr-skin|${sex}|${look.skin}`, () => {
+  const traits = traitsOf(look);
+  const q = (value: number) => Math.round(value * 5);
+  const skinKey = `chr-skin|${sex}|${look.skin}|${look.hair}|${q(traits.stubble)}|${q(traits.flush)}|${q(traits.age)}|${q(traits.scalp)}`;
+  const makeSkin = () => {
     return new THREE.MeshStandardMaterial({
       color: new THREE.Color(look.skin).multiplyScalar(body.skinGain),
       map: body.skinMap,
       normalMap: body.skinNormal,
-      roughness: 0.6,
+      // Older skin is rougher and more deeply lined.
+      normalScale: detailDebug.plain === 2 ? new THREE.Vector2(1, 1) : new THREE.Vector2(1 + traits.age * 0.7, 1 + traits.age * 0.7),
+      roughness: 0.72 + traits.age * 0.1,
       metalness: 0,
       vertexColors: true,
     });
-  });
-  const top = topMaterial(look.topStyle ?? 'tee', look.top, library, body.uvMetres);
+  };
+  const skin = detailDebug.plain ? cached(library, `${skinKey}|plain${detailDebug.plain}`, makeSkin) : cached(library, skinKey, makeSkin, { key: SKIN_PATCH, apply: skinPatch(body.head, traits, look.hair) });
+  const top = topMaterial(look.topStyle ?? 'tee', look.top, library, body);
   const legs = cached(library, `chr-legs|${look.legs}`, () => {
     const f = getFabrics(body.uvMetres);
-    return new THREE.MeshStandardMaterial({ color: look.legs, map: f.denim, normalMap: f.clothNormal, normalScale: new THREE.Vector2(0.35, 0.35), roughness: 0.9, metalness: 0, vertexColors: true });
+    return new THREE.MeshStandardMaterial({ color: look.legs, map: f.denim, normalMap: f.clothNormal, normalScale: new THREE.Vector2(0.6, 0.6), roughness: 0.92, metalness: 0, vertexColors: true });
   });
   const iris = pickEye(look);
   const socks = look.socks ?? SOCKS;
@@ -324,9 +377,19 @@ export function lookMaterials(look: HumanoidLook, body: BodyTemplate, library: M
   atlasUsers.set(misc, (atlasUsers.get(misc) ?? 0) + 1);
   const hat = cached(library, 'chr-hat', () => new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0, vertexColors: true }));
   let released = false;
+  let farMaterial: THREE.MeshStandardMaterial | null = null;
+  const far = () => {
+    farMaterial ??= library.register(new THREE.MeshStandardMaterial({ map: farPalette(look, body.uvMetres), roughness: 0.86, metalness: 0, vertexColors: true, side: THREE.DoubleSide }));
+    return farMaterial;
+  };
   const release = () => {
     if (released) return;
     released = true;
+    if (farMaterial) {
+      farMaterial.map?.dispose();
+      library.release(farMaterial);
+      farMaterial = null;
+    }
     const users = (atlasUsers.get(misc) ?? 1) - 1;
     if (users > 0) {
       atlasUsers.set(misc, users);
@@ -337,43 +400,108 @@ export function lookMaterials(look: HumanoidLook, body: BodyTemplate, library: M
     misc.map?.dispose();
     library.release(misc);
   };
-  return { list: [skin, top, legs, misc], hat, release };
+  return { list: [skin, top, legs, misc], hat, far, traits, release };
 }
 
 // ───────────────────────────── geometry variants ─────────────────────────────
 
 const variants = new Map<string, THREE.BufferGeometry>();
 
-/**
- * The shared body geometry with draw groups for one combination of sleeves, legs, hair and hat.
- * Attributes and index are the template's own (never copied, never disposed).
- */
-export function bodyVariant(body: BodyTemplate, sleeves: Sleeves, shorts: boolean, hair: string | null, hairUnderHat: boolean): THREE.BufferGeometry {
-  const key = `${body.female ? 'f' : 'm'}|${sleeves}|${shorts ? 1 : 0}|${hair ?? '-'}|${hairUnderHat ? 1 : 0}`;
-  const hit = variants.get(key);
-  if (hit) return hit;
-  const src = body.geometry;
-  const g = new THREE.BufferGeometry();
-  g.setIndex(src.index);
-  for (const name of Object.keys(src.attributes)) g.setAttribute(name, src.attributes[name]);
-  const p = body.parts;
-  const span = (from: string, to: string, material: number) => {
-    const a = p[from];
-    const b = p[to];
-    if (!a || !b) return;
-    const count = b[0] + b[1] - a[0];
-    if (count > 0) g.addGroup(a[0], count, material);
-  };
-  span(shorts ? 'skinLowerLegs' : 'skinHead', sleeves === 'long' ? 'skinHead' : sleeves === 'short' ? 'skinForearms' : 'skinUpperArms', 0);
-  if (sleeves === 'none') span('topArmholeLips', 'topTorso', 1);
-  else span('topTorso', sleeves === 'short' ? 'topShortLips' : 'topLong', 1);
-  span('legsUpper', shorts ? 'legsShortsLips' : 'legsLower', 2);
-  span('misc', 'misc', 3);
-  if (hair) span(`hair_${hair}_low`, hairUnderHat ? `hair_${hair}_low` : `hair_${hair}_high`, 3);
-  // Poses reach well outside the T-pose; one generous sphere serves every pose (set on the mesh too).
+type Span = [from: string, to: string, material: number];
+
+/** The index ranges one combination of sleeves, legs and hair draws, in material order. */
+function spansOf(sleeves: Sleeves, shorts: boolean, hair: [from: string, to: string] | null): Span[] {
+  const spans: Span[] = [[shorts ? 'skinLowerLegs' : 'skinHead', sleeves === 'long' ? 'skinHead' : sleeves === 'short' ? 'skinForearms' : 'skinUpperArms', 0]];
+  if (sleeves === 'none') spans.push(['topArmholeLips', 'topTorso', 1]);
+  else spans.push(['topTorso', sleeves === 'short' ? 'topShortLips' : 'topLong', 1]);
+  spans.push(['legsUpper', shorts ? 'legsShortsLips' : 'legsLower', 2], ['misc', 'misc', 3]);
+  if (hair) spans.push([`hair_${hair[0]}`, `hair_${hair[1]}`, 3]);
+  return spans;
+}
+
+/** Poses reach well outside the T-pose; one generous volume serves every pose (set on the mesh too). */
+function bound(g: THREE.BufferGeometry): THREE.BufferGeometry {
   g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 2.3);
   g.boundingBox = new THREE.Box3(new THREE.Vector3(-2.3, -1.4, -2.3), new THREE.Vector3(2.3, 3.2, 2.3));
+  return g;
+}
+
+/** A level's parts strung together into one index list of their own, with a draw group per material. */
+function strung(mesh: LodMesh, spans: Span[], attributes: Record<string, THREE.BufferAttribute | THREE.InterleavedBufferAttribute>, groups: boolean): THREE.BufferGeometry {
+  const ranges: [start: number, count: number, material: number][] = [];
+  let total = 0;
+  for (const [from, to, material] of spans) {
+    const a = mesh.parts[from];
+    const b = mesh.parts[to];
+    if (!a || !b) continue;
+    const count = b[0] + b[1] - a[0];
+    if (count <= 0) continue;
+    ranges.push([a[0], count, material]);
+    total += count;
+  }
+  const index = new Uint16Array(total);
+  const g = new THREE.BufferGeometry();
+  let at = 0;
+  let open: { start: number; count: number; materialIndex: number } | null = null;
+  for (const [start, count, material] of ranges) {
+    index.set(mesh.index.subarray(start, start + count), at);
+    if (groups) {
+      if (open && open.materialIndex === material) open.count += count;
+      else g.groups.push((open = { start: at, count, materialIndex: material }));
+    }
+    at += count;
+  }
+  g.setIndex(new THREE.BufferAttribute(index, 1));
+  for (const name of Object.keys(attributes)) g.setAttribute(name, attributes[name]);
+  return bound(g);
+}
+
+/**
+ * The body geometry with draw groups for one combination of sleeves, legs, hair and hat, at a level of
+ * detail: 0 is the shipped mesh, 1 and 2 re-index it, 3 is the small flat-coloured far mesh (one draw
+ * call, no groups). Vertex buffers are the template's own (never copied, never disposed).
+ */
+export function bodyVariant(body: BodyTemplate, level: number, sleeves: Sleeves, shorts: boolean, hair: string | null, hairUnderHat: boolean, hat: HumanoidLook['hat'] = 'none'): THREE.BufferGeometry {
+  const far = level >= 3;
+  const key = `${body.female ? 'f' : 'm'}|${Math.min(level, 3)}|${sleeves}|${shorts ? 1 : 0}|${hair ?? '-'}|${hairUnderHat ? 1 : 0}|${far && hat === 'helmet' ? 'h' : ''}`;
+  const hit = variants.get(key);
+  if (hit) return hit;
+  let g: THREE.BufferGeometry;
+  if (far) {
+    // No hat is drawn out here: the crown of the hair carries its colour instead (see farPalette).
+    const crown: [string, string] | null = hat === 'helmet' ? ['short_low', 'short_high'] : hair ? [`${hair}_low`, `${hair}_high`] : hairUnderHat ? ['short_high', 'short_high'] : null;
+    g = strung(body.lods.far, spansOf(sleeves, shorts, crown), body.lods.far.attributes, false);
+  } else if (level > 0) {
+    g = strung(body.lods.levels[level - 1], spansOf(sleeves, shorts, hair ? [`${hair}_low`, hairUnderHat ? `${hair}_low` : `${hair}_high`] : null), body.geometry.attributes, true);
+  } else {
+    const src = body.geometry;
+    g = new THREE.BufferGeometry();
+    g.setIndex(src.index);
+    for (const name of Object.keys(src.attributes)) g.setAttribute(name, src.attributes[name]);
+    for (const [from, to, material] of spansOf(sleeves, shorts, hair ? [`${hair}_low`, hairUnderHat ? `${hair}_low` : `${hair}_high`] : null)) {
+      const a = body.parts[from];
+      const b = body.parts[to];
+      if (a && b && b[0] + b[1] - a[0] > 0) g.addGroup(a[0], b[0] + b[1] - a[0], material);
+    }
+    bound(g);
+  }
   variants.set(key, g);
+  return g;
+}
+
+/**
+ * What casts a figure's shadow: the level-2 mesh as one undivided list. It is a geometry of its own (sharing
+ * the level-2 variant's buffers) because the shadow stand-in hides itself from the colour pass by its draw range.
+ */
+export function shadowVariant(body: BodyTemplate, sleeves: Sleeves, shorts: boolean, hair: string | null, hairUnderHat: boolean): THREE.BufferGeometry {
+  const key = `${body.female ? 'f' : 'm'}|shadow|${sleeves}|${shorts ? 1 : 0}|${hair ?? '-'}|${hairUnderHat ? 1 : 0}`;
+  const hit = variants.get(key);
+  if (hit) return hit;
+  const source = bodyVariant(body, 2, sleeves, shorts, hair, hairUnderHat);
+  const g = new THREE.BufferGeometry();
+  g.setIndex(source.index);
+  for (const name of Object.keys(source.attributes)) g.setAttribute(name, source.attributes[name]);
+  variants.set(key, bound(g));
   return g;
 }
 

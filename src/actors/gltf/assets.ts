@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { buildLods, type BodyLods } from './lods';
 import { buildDerivedClips } from './poses';
+import { tailor, type Fit } from './tailor';
 
 /**
  * Loads the character models (see scripts/assets/characters/build.mjs for how they are made) and turns
@@ -65,6 +67,10 @@ export interface BodyTemplate {
   scene: THREE.Object3D;
   geometry: THREE.BufferGeometry;
   parts: Record<string, [start: number, count: number]>;
+  /** Cheaper versions of the geometry for figures further off. */
+  lods: BodyLods;
+  /** Where the garments begin and end, in the bind pose. */
+  fit: Fit;
   skinMap: THREE.Texture | null;
   skinNormal: THREE.Texture | null;
   skinGain: number;
@@ -147,6 +153,8 @@ function makeTemplate(gltf: GLTF, female: boolean, anims: { clips: ClipData[]; e
     if (!map) continue;
     map.anisotropy = 4;
   }
+  // Re-cut the clothes before anything is derived from the mesh.
+  const fit = tailor(body.geometry, extras.parts);
   scene.updateMatrixWorld(true);
   const head = scene.getObjectByName('Head');
   const root = scene.getObjectByName('root');
@@ -160,6 +168,8 @@ function makeTemplate(gltf: GLTF, female: boolean, anims: { clips: ClipData[]; e
     scene,
     geometry: body.geometry,
     parts: extras.parts,
+    lods: buildLods(body.geometry, extras.parts, body.skeleton.bones.map((bone) => bone.name)),
+    fit,
     skinMap: material.map,
     skinNormal: material.normalMap,
     skinGain: extras.skinGain,
