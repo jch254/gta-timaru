@@ -2,7 +2,9 @@
 
 Canterbury, 1995. An original open-world crime sandbox for the browser: Vite, TypeScript, Three.js, Rapier. This is the plain account: what works, what is rough, what was cut, and what was measured.
 
-`pnpm dev` runs it. `pnpm build` type-checks and writes a self-contained `dist/` (20 MB, 130 files, hashed names, relative paths); that build was served from a sub-path and loaded and ran with no console errors or failed requests. 1,047 unit tests pass. Nothing has been committed.
+`pnpm dev` runs it. `pnpm build` type-checks and writes a self-contained `dist/` (20 MB, 130 files, hashed names, relative paths); that build was served from a sub-path and loaded and ran with no console errors or failed requests. 1,047 unit tests pass.
+
+It is live at <https://timmaz-hard.603.nz>: a private S3 bucket behind CloudFront, deployed from `main` by CodeBuild (`infrastructure/README.md`). A new game started on that address in headless Chrome ran with no console errors or failed requests.
 
 ## What works
 
