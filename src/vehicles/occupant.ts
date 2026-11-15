@@ -12,7 +12,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
  * as themselves instead.
  *
  * Authored with the seat's reference point at the origin, facing +z, like the seated pose of the real figure
- * (crown of the head about 1.0 m above it). It has no shins: nothing of it reaches below the cushion.
+ * (crown of the head about 1.0 m above it). Shins run down into the footwell — `drop` says how deep that is
+ * (shallow in a car, deep in a bus or truck cab) — so a driver seen through a windscreen has legs.
  */
 
 const SKIN = [0xc99878, 0xa8744f, 0xe0b596, 0x8a5a3c];
@@ -21,6 +22,7 @@ const TOPS = [0x38507a, 0x7a2f2a, 0x4d5a3a, 0xd9d2c0, 0x2f3338, 0x8a6a3c, 0x5a3f
 const LEGS = [0x2b2f38, 0x3a3a34, 0x4a3f2e, 0x20242e];
 const CAPS = [0x1f3a5c, 0x7a1f1f, 0x2f2f2f, 0xd8d2c0];
 const UNIFORM = 0x1b2a4a;
+const SHOE = 0x232325;
 /** Haircuts: short, long, balding, cap. */
 const STYLES = ['short', 'short', 'long', 'bald', 'cap', 'short', 'long'] as const;
 
@@ -52,6 +54,8 @@ interface Look {
   short: boolean;
   /** Shoulder width and height, about 1. */
   build: number;
+  /** How far below the seat reference the footwell floor is. */
+  drop: number;
 }
 
 const _from = new THREE.Vector3();
@@ -78,9 +82,13 @@ function build(o: Look): THREE.BufferGeometry {
     // Neck and head.
     paint(new THREE.CylinderGeometry(0.048, 0.055, 0.1, 6, 1, true).translate(0, 0.74, -0.09), o.skin),
     ball(0.1, 0, 0.885, -0.08, o.skin, 0.9, 1.14, 1),
-    // Thighs along the cushion.
+    // Thighs along the cushion, shins down into the footwell, shoes flat on its floor.
     limb([-0.09, 0.14, -0.04], [-0.13, 0.19, 0.36], 0.085, 0.068, o.legs),
     limb([0.09, 0.14, -0.04], [0.13, 0.19, 0.36], 0.085, 0.068, o.legs),
+    limb([-0.13, 0.19, 0.36], [-0.12, 0.21 - o.drop, 0.47], 0.06, 0.048, o.legs),
+    limb([0.13, 0.19, 0.36], [0.12, 0.21 - o.drop, 0.47], 0.06, 0.048, o.legs),
+    ball(0.05, -0.12, 0.2 - o.drop, 0.54, SHOE, 0.85, 0.5, 1.7),
+    ball(0.05, 0.12, 0.2 - o.drop, 0.54, SHOE, 0.85, 0.5, 1.7),
   ];
   // Hair, or a cap with its peak, or a bare crown with a fringe round the back.
   // (Tipped back, so the hairline sits above the brow and the hair comes down to the nape.)
@@ -116,8 +124,11 @@ function build(o: Look): THREE.BufferGeometry {
   return mergeGeometries(parts.map((g) => (g.index ? g.toNonIndexed() : g)));
 }
 
-/** A stand-in seated figure for a vehicle. `seed` picks its look; `police` puts it in uniform. */
-export function createOccupant(materials: MaterialLibrary, seed: number, driving: boolean, police: boolean): THREE.Mesh {
+/**
+ * A stand-in seated figure for a vehicle. `seed` picks its look; `police` puts it in uniform; `drop` is the
+ * depth of the footwell below the seat reference (about 0.2 in a car, 0.45 in a bus or truck cab).
+ */
+export function createOccupant(materials: MaterialLibrary, seed: number, driving: boolean, police: boolean, drop = 0.22): THREE.Mesh {
   const style = police ? 'short' : STYLES[(seed >>> 1) % STYLES.length];
   const look: Look = {
     driving,
@@ -129,6 +140,7 @@ export function createOccupant(materials: MaterialLibrary, seed: number, driving
     style,
     short: !police && (seed >>> 6) % 3 === 0,
     build: 0.92 + ((seed >>> 3) % 4) * 0.045,
+    drop,
   };
   const key = Object.values(look).join('|');
   let geometry = cache.get(key);

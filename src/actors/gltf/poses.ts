@@ -248,9 +248,10 @@ export function buildDerivedClips(scratch: THREE.Object3D, clips: ClipData[], he
   poser.turn('Head', X, -0.16);
   const hips = poser.position('pelvis');
   for (const [side, s] of sides) {
-    poser.aim(`thigh_${side}`, v(s * 0.2, -0.4, 0.9));
-    poser.aim(`calf_${side}`, v(-s * 0.04, -0.9, -0.42));
-    poser.aim(`foot_${side}`, v(0, -0.3, 0.95));
+    // Knees out round the tank, shins dropping nearly straight to the footpegs beside the engine.
+    poser.aim(`thigh_${side}`, v(s * 0.6, -0.5, 0.55));
+    poser.aim(`calf_${side}`, v(-s * 0.06, -1, -0.3));
+    poser.aim(`foot_${side}`, v(0, -0.25, 0.95));
     poser.reach(side, hips.clone().add(v(s * 0.27, 0.36, 0.5)), v(s * 0.8, -0.7, 0), { fingers: v(0, -0.2, 1), palm: v(0, -1, 0) });
   }
   out.push(poser.bake('Ride', drive));

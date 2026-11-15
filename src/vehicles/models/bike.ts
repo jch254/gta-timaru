@@ -96,7 +96,7 @@ export function buildBike(spec: VehicleSpec, color: number, m: MaterialLibrary):
       c.beam(ALLOY, [s * 0.11, 0.37, -0.2], [s * 0.11, r, -a - 0.03], 0.035, 0.06, true);
       c.tube(CHROME, [s * 0.15, r + 0.07, -a + 0.1], [s * 0.15, 0.76, -0.46], 0.014, 6);
       c.tube(tint(0xa02020, 'satin'), [s * 0.15, r + 0.16, -a + 0.135], [s * 0.15, 0.7, -0.44], 0.027, 8);
-      c.tube(frame, [s * 0.13, 0.28, 0.0], [s * 0.25, 0.28, 0.0], 0.014, 5);
+      c.tube(frame, [s * 0.13, 0.28, -0.17], [s * 0.26, 0.28, -0.17], 0.014, 5);
       c.tube(frame, [s * 0.14, 0.45, -0.45], [s * 0.24, 0.42, -0.5], 0.012, 5);
       // Rear indicators on stalks.
       c.tube(DARK, [s * 0.08, 0.8, -0.93], [s * 0.17, 0.8, -0.94], 0.008, 4);
