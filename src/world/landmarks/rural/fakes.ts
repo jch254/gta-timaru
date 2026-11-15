@@ -279,7 +279,7 @@ export interface BuiltLandmark {
 
 /** Run one landmark builder against the recording builder. */
 export function buildLandmark(
-  builder: (placement: LandmarkPlacement, out: ChunkBuilder) => void,
+  builder: (placement: LandmarkPlacement, out: ChunkBuilder) => void | Generator<void>,
   kind: string,
   clearRadius: number,
   at: { x?: number; z?: number; heading?: number; name?: string } = {},
@@ -288,7 +288,8 @@ export function buildLandmark(
   const world = fakeWorld(worldOptions);
   const out = new RecordingBuilder(fakeMaterials(), world);
   const placement: LandmarkPlacement = { kind, name: at.name ?? 'Test Place', x: at.x ?? 0, z: at.z ?? 0, heading: at.heading ?? 0, clearRadius };
-  builder(placement, out);
+  const slices = builder(placement, out);
+  if (slices) while (!slices.next().done);
   return { out, world, placement };
 }
 

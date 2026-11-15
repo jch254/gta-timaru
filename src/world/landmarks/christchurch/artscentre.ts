@@ -5,8 +5,9 @@ import { Kit, type Opening, arcade, cone, disc, dome, lancet, pyramid, ring, wed
 /**
  * The Arts Centre (the former university college): grey stone Gothic Revival ranges round two quadrangles.
  * Local +z is the Worcester Boulevard front with the clock tower and the Great Hall. Footprint 104 × 76 m.
+ * The biggest build in town, so it is sliced: the world spreads the stages over several frames.
  */
-export const artsCentre: LandmarkBuilder = (p, out) => {
+export const artsCentre: LandmarkBuilder = function* (p, out) {
   const k = Kit.at(p, out);
   const m = k.m;
   const s = stoneSet(m);
@@ -14,10 +15,14 @@ export const artsCentre: LandmarkBuilder = (p, out) => {
   // Perimeter ranges and the cross range between the quadrangles.
   gothicRange(k, -47.5, 0, 76, 9, 9, 5.5, s, { alongZ: true, gables: [-24, 0, 24], gablesBack: [10] });
   gothicRange(k, 47.5, 0, 76, 9, 9, 5.5, s, { alongZ: true, gablesBack: [-24, 0, 24] });
+  yield;
   gothicRange(k, 0, -33.5, 86, 9, 9, 5.5, s, { gablesBack: [-30, -10, 10, 30], gables: [-21.5], ends: 'none' });
   gothicRange(k, 0, 0, 58, 9, 8, 5, s, { alongZ: true, gables: [-14], gablesBack: [14], ends: 'none' });
+  yield;
   gothicRange(k, -29.5, 33.5, 27, 9, 9, 5.5, s, { gables: [-7, 7], ends: 'none' });
   gothicRange(k, -1, 33.5, 14, 9, 9, 5.5, s, { gables: [0], ends: 'none' });
+
+  yield;
 
   // Clock tower over the Worcester Boulevard entrance.
   const tx = -12;
@@ -39,6 +44,8 @@ export const artsCentre: LandmarkBuilder = (p, out) => {
     k.geo(cone(0.7, 2.2, 8), s.dress, tx + sx * 3.9, 21.5, tz + 4.2);
   }
 
+  yield;
+
   // Great Hall: taller and wider, tall lancets between buttresses, a flèche on the ridge and a stair turret.
   gothicRange(k, 24.5, 32, 37, 12, 12, 8.5, s, { windows: false, ends: 'a' });
   for (const [side, yaw] of [[38, 0], [26, Math.PI]] as [number, number][]) {
@@ -57,6 +64,8 @@ export const artsCentre: LandmarkBuilder = (p, out) => {
   k.geo(dome(2.75, 2.5, 12), m.get('slate', { color: 0x7fb7a2 }), -39.4, 18, -25.4);
   k.sub(-39.4, 0, -22.88, 0).lancets(s.glass, 1, 4, 1, 0.9, 2.4).lancets(s.glass, 1, 11, 1, 0.9, 2.4);
 
+  yield;
+
   // Cloister arcades: north side of the west quadrangle and west side of the east quadrangle.
   const cloister = (c: Kit, len: number) => {
     const openings: Opening[] = [];
@@ -68,6 +77,8 @@ export const artsCentre: LandmarkBuilder = (p, out) => {
   };
   cloister(k.sub(-23.75, 0, 29, Math.PI), 38);
   cloister(k.sub(4.5, 0, -1.5, Math.PI / 2), 54);
+
+  yield;
 
   // Quadrangles: gravel walks round and across a lawn.
   const walk = m.get('gravel', { color: 0xc9bfa6 });

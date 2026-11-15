@@ -8,7 +8,7 @@ import { buildLot } from './buildings';
 import { ChunkBuilderImpl, type ChunkLight, type ColliderBox } from './chunkbuilder';
 import { Ground, GroundAttributes } from './ground';
 import { SEA_LEVEL, WORLD_BOUNDS, type TerrainModel } from './height';
-import { LANDMARKS } from './landmarks';
+import { LANDMARKS, runLandmark } from './landmarks';
 import { CHUNK, chunkKey, chunkOf, generateLots } from './lots';
 import { compileMap, type CompiledMap, type RailPath } from './map';
 import { buildMap } from './mapdata';
@@ -68,7 +68,9 @@ export class World implements WorldApi, System {
   private railsByChunk = new Map<number, RailPath[]>();
   private landmarksByChunk = new Map<number, LandmarkPlacement[]>();
   private chunks = new Map<number, Chunk>();
-  private queue: { chunk: Chunk; job: Generator<void> }[] = [];
+  private queue: { chunk: Chunk; job: Generator<string | void>; steps: number }[] = [];
+  /** The slowest single build step since the game began (dev tools; hitch hunts). */
+  readonly slowJob = { ms: 0, step: '', cx: 0, cz: 0 };
   private foci: { x: number; z: number; radius: number }[] = [];
   private focus = { x: 0, z: 0 };
   private roadMats: RoadMaterials;
@@ -194,7 +196,9 @@ export class World implements WorldApi, System {
 
     // Skyline landmarks stay loaded at any distance.
     const out = new ChunkBuilderImpl(this.gfx.materials, this, 0);
-    for (const l of this.landmarks) if (l.skyline) LANDMARKS[l.kind]?.(l, out);
+    for (const l of this.landmarks) {
+      if (l.skyline && LANDMARKS[l.kind]) runLandmark(LANDMARKS[l.kind], l, out);
+    }
     for (const mesh of out.finish()) this.root.add(mesh);
     this.addColliders(out.colliders);
     this.addInstances(out, this.root, []);
@@ -400,7 +404,7 @@ export class World implements WorldApi, System {
       const chunk: Chunk = { key, cx, cz, heights: null, group: new THREE.Group(), colliders: [], lights: [], ready: false, disposables: [], ground: null, props: [] };
       chunk.group.matrixAutoUpdate = false;
       this.chunks.set(key, chunk);
-      this.queue.push({ chunk, job: this.build(chunk) });
+      this.queue.push({ chunk, job: this.build(chunk), steps: 0 });
     }
     this.queue.sort((a, b) => (want.get(a.chunk.key) ?? 1e9) - (want.get(b.chunk.key) ?? 1e9));
   }
@@ -416,9 +420,20 @@ export class World implements WorldApi, System {
 
   private runJobs(budgetMs: number) {
     const start = performance.now();
-    while (this.queue.length && performance.now() - start < budgetMs) {
+    let before = start;
+    while (this.queue.length && before - start < budgetMs) {
       const item = this.queue[0];
-      if (item.job.next().done) this.queue.shift();
+      const r = item.job.next();
+      const now = performance.now();
+      if (now - before > this.slowJob.ms) {
+        this.slowJob.ms = now - before;
+        this.slowJob.step = r.done ? 'colliders' : (r.value ?? String(item.steps));
+        this.slowJob.cx = item.chunk.cx;
+        this.slowJob.cz = item.chunk.cz;
+      }
+      item.steps++;
+      before = now;
+      if (r.done) this.queue.shift();
     }
   }
 
@@ -514,7 +529,7 @@ export class World implements WorldApi, System {
 
   // ───────────── Chunk generation ─────────────
 
-  private *build(chunk: Chunk): Generator<void> {
+  private *build(chunk: Chunk): Generator<string | void> {
     const { cx, cz } = chunk;
     const x0 = cx * CHUNK;
     const z0 = cz * CHUNK;
@@ -522,7 +537,7 @@ export class World implements WorldApi, System {
     const grid = new Float32Array(M * M);
     for (let j = 0; j < M; j++) {
       for (let i = 0; i < M; i++) grid[j * M + i] = this.terrain.height(x0 + (i - 1) * CELL, z0 + (j - 1) * CELL);
-      if (j % 6 === 5) yield;
+      if (j % 6 === 5) yield 'grid';
     }
     const heights = new Float32Array((N + 1) * (N + 1));
     const V = (N + 1) * (N + 1);
@@ -546,10 +561,10 @@ export class World implements WorldApi, System {
         this.ground.shade(x, z, h, dx / (2 * CELL), dz / (2 * CELL), true, shade, k);
         uv.set([x, z], k * 2);
       }
-      if (j % 4 === 3) yield;
+      if (j % 4 === 3) yield 'shade';
     }
     chunk.heights = heights;
-    yield;
+    yield 'heights';
 
     const index: number[] = [];
     for (let j = 0; j < N; j++) {
@@ -625,7 +640,7 @@ export class World implements WorldApi, System {
       return ground;
     });
     chunk.ground = [grounds[0], grounds[1]];
-    yield;
+    yield 'ground';
 
     // Sea and river surface over this chunk: each level of detail rides with the matching ground mesh.
     const water = this.ground.buildWater(x0, z0, heights, N, CELL);
@@ -637,32 +652,35 @@ export class World implements WorldApi, System {
     // Roads, rails, rivers.
     const lod: 0 | 1 = 0;
     const out = new ChunkBuilderImpl(this.gfx.materials, this, lod);
-    buildChunkRoads(cx, cz, this.map, this.edgesByChunk.get(chunk.key) ?? [], out, this.roadMats);
-    buildChunkLines(cx, cz, this.map, this.railsByChunk.get(chunk.key) ?? [], (x, z) => this.terrain.height(x, z), out, this.roadMats);
+    const roadwork = buildChunkRoads(cx, cz, this.map, this.edgesByChunk.get(chunk.key) ?? [], out, this.roadMats);
+    while (!roadwork.next().done) yield 'roads';
+    const linework = buildChunkLines(cx, cz, this.map, this.railsByChunk.get(chunk.key) ?? [], (x, z) => this.terrain.height(x, z), out, this.roadMats);
+    while (!linework.next().done) yield 'lines';
     for (const mesh of out.finish(false)) {
       chunk.group.add(mesh);
       chunk.disposables.push(mesh.geometry);
     }
     const flat = out.colliders;
-    yield;
+    yield 'road-mesh';
 
     // Buildings, landmarks, props.
     const built = new ChunkBuilderImpl(this.gfx.materials, this, lod);
     const lots = this.lots.get(chunk.key) ?? [];
     for (let i = 0; i < lots.length; i++) {
       buildLot(lots[i], built);
-      if (i % 6 === 5) yield;
+      if (i % 6 === 5) yield 'lots';
     }
     for (const l of this.landmarksByChunk.get(chunk.key) ?? []) {
-      LANDMARKS[l.kind]?.(l, built);
-      yield;
+      const slices = LANDMARKS[l.kind]?.(l, built);
+      if (slices) while (!slices.next().done) yield l.kind;
+      yield l.kind;
     }
     this.scatter(chunk, built);
-    yield;
+    yield 'scatter';
     const area = { minX: x0, minZ: z0, size: CHUNK, seed: chunk.key };
     for (const scatterer of SCATTERERS) {
       scatterer(area, built);
-      yield;
+      yield 'scatterer';
     }
     for (const mesh of built.finish()) {
       chunk.group.add(mesh);
@@ -670,7 +688,7 @@ export class World implements WorldApi, System {
     }
     this.addInstances(built, chunk.group, chunk.disposables, chunk);
     chunk.lights = built.lights;
-    yield;
+    yield 'finish';
 
     // Physics.
     const R = this.physics.rapier;

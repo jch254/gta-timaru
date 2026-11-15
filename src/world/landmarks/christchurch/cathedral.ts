@@ -129,7 +129,7 @@ const CARAVANS: readonly (readonly [string, number, number])[] = [
  * stands off them by its own half-width; each spot is also tested against the map, so the furniture follows
  * wherever the walks and rails are actually drawn.
  */
-export const cathedralSquare: LandmarkBuilder = (p, out) => {
+export const cathedralSquare: LandmarkBuilder = function* (p, out) {
   const k = Kit.at(p, out);
   const m = k.m;
   const world = out.world;
@@ -184,6 +184,7 @@ export const cathedralSquare: LandmarkBuilder = (p, out) => {
     }
   };
 
+  yield;
   // ── The Colombo Street axis: lamp standards, seats and planters down both edges ──
   for (let x = -68; x <= 68; x += 17) {
     if (x !== 0) put('chch-lamp-standard', x, 38.7, 0, 0.3);
@@ -232,6 +233,7 @@ export const cathedralSquare: LandmarkBuilder = (p, out) => {
   pigeons(2, 35, 9, 5);
   lit(0, 5, 35, 0xffe2b0, 150, 24);
 
+  yield;
   // ── North side, inside the loop: the Citizens' War Memorial against the nave, trees, seats facing the tram ──
   if (ok(-33, 4, 4.2)) {
     const c = k.sub(-33, 0, 4, NORTH);
@@ -286,6 +288,7 @@ export const cathedralSquare: LandmarkBuilder = (p, out) => {
   for (const [x, z] of [[-27, -46], [-9, -49], [9, -49], [27, -46], [0, -42]]) put('tree-plane', x, z, x + z, 2.6, 0.78 + (Math.abs(x) % 5) / 25);
   for (const x of [-18, 18]) put('chch-bench', x, -55.5, EAST, 0.9);
 
+  yield;
   // ── Outside the loop: buses laid up at their stops under a row of trees, north and south ──
   [[62.4, -22.5], [62.4, -10.5], [-62.4, -17]].forEach(([x, z], i) => {
     if (!ok(x, z - 5, 1.4) || !ok(x, z + 5, 1.4) || !put('bus-parked', x, z, i === 2 ? EAST : 0, 1.4)) return;
@@ -334,6 +337,7 @@ export const cathedralSquare: LandmarkBuilder = (p, out) => {
   put('tree-plane', -43, 60.5, 1, 2.6, 0.85);
   put('tree-plane', -22.5, 72.5, 2, 2.6, 0.8);
 
+  yield;
   // ── South-west corner: police kiosk and the taxi rank ──
   if (ok(22, 66.5, 3.4)) {
     const c = k.sub(22, 0, 66.5, EAST);

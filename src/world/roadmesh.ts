@@ -738,8 +738,11 @@ const _left = new THREE.Vector3();
 const _up = new THREE.Vector3();
 const _fwd = new THREE.Vector3();
 
-/** Road surfaces, footpaths, markings and bridges for one chunk. */
-export function buildChunkRoads(cx: number, cz: number, map: CompiledMap, edges: number[], out: ChunkBuilderImpl, m: RoadMaterials) {
+/**
+ * Road surfaces, footpaths, markings and bridges for one chunk. A generator, one step per edge, so the
+ * streaming world can spread a dense town chunk's roadwork over several frames; run it to the end.
+ */
+export function* buildChunkRoads(cx: number, cz: number, map: CompiledMap, edges: number[], out: ChunkBuilderImpl, m: RoadMaterials): Generator<void> {
   const { graph, terrain } = map;
   const nodesDone = new Set<number>();
   const inChunk = (x: number, z: number) => chunkOf(x) === cx && chunkOf(z) === cz;
@@ -1301,6 +1304,7 @@ export function buildChunkRoads(cx: number, cz: number, map: CompiledMap, edges:
       out.addGeometry(geo, surfaceOf(best, m));
       geo.dispose();
     }
+    yield;
   }
 }
 
@@ -1431,8 +1435,9 @@ function railHeight(rail: RailPath, i: number, map: CompiledMap, heightAt: (x: n
 }
 
 /** Railway lines for one chunk (river and sea surfaces are built by ground.ts). */
-export function buildChunkLines(cx: number, cz: number, map: CompiledMap, rails: RailPath[], heightAt: (x: number, z: number) => number, out: ChunkBuilderImpl, m: RoadMaterials) {
+export function* buildChunkLines(cx: number, cz: number, map: CompiledMap, rails: RailPath[], heightAt: (x: number, z: number) => number, out: ChunkBuilderImpl, m: RoadMaterials): Generator<void> {
   buildQuays(cx, cz, map, out, m);
+  yield;
   for (const rail of rails) {
     const s = rail.samples;
     const tram = rail.source.kind === 'tram';
@@ -1499,5 +1504,6 @@ export function buildChunkLines(cx: number, cz: number, map: CompiledMap, rails:
       if (!inside) flush();
     }
     flush();
+    yield;
   }
 }

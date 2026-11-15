@@ -1139,4 +1139,8 @@ export type LotBuilder = (lot: Lot, out: ChunkBuilder, rng: { next(): number; ra
 export type Scatterer = (area: { minX: number; minZ: number; size: number; seed: number }, out: ChunkBuilder) => void;
 
 /** Builds a bespoke landmark. Called once per placement when its chunk loads (or at start for skyline landmarks). */
-export type LandmarkBuilder = (placement: LandmarkPlacement, out: ChunkBuilder) => void;
+/**
+ * Builds one landmark into a chunk. A heavy builder may be a generator function instead: the world runs it
+ * a slice per frame so a cathedral-sized build does not land in one frame (`runLandmark` exhausts either).
+ */
+export type LandmarkBuilder = (placement: LandmarkPlacement, out: ChunkBuilder) => void | Generator<void>;

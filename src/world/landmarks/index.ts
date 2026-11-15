@@ -3,4 +3,4 @@ import './christchurch';
 import './rural';
 import './timaru';
 
-export { LANDMARKS } from './registry';
+export { LANDMARKS, runLandmark } from './registry';

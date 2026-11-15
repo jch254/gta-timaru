@@ -60,7 +60,7 @@ function build(map: CompiledMap, e: RoadEdge) {
   const chunks = new Set(e.samples.map((s) => `${chunkOf(s.x)},${chunkOf(s.z)}`));
   for (const key of chunks) {
     const [cx, cz] = key.split(',').map(Number);
-    buildChunkRoads(cx, cz, map, [e.index], rec.out, materials);
+    for (const step of buildChunkRoads(cx, cz, map, [e.index], rec.out, materials)) void step;
   }
   return rec;
 }
@@ -177,7 +177,7 @@ describe('road markings', () => {
     };
     for (const key of new Set(straight!.samples.map((s) => `${chunkOf(s.x)},${chunkOf(s.z)}`))) {
       const [cx, cz] = key.split(',').map(Number);
-      buildChunkRoads(cx, cz, map, [straight!.index], rec.out, materials);
+      for (const step of buildChunkRoads(cx, cz, map, [straight!.index], rec.out, materials)) void step;
     }
     expect(yellow).toEqual([]);
   });
