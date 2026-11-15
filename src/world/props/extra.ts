@@ -229,6 +229,32 @@ registerProp('chainlink-fence', (m) => {
   };
 });
 
+registerProp('trampoline', (m) => {
+  // The round back-yard trampoline: black mat slung in a galvanised ring on six splayed legs.
+  const R = 1.25;
+  const parts: [THREE.BufferGeometry, number][] = [];
+  const ring = new THREE.TorusGeometry(R, 0.03, 5, 18).rotateX(Math.PI / 2).translate(0, 0.78, 0);
+  parts.push([ring, 0x9aa0a4]);
+  parts.push([new THREE.CircleGeometry(R - 0.09, 18).rotateX(-Math.PI / 2).translate(0, 0.74, 0), 0x1b1c1e]);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const leg = cy(0.022, 0.022, 0.82, 0, 0.39, 0).rotateZ(0.22).rotateY(a).translate(Math.sin(a) * (R - 0.12), 0, Math.cos(a) * (R - 0.12));
+    parts.push([leg, 0x9aa0a4]);
+  }
+  return { parts: [{ geometry: painted(parts), material: m.get('paintedMetal', { color: 0xffffff, vertexColors: true }) }], castShadow: false, minor: true };
+});
+
+registerProp('kennel', (m) => {
+  // A dog kennel: gabled box, dark doorway, facing +z.
+  const parts: [THREE.BufferGeometry, number][] = [
+    [bx(0.8, 0.62, 0.95, 0, 0.31, 0), 0x8a7a66],
+    [bx(0.9, 0.05, 1.05, 0, 0.66, 0).rotateZ(0.5), 0x6f5236],
+    [bx(0.9, 0.05, 1.05, 0, 0.66, 0).rotateZ(-0.5), 0x6f5236],
+    [bx(0.34, 0.4, 0.03, 0, 0.24, 0.47), 0x171310],
+  ];
+  return { parts: [{ geometry: painted(parts), material: m.get('timber', { color: 0xffffff, vertexColors: true }) }], castShadow: false, minor: true };
+});
+
 registerProp('washing-line', (m) => {
   // Rotary clothesline: the back-yard landmark.
   const parts: THREE.BufferGeometry[] = [cy(0.03, 0.03, 2, 0, 1, 0, 6)];
