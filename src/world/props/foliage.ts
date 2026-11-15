@@ -424,6 +424,31 @@ export function farLeafMaterial(m: MaterialLibrary): THREE.MeshStandardMaterial 
   return material;
 }
 
+const woodMaterials = new WeakMap<MaterialLibrary, Map<string, THREE.MeshStandardMaterial>>();
+
+/**
+ * Plant wood: the library's bark surface with the same dissolve as the leaves, so a trunk fades out with
+ * its crown when the plant switches to its stand-in. Its own instance per colour, so the bark other props
+ * use (logs, posts) stays unpatched.
+ */
+export function woodMaterial(m: MaterialLibrary, color?: number): THREE.MeshStandardMaterial {
+  let cache = woodMaterials.get(m);
+  if (!cache) woodMaterials.set(m, (cache = new Map()));
+  const key = color === undefined ? 'bark' : `bark|${color}`;
+  let material = cache.get(key);
+  if (!material) {
+    const base = m.get('bark', color === undefined ? {} : { color });
+    // Libraries without the patch hook (tests, tools) keep the shared bark: nothing to patch there.
+    const library = m as Patchable;
+    if (typeof library.registerPatched === 'function') {
+      material = base.clone();
+      library.registerPatched(material, 'foliage-wood-2', (shader) => withFade(shader, 'if (vPlantFade > 0.0 && plantDither() < vPlantFade) discard;'));
+    } else material = base;
+    cache.set(key, material);
+  }
+  return material;
+}
+
 // ───────────────────────────── The plant field ─────────────────────────────
 
 export interface PlantPart {

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { MaterialLibrary } from '../../core/types';
 import { noise2 } from '../../core/rng';
 import { registerTexturePreload } from '../../render/phototextures';
-import { farLeafMaterial, foliageCell, foliageWind, hasFoliageCell, leafMaterial, loadFoliage, plantField, type FoliageCell, type PlantModel, type PlantShape } from './foliage';
+import { farLeafMaterial, foliageCell, foliageWind, hasFoliageCell, leafMaterial, loadFoliage, plantField, woodMaterial, type FoliageCell, type PlantModel, type PlantShape } from './foliage';
 import type { PropDef, PropFactory } from './index';
 
 export { foliageWind };
@@ -426,7 +426,7 @@ function shape(m: MaterialLibrary, key: string, build: () => Built): PlantShape 
   if (!made) {
     const b = build();
     const parts: PlantShape['parts'] = [];
-    if (b.wood) parts.push({ geometry: b.wood.geometry(), material: m.get('bark', b.bark === undefined ? {} : { color: b.bark }) });
+    if (b.wood) parts.push({ geometry: b.wood.geometry(), material: woodMaterial(m, b.bark) });
     parts.push({ geometry: b.leaves.geometry(), material: leafMaterial(m) });
     made = { parts, far: b.far, farTint: b.farTint };
     cache.set(key, made);
