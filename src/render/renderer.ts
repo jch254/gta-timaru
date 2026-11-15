@@ -1,26 +1,14 @@
 import { N8AOPostPass } from 'n8ao';
-import {
-  BlendFunction,
-  BloomEffect,
-  BrightnessContrastEffect,
-  EffectComposer,
-  EffectPass,
-  HueSaturationEffect,
-  NoiseEffect,
-  RenderPass,
-  SMAAEffect,
-  SMAAPreset,
-  ToneMappingEffect,
-  ToneMappingMode,
-  VignetteEffect,
-} from 'postprocessing';
+import { BlendFunction, BloomEffect, EffectComposer, EffectPass, RenderPass, SMAAEffect, SMAAPreset, ToneMappingEffect, ToneMappingMode } from 'postprocessing';
 import * as THREE from 'three';
 import { CSM } from 'three/addons/csm/CSM.js';
 import { clamp } from '../core/math';
 import type { GameClock, GfxApi, QualityLevel, SettingsApi } from '../core/types';
+import { AIR_HAZE, installAir } from './air';
+import { filmBloom, FilmGradeEffect, type FilmLook, SharpenEffect } from './film';
 import { Materials } from './materials';
 import { loadPhotoSurfaces } from './phototextures';
-import { QUALITY, type QualityPreset } from './quality';
+import { onPhone, presetFor, QUALITY, type QualityPreset } from './quality';
 import { Atmosphere } from './sky';
 
 /** Renderer, post-processing stack, cascaded shadows and the atmosphere. */
@@ -33,9 +21,15 @@ export class Gfx implements GfxApi {
   fps = 60;
   frameMs = 16.7;
   stats = { drawCalls: 0, triangles: 0, renderScale: 1 };
+  /** For tuning from the console: any fields set here replace the atmosphere's (`dev.ctx.gfx.lookOverride = { grain: 0 }`). */
+  lookOverride: Partial<FilmLook> | null = null;
 
   private nearFade = { centre: { value: new THREE.Vector2() }, radius: { value: 0 } };
   private composer!: EffectComposer;
+  private grade!: FilmGradeEffect;
+  private halation: THREE.Uniform<number> | null = null;
+  /** The sharpening effect where this quality level has one (`sharpen.amount.value` can be set from the console). */
+  sharpen: SharpenEffect | null = null;
   private csm!: CSM;
   private frame = 0;
   private flashEl: HTMLDivElement;
@@ -55,7 +49,7 @@ export class Gfx implements GfxApi {
     clock: GameClock,
   ) {
     this.quality = settings.data.quality;
-    this.preset = QUALITY[this.quality];
+    this.preset = presetFor(this.quality);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false, depth: true });
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -63,7 +57,7 @@ export class Gfx implements GfxApi {
     this.renderer.toneMappingExposure = 1;
     this.renderer.info.autoReset = false;
 
-    this.materials = new Materials(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
+    this.materials = new Materials(Math.min(this.preset.anisotropy, this.renderer.capabilities.getMaxAnisotropy()));
     this.atmosphere = new Atmosphere(scene, this.renderer, clock, QUALITY.ultra.rainDrops);
 
     this.flashEl = document.createElement('div');
@@ -83,12 +77,14 @@ export class Gfx implements GfxApi {
 
   /** Photographic surface textures, if the asset pack is present. Call before the world is built. */
   loadTextures(onProgress?: (fraction: number) => void): Promise<number> {
-    return loadPhotoSurfaces(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()), onProgress);
+    // A phone holds the 1K surface sets at half size: a quarter of the texture memory, which is what gets a
+    // tab killed on a phone, and nothing it can show at its size.
+    return loadPhotoSurfaces(Math.min(this.preset.anisotropy, this.renderer.capabilities.getMaxAnisotropy()), onProgress, onPhone() ? 512 : undefined);
   }
 
   setQuality(quality: QualityLevel) {
     this.quality = quality;
-    this.preset = QUALITY[quality];
+    this.preset = presetFor(quality);
     this.csm.remove();
     this.csm.dispose();
     this.composer.dispose();
@@ -97,6 +93,10 @@ export class Gfx implements GfxApi {
 
   private build() {
     const p = this.preset;
+    // The filter is part of every lit material's program; the lights being rebuilt below is what makes
+    // the materials pick a change up.
+    this.renderer.shadowMap.type = p.shadowFilter === 'plain' ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+    this.renderScale = Math.max(this.renderScale, p.minScale);
 
     this.csm = new CSM({
       camera: this.camera,
@@ -113,6 +113,10 @@ export class Gfx implements GfxApi {
     });
     this.csm.fade = true;
     for (const light of this.csm.lights) light.shadow.normalBias = 0.35;
+    // The haze and cloud shadows build on the shadow system's light chunks, which it has just (re)installed.
+    installAir();
+    this.materials.setAir(p.airSun, p.cloudShadows);
+    this.atmosphere.setCloudSteps(p.cloudSteps);
     this.materials.setShadowSetup((m) => this.csm.setupMaterial(m));
     this.materials.setShadowTeardown((m) => this.csm.shaders.delete(m));
 
@@ -134,20 +138,41 @@ export class Gfx implements GfxApi {
       ao.configuration.transparencyAware = false;
       composer.addPass(ao);
     }
-    const grade = [
-      new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC }),
-      // A restrained "print film" grade: slightly lifted contrast, warm-leaning saturation.
-      new BrightnessContrastEffect({ brightness: 0.0, contrast: 0.08 }),
-      new HueSaturationEffect({ saturation: 0.1 }),
-      new VignetteEffect({ darkness: 0.38, offset: 0.32 }),
-    ];
-    const first = p.bloom
-      ? [new BloomEffect({ mipmapBlur: true, luminanceThreshold: 1.0, luminanceSmoothing: 0.25, intensity: 0.55, radius: 0.72 }), ...grade]
-      : grade;
-    composer.addPass(new EffectPass(this.camera, ...first));
-    const noise = new NoiseEffect({ blendFunction: BlendFunction.OVERLAY, premultiply: false });
-    noise.blendMode.opacity.value = 0.09;
-    composer.addPass(new EffectPass(this.camera, ...(p.smaa ? [new SMAAEffect({ preset: SMAAPreset.MEDIUM }), noise] : [noise])));
+    // Bloom (with halation on its skirt) and tone mapping in one pass; anti-aliasing and the film grade in
+    // the next, last one. Without anti-aliasing there is nothing to keep them apart, so Low has a single pass.
+    const tone = new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC });
+    const grade = (this.grade = new FilmGradeEffect(p.filmFull));
+    const head: (BloomEffect | ToneMappingEffect)[] = [tone];
+    this.halation = null;
+    this.sharpen = null;
+    if (p.bloom) {
+      const bloom = new BloomEffect({ blendFunction: BlendFunction.ADD, mipmapBlur: true, luminanceThreshold: 1.0, luminanceSmoothing: 0.25, intensity: 0.5, radius: 0.74 });
+      this.halation = filmBloom(bloom);
+      head.unshift(bloom);
+    }
+    if (p.smaa) {
+      composer.addPass(new EffectPass(this.camera, ...head));
+      const preset = p.smaaPreset === 'ultra' ? SMAAPreset.ULTRA : p.smaaPreset === 'high' ? SMAAPreset.HIGH : SMAAPreset.MEDIUM;
+      const smaa = new SMAAEffect({ preset });
+      // The picture reaching it is linear light, where an edge in shade is a tiny step and goes undetected.
+      // Find edges on gamma-encoded values instead, as the eye does.
+      const edges = smaa.edgeDetectionMaterial;
+      edges.fragmentShader = edges.fragmentShader
+        .replace('void main(){', 'vec4 edgeTexel(sampler2D map,vec2 uv){vec4 c=texture2D(map,uv);return vec4(sqrt(max(c.rgb,0.0)),c.a);}\nvoid main(){')
+        .replace(/texture2D\(inputBuffer,/g, 'edgeTexel(inputBuffer,');
+      edges.needsUpdate = true;
+      if (p.sharpen > 0) {
+        // Sharpening has to read the anti-aliased picture, so it takes a pass of its own; the grade moves
+        // into that pass, which keeps the grain from being sharpened.
+        composer.addPass(new EffectPass(this.camera, smaa));
+        this.sharpen = new SharpenEffect(p.sharpen);
+        composer.addPass(new EffectPass(this.camera, this.sharpen, grade));
+      } else {
+        composer.addPass(new EffectPass(this.camera, smaa, grade));
+      }
+    } else {
+      composer.addPass(new EffectPass(this.camera, ...head, grade));
+    }
 
     this.resize();
   }
@@ -201,7 +226,18 @@ export class Gfx implements GfxApi {
     const copy = material.clone() as T;
     copy.fog = true;
     return this.materials.registerPatched(copy, `backdrop-${haze}`, (shader) => {
-      shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', `gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, ${haze.toFixed(3)});`);
+      // `haze` is what is left over the tops in clear weather. Down the flanks it thickens until the foot of
+      // the range is lost in the haze lying on the plains, so the tops stand up out of the air instead of
+      // the whole range being pasted on the horizon; and weather that closes the view in takes them away.
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <fog_fragment>',
+        /* glsl */ `{
+          ${AIR_HAZE}
+          float backHeight = cameraPosition.y + vAirRay.y;
+          float backHaze = mix( 1.0, mix( ${(haze * 0.8).toFixed(3)}, 1.0, uAirLayer.w ), smoothstep( 150.0, 2100.0, backHeight ) );
+          gl_FragColor.rgb = mix( gl_FragColor.rgb, airColor, backHaze );
+        }`,
+      );
     });
   }
 
@@ -240,7 +276,7 @@ export class Gfx implements GfxApi {
         let next = this.renderScale;
         if (this.slowFrames / total > 0.35) next -= 0.1;
         else if (this.fastFrames / total > 0.95) next += 0.05;
-        next = clamp(next, 0.55, 1);
+        next = clamp(next, this.preset.minScale, 1);
         if (Math.abs(next - this.renderScale) > 0.01) {
           this.renderScale = next;
           this.resize();
@@ -252,6 +288,9 @@ export class Gfx implements GfxApi {
     const atmo = this.atmosphere;
     atmo.update(dt, this.camera, this.preset.envInterval);
     this.materials.update(atmo.night, atmo.wetness);
+    const look = this.lookOverride ? { ...atmo.look, ...this.lookOverride } : atmo.look;
+    this.grade.setLook(look);
+    if (this.halation) this.halation.value = look.halation;
 
     // Shadow-casting sun / moon.
     this.csm.lightDirection.copy(atmo.sunDir).negate();
