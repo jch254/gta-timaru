@@ -251,6 +251,19 @@ export class AutopilotImpl implements Autopilot {
     }
     f.lane = this.lane;
     if (f.track(graph, x, z, rng)) this.exitSpeed = this.comingTurnSpeed;
+    // Pushed well off the lane (knocked aside, or a sharp turn overshot on to the footpath): drop the path
+    // and rejoin the road properly, instead of chasing a path point from the far side of whatever is in
+    // between. Near the end of the leg the car may legitimately be away from this edge's centreline — but
+    // only within the junction it is crossing, so being far from that too is the same fault.
+    if (f.edge && f.u > f.trimStart + 2) {
+      projectOnEdge(f.edge, x, z, f.s, 4);
+      if (projection.distance > f.edge.width / 2 + 3 && (f.remaining > 2 || Math.hypot(x - f.midX, z - f.midZ) > f.connLength + 10)) {
+        // A route (police patrol, a mission) reads as arrived and plans afresh from wherever this is.
+        f.clear();
+        this.acquireTimer = 0.4;
+        return 3;
+      }
+    }
     const edge = f.edge!;
     const halfLen = v.spec.length / 2;
     if (this.claimNode >= 0 && this.claimNode !== f.node && f.u > f.trimStart + halfLen) this.releaseClaim();
