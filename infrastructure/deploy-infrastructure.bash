@@ -1,4 +1,10 @@
-#!/bin/bash -ex
+#!/bin/bash
+
+# Stop at the first failing command. This has to be set here rather than on the
+# shebang line: buildspec.yml runs this file as `bash ./…`, which ignores the
+# shebang's flags, and a failed plan would otherwise go unnoticed while the
+# build carried on and reported success.
+set -ex
 
 echo Deploying Timmaz Hard infrastructure via Terraform...
 

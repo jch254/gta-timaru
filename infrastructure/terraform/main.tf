@@ -44,10 +44,12 @@ module "certificate_validation_records" {
   zone_id = data.cloudflare_zone.zone.id
   records = {
     for domain in local.certificate_domains : domain => {
-      name = one([
+      # ACM gives the record name with a trailing dot and Cloudflare stores it
+      # without one; left as is, every plan wants to rename the record.
+      name = trimsuffix(one([
         for dvo in module.certificate.domain_validation_options :
         dvo.resource_record_name if dvo.domain_name == domain
-      ])
+      ]), ".")
       type = one([
         for dvo in module.certificate.domain_validation_options :
         dvo.resource_record_type if dvo.domain_name == domain
@@ -120,8 +122,11 @@ module "codebuild_role" {
     "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.cloudflare_api_token_parameter_name}",
   ]
 
-  # The build manages its own IAM role (named with the project prefix).
-  prefix_managed_services = ["iam_role"]
+  # The build manages its own IAM role and the EventBridge rule behind its
+  # build notifications (both named with the project prefix). Without
+  # event_rule the role cannot read that rule, so every plan run by CodeBuild
+  # fails on events:DescribeRule.
+  prefix_managed_services = ["iam_role", "event_rule"]
 
   # The build-notifications subscription adds an EventBridge invoke permission
   # on the shared formatter Lambda, which isn't covered by the prefix grants.
