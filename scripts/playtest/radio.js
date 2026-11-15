@@ -1,7 +1,7 @@
 // Sit in a car and tune through every station on the dial: for the live ones, report whether the stream
 // connected, how long it took and how loud it is next to the invented stations (they should be comparable).
 // Needs the network; the live stations are real streams.
-//   node scripts/shot.mjs --place cathedral-square --car v8sedan --eval "$(cat scripts/playtest/radio.js)"
+//   node scripts/shot.mjs --live --place cathedral-square --car v8sedan --eval "$(cat scripts/playtest/radio.js)"
 const audio = dev.ctx.audio;
 audio.unlock();
 await sleep(2500);

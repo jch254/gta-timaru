@@ -47,6 +47,9 @@ const LIVE_LEVEL = 0.5;
 /** How long to wait for the first sound before giving up on a stream. */
 const CONNECT_TIMEOUT = 12_000;
 
+/** A fiftieth of a second of silence (8-bit mono WAV), for prime(). */
+const SILENCE = 'data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YaAAAACAgICA' + 'gICA'.repeat(52);
+
 type ElementFactory = () => HTMLAudioElement;
 
 function browserFactory(): ElementFactory | null {
@@ -120,11 +123,51 @@ export class LiveStream implements LivePlayer {
     this.state = 'off';
   }
 
+  /**
+   * Call from inside a touch or click. iOS only lets an <audio> element start outside a gesture (the radio
+   * comes on a moment after the player gets into a car) if that same element was first played inside one, so
+   * this plays a fraction of a second of silence on it. Does nothing once that has worked, or while a station
+   * is tuned.
+   */
+  prime(): void {
+    if (this.primed || this.priming || this.state === 'connecting' || this.state === 'playing' || !this.make) return;
+    try {
+      const el = this.el ?? (this.bare ??= this.make());
+      const attempt = this.attempt;
+      this.priming = true;
+      el.src = SILENCE;
+      const settle = (ok: boolean) => {
+        this.priming = false;
+        this.primed ||= ok;
+        // A station tuned in the meantime owns the element now: leave it alone.
+        if (attempt !== this.attempt || this.state === 'connecting' || this.state === 'playing') return;
+        try {
+          el.pause();
+          el.removeAttribute('src');
+          el.load();
+        } catch {
+          // Nothing to tidy.
+        }
+      };
+      const started = el.play();
+      if (started && typeof started.then === 'function') started.then(() => settle(true), () => settle(false));
+      else settle(true);
+    } catch {
+      this.priming = false;
+    }
+  }
+
+  private primed = false;
+  private priming = false;
+  /** Made by prime() before there is an AudioContext to wire it into. */
+  private bare: HTMLAudioElement | null = null;
+
   private element(ac: AudioContext, dest: AudioNode): HTMLAudioElement | null {
     if (this.el) return this.el;
     if (!this.make || typeof ac.createMediaElementSource !== 'function') return null;
     try {
-      const el = this.make();
+      const el = this.bare ?? this.make();
+      this.bare = null;
       // Without this the browser treats the stream as opaque and WebAudio plays it as silence.
       el.crossOrigin = 'anonymous';
       el.preload = 'none';
