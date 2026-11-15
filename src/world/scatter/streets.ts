@@ -274,7 +274,9 @@ export const streetScatter: Scatterer = (area, out) => {
       const dir = atB ? 1 : -1;
       const q = beside(world, e, atB ? e.length - reach : reach, dir, e.width / 2 + (e.footpaths ? 0.5 : 1.3));
       if (!keep.offRoad(q.x, q.z, 0.25)) continue;
-      out.instance(control === 'stop' ? 'stop-sign' : control === 'signal' ? 'traffic-signal' : 'junction-sign', q.x, e.footpaths ? q.y + 0.08 : world.heightAt(q.x, q.z), q.z, Math.atan2(-q.tx * dir, -q.tz * dir));
+      // Signals on crossing roads follow opposite phases of the one cycle: pick by the road's compass axis.
+      const signal = Math.abs(q.tx) >= Math.abs(q.tz) ? 'traffic-signal' : 'traffic-signal-cross';
+      out.instance(control === 'stop' ? 'stop-sign' : control === 'signal' ? signal : 'junction-sign', q.x, e.footpaths ? q.y + 0.08 : world.heightAt(q.x, q.z), q.z, Math.atan2(-q.tx * dir, -q.tz * dir));
     }
     // A posting box on the through road's footpath, a few metres short of the odd corner.
     const h = hashInts(node.index, 4177);

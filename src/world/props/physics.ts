@@ -53,6 +53,7 @@ export const PROP_PHYSICS: Record<string, PropPhysics> = {
   'zebra-pole': { box: post(0.07, 2.2), breakSpeed: 3, slow: 0.05, mass: 22 },
   'stop-sign': { box: post(0.06, 2.4), breakSpeed: 2.5, slow: 0.04, mass: 16 },
   'traffic-signal': { box: post(0.08, 3.7), breakSpeed: 7, slow: 0.2, mass: 120 },
+  'traffic-signal-cross': { box: post(0.08, 3.7), breakSpeed: 7, slow: 0.2, mass: 120 },
   'sandwich-board': { box: { hx: 0.3, hz: 0.2, height: 0.85 }, solidTo: 'vehicles', breakSpeed: 1.5, slow: 0.02, mass: 7 },
   'news-billboard': { box: { hx: 0.28, hz: 0.1, height: 0.85 }, solidTo: 'vehicles', breakSpeed: 1.5, slow: 0.02, mass: 4 },
   'shop-crates': { box: { hx: 0.75, hz: 0.3, height: 0.85 }, breakSpeed: 2.5, slow: 0.05, mass: 25 },

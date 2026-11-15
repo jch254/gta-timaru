@@ -341,8 +341,42 @@ export class Materials implements MaterialLibrary {
     return material;
   }
 
+  private signalLamps = new Map<string, THREE.MeshStandardMaterial>();
+
+  /** Lamp of a traffic signal (see the contract). The lamps come to life once `update` runs each frame. */
+  signalLamp(axis: 'a' | 'b', aspect: 'red' | 'amber' | 'green'): THREE.MeshStandardMaterial {
+    const key = axis + aspect;
+    let m = this.signalLamps.get(key);
+    if (!m) {
+      const color = aspect === 'red' ? 0xe23424 : aspect === 'amber' ? 0xe8991c : 0x37c35c;
+      m = new THREE.MeshStandardMaterial({ color: 0x15161a, emissive: color, emissiveIntensity: 0, roughness: 0.35 });
+      this.signalLamps.set(key, m);
+      this.register(m);
+    }
+    return m;
+  }
+
   /** Per-frame: night glow and wet-road sheen. */
   update(night: number, wetness: number) {
+    // Traffic signals run one town-wide cycle: axis a green while axis b holds red, amber between, and a
+    // moment of all-red at each change, the way the real controllers are set.
+    if (this.signalLamps.size) {
+      const t = (performance.now() / 1000) % 26;
+      const aGreen = t < 9;
+      const aAmber = t >= 9 && t < 12;
+      const bGreen = t >= 13 && t < 22;
+      const bAmber = t >= 22 && t < 25;
+      const set = (key: string, on: boolean) => {
+        const lamp = this.signalLamps.get(key);
+        if (lamp) lamp.emissiveIntensity = on ? 2.6 : 0;
+      };
+      set('agreen', aGreen);
+      set('aamber', aAmber);
+      set('ared', !aGreen && !aAmber);
+      set('bgreen', bGreen);
+      set('bamber', bAmber);
+      set('bred', !bGreen && !bAmber);
+    }
     if (Math.abs(night - this.night) > 0.01 || night === 0 || night === 1) {
       this.night = night;
       for (const e of this.nightEmitters) e.material.emissiveIntensity = e.base * night;

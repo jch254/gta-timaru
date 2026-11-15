@@ -285,6 +285,11 @@ export interface MaterialLibrary {
    * names the patch for the program cache. Optional so test doubles need not provide it: feature-detect.
    */
   registerPatched?<T extends THREE.Material>(material: T, key: string, patch: (shader: THREE.WebGLProgramParametersWithUniforms) => void): T;
+  /**
+   * Lamp of a traffic signal: an aspect on one of the two crossing axes, lit and dimmed by the library on a
+   * town-wide cycle. Optional so test doubles need not provide it: feature-detect.
+   */
+  signalLamp?(axis: 'a' | 'b', aspect: 'red' | 'amber' | 'green'): THREE.MeshStandardMaterial;
   /** Forget and dispose a per-object material made with `register` (e.g. a vehicle's paint) when its owner is removed. */
   release(material: THREE.Material): void;
 }

@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import type { MaterialLibrary } from '../../core/types';
 import { canvasTexture } from '../../render/textures';
 import { painted } from '../landmarks/paint';
-import { mergeGeometries, registerProp } from './index';
+import { mergeGeometries, registerProp, type PropDef } from './index';
 import { VEGETATION } from './vegetation';
 
 /**
@@ -560,9 +561,12 @@ registerProp('boat-trailer', (m) => {
   return { parts: [{ geometry: painted(parts), material: m.get('paintedMetal', { color: 0xffffff, vertexColors: true }) }] };
 });
 
-registerProp('traffic-signal', (m) => {
-  // Three-aspect signal on a yellow post, facing +z (the driver waiting at the limit line), with its black
-  // target board. Street furniture only: the lamps are dark (one part, so a junction's signals are one draw call).
+/**
+ * Three-aspect signal on a yellow post, facing +z (the driver waiting at the limit line), with its black
+ * target board. The lamps are live where the library can drive them (one town-wide cycle; `axis` says which
+ * phase this signal follows — the placement gives crossing roads opposite axes), dark rounds anywhere else.
+ */
+function trafficSignal(m: MaterialLibrary, axis: 'a' | 'b'): PropDef {
   const BLACK = 0x17181a;
   const parts: [THREE.BufferGeometry, number][] = [
     [cy(0.055, 0.07, 3.7, 0, 1.85, 0, 8), 0xc49a22],
@@ -570,14 +574,20 @@ registerProp('traffic-signal', (m) => {
     [bx(0.56, 1.3, 0.03, 0, 3.05, 0.09), BLACK],
     [bx(0.3, 1.02, 0.2, 0, 3.05, 0.2), 0x202124],
     [bx(0.13, 0.2, 0.09, 0, 1.15, 0.09), 0xc49a22],
-    [new THREE.CircleGeometry(0.1, 10).translate(0, 3.38, 0.302), 0x5c1714],
-    [new THREE.CircleGeometry(0.1, 10).translate(0, 2.72, 0.302), 0x15401f],
   ];
   for (const x of [-0.27, 0.27]) parts.push([bx(0.025, 1.3, 0.035, x, 3.05, 0.092), 0xe9e6dc]);
   for (const y of [2.41, 3.69]) parts.push([bx(0.56, 0.025, 0.035, 0, y, 0.092), 0xe9e6dc]);
   for (const y of [3.38, 3.05, 2.72]) parts.push([bx(0.26, 0.02, 0.15, 0, y + 0.125, 0.36), BLACK]);
-  return {
-    parts: [{ geometry: painted([...parts, [new THREE.CircleGeometry(0.1, 10).translate(0, 3.05, 0.302), 0x6a4a10]]), material: streetPaint(m) }],
-    castShadow: false,
-  };
-});
+  const out: PropDef['parts'] = [{ geometry: painted(parts), material: streetPaint(m) }];
+  const aspects: ['red' | 'amber' | 'green', number][] = [['red', 3.38], ['amber', 3.05], ['green', 2.72]];
+  const dark = [0x5c1714, 0x6a4a10, 0x15401f];
+  for (let i = 0; i < aspects.length; i++) {
+    const [aspect, y] = aspects[i];
+    const lens = new THREE.CircleGeometry(0.1, 10).translate(0, y, 0.302);
+    out.push({ geometry: lens, material: m.signalLamp?.(axis, aspect) ?? m.get('plain', { color: dark[i] }) });
+  }
+  return { parts: out, castShadow: false };
+}
+
+registerProp('traffic-signal', (m) => trafficSignal(m, 'a'));
+registerProp('traffic-signal-cross', (m) => trafficSignal(m, 'b'));
