@@ -2,9 +2,9 @@
 
 Canterbury, 1995. An original open-world crime sandbox for the browser: Vite, TypeScript, Three.js, Rapier. This is the plain account: what works, what is rough, what was cut, and what was measured.
 
-`pnpm dev` runs it. `pnpm build` type-checks and writes a self-contained `dist/` (20 MB, 130 files, hashed names, relative paths); that build was served from a sub-path and loaded and ran with no console errors or failed requests. 1,095 unit tests pass.
+`pnpm dev` runs it. `pnpm build` type-checks and writes a self-contained `dist/` (21 MB, 135 files, hashed names, relative paths). 1,232 unit tests pass.
 
-It is live at <https://timmaz-hard.603.nz>: a private S3 bucket behind CloudFront, deployed from `main` by CodeBuild (`infrastructure/README.md`). A new game started on that address in headless Chrome ran with no console errors or failed requests.
+It is live at <https://timmaz-hard.603.nz>: a private S3 bucket behind CloudFront, deployed from `main` by CodeBuild (`infrastructure/README.md`).
 
 ## What works
 
@@ -14,68 +14,84 @@ Checked by running the game, mostly through the headless playtest scripts in `sc
 - **On foot.** Walk, run, jump, punch, aim over the shoulder and shoot. Fists, cricket bat, pistol, pump shotgun and .22 rifle; health, armour, cash and weapon pickups.
 - **Vehicles.** Eleven: two big sedans, a coupe, a hatch, a wagon, a ute, a farm truck, a van, a motorbike, a police car and a bus. Parked ones can be taken and occupied ones hijacked (seen by a bystander, that is one light of heat). They take damage, catch fire and explode; they skid, smoke and leave marks. Fast vehicles knock over lamp posts, signs, bins, benches and fences; slow ones are stopped by them.
 - **Police.** Five levels. Crimes count only when witnessed. A three-light pursuit in Christchurch was sighted within ten seconds, had a roadblock across Moorhouse Avenue in about twenty, and had wrecked the test driver's car by thirty-five (`scripts/playtest/chase.js`). From three lights they shoot.
-- **Losing the police.** At two lights, in the car they were looking for: run until no patrol car has eyes on you, ditch it for another, drive off quietly, and the lights are out 35 seconds after they came on (`scripts/playtest/escape.js`). It was an easy case, the patrol cars never got closer than 200 m, and nobody has tried it by hand at three lights and up, where they shoot and block roads.
-- **Combat.** A four-against-one shoot-out fought by an aim-and-fire bot with only what the mission hands out (pistol, half armour) was won in 11 seconds for 29 points of damage (`scripts/playtest/fight.js`).
-- **The world.** A compressed Christchurch (the four avenues, Cathedral Square with the cathedral standing, Colombo Street, the Avon, Hagley Park, the Arts Centre, suburbs, Lancaster Park, New Brighton, the Port Hills and Summit Road, the tunnel to Lyttelton) and Timaru (Stafford Street, the Bay Hill, Caroline Bay with its sound shell and carnival, the port, the basilica, Washdyke, Smithfield), joined by State Highway 1 across the plains through Rakaia, Ashburton and Temuka, with the Rakaia and Rangitata bridges and the Alps on the western horizon. Real place and street names, te reo names in the HUD and map, marae in the landscape; every business, vehicle, radio station, gang and person is invented.
+- **Losing the police.** At two lights, in the car they were looking for: run until no patrol car has eyes on you, ditch it for another, drive off quietly, and the lights are out 35 seconds after they came on (`scripts/playtest/escape.js`). It was an easy case, and nobody has tried it by hand at three lights and up, where they shoot and block roads.
+- **Combat.** A four-against-one shoot-out fought by an aim-and-fire bot with only what the mission hands out (pistol, half armour) was won in 11 seconds for 29 points of damage (`scripts/playtest/fight.js`). That figure is from before the art pass and was not re-run.
+- **The world.** A compressed Christchurch (the four avenues, Cathedral Square with the cathedral standing, Colombo Street, the Avon, Hagley Park, the Arts Centre, suburbs, Lancaster Park, New Brighton, the Port Hills and Summit Road, the tunnel to Lyttelton) and Timaru (Stafford Street, the Bay Hill, Caroline Bay with its sound shell and carnival, the port, the basilica, Washdyke, Smithfield), joined by State Highway 1 across the plains through Rakaia, Ashburton and Temuka, with the Rakaia and Rangitata bridges and the Alps on the western horizon. Real place and street names, te reo names in the HUD and map, marae in the landscape.
+- **How it looks.** A film-style grade that shifts with the weather, haze in the distance, clouds that cast moving shadows, and nights that are dark between sodium lamps. Buildings carry grime, streaks, rust and faded paint, and shop windows show goods. Roads have wheel tracks, patches, cracks and the painted furniture of a 1995 town: STOP and GIVE WAY, zebra crossings, parking bays, cat's-eyes. Cars have shaped bodies, real lamps, cabins, road film and trim that differs from car to car. Trees come in several shapes, and there are flower beds, hedges and long grass. Streets have meters, signs and name blades with the real street names.
 - **Life.** Pedestrians and traffic that follow the roads, keep left and react; drivers you can see at the wheel; boy racers at night; a heritage tram working the city loop, which traffic queues behind and which stops for anything on its track.
-- **Familiar faces.** Eleven look-alike parodies of 1995's public figures, under invented names, stand at set places in daytime (the Square, the town hall, the Arts Centre, Lancaster Park, Hagley Park, Lyttelton, the Summit Road, New Brighton, Ashburton, Caroline Bay) and say their lines as you walk up; the weatherman comments on the weather the game is actually having. Three have a line in a mission. They cannot be hurt: punched, shot and blown up in a test, the Mayor lost no health, said her piece and walked off. The cast is one file, `src/missions/defs/cameos.ts`.
-- **Sky and sound.** Day and night, clear, nor'wester (with the arch), overcast, southerly rain and fog; wet roads; ten real New Zealand radio stations streamed live in cars (all ten connected and played when tested with `scripts/playtest/radio.js`), six synthesised stations after them on the dial; synthesised engines, effects and ambience. Weather set by a mission or by hand now holds for four hours of game time instead of being re-rolled at once.
-- **Interface.** HUD, rotating minimap, pause menu with the island map, jobs, controls, settings (four quality levels) and save.
+- **Familiar faces.** Eleven look-alike parodies of 1995's public figures, under invented names, stand at set places in daytime and say their lines as you walk up; the weatherman comments on the weather the game is actually having. Three have a line in a mission. They cannot be hurt. The cast is one file, `src/missions/defs/cameos.ts`.
+- **Sky and sound.** Day and night, clear, nor'wester (with the arch), overcast, southerly rain and fog; wet roads with puddles; ten real New Zealand radio stations streamed live in cars (all ten connected and played when tested with `scripts/playtest/radio.js`), six synthesised stations after them on the dial; synthesised engines, effects and ambience.
+- **Interface.** A title screen that is a photograph of the game, a HUD in one type system, a paper minimap, the island map as a page from a road atlas with grid, scale and key, and a pause menu with jobs, controls, settings (four quality levels) and save.
+- **Phones.** An on-screen controller on touch devices (stick, look by dragging, and buttons that change between walking, driving and being armed), a lighter quality tier, a "turn your phone" card in portrait, and home-screen support. Chrome's phone emulation, driven with real touch events, passes 63 of 63 checks: walking, looking, taking a car, driving, weapons, every pause screen and the map (`node scripts/playtest/phone.mjs`).
 
 ## What is rough
 
-- **The familiar faces are simple.** They are the ordinary figure in particular clothes, so the likeness is in the name, the place and the lines, not the face. Two of them raise both arms to speak, which reads a little like a stick-up. Nobody carries a prop. Being bundled aside by a car and walking back to their spot afterwards are covered by unit tests but were not watched in the running game.
-- **Live radio leans on other people.** The ten real stations play from their own public streams with no arrangement in place: an address can change or a station can object, and then that line in `src/audio/radio/live.ts` has to go. What they broadcast is today's radio, not 1995's. Only Chrome on a Mac has been tried.
-- **Nobody has played it through by hand.** The scripted player teleports the long drives and, except in the one fight tested honestly, wins fights by cheating. Mission difficulty, timers and police lethality are therefore unbalanced guesses.
-- **Mouse look under pointer lock and gamepads are untested.** The tooling drives the game by key events.
-- **AI driving.** Better than it was: the guard rails that ran across side streets at the Avon bridges are gone (traffic crashes in a 45-second watch there fell from sixteen to four) and traffic sees the tram. Traffic and police still sometimes leave the road (a yard off High Street is one place), and cars turning into the Square from Colombo Street sometimes clip a parked one.
-- **Vehicles, close up.** Right at chase distance, flat-panelled when you stand beside them. Lamps are flat panels. In the low cars the driver's shins go through the floor. Traffic and police drivers are 130-triangle stand-ins, not full figures.
-- **Buildings, close up.** The backs and sides of the township hall, church hall, garage and farm sheds are plain, and yards behind shops are empty. Nothing is stained or streaked, painted wall signs look freshly done, and the brick is redder than Canterbury brick.
-- **Ground and water.** The cliff faces at Lyttelton and Godley Head are smeared textures. Quays have no wall, just a bank. There are no pedestrian crossings, parking bays or STOP lettering. Chip seal is flat when you look straight down at it. The water races and the Timaru downs were not looked at.
-- **Plants.** One shape per species and no cheaper far-away version; oak leaf cards show edge-on near the camera.
-- **Dressing.** The Arts Centre and Lancaster Park have street furniture but nothing of their own. The Timaru start is over its draw-call budget (it still runs at over 160 frames a second here). Knocked-out fence posts leave their wires hanging.
-- **Figures have no geometric level of detail.** Each is about 17,000 triangles; distant ones only stop casting shadows.
+- **Nobody has played it through by hand.** The scripted player teleports the long drives and, except in the one fight tested honestly, wins fights by cheating. Mission difficulty, timers and police lethality are therefore unbalanced guesses. Mouse look under pointer lock and gamepads are untested.
+- **It has not been run on a phone.** There is no iPhone or simulator on the machine it was built on. Chrome's emulation is not Safari: safe areas on both rotations, the left-edge swipe, zoom and bounce, sound starting on the first tap, the live radio starting by itself in a car, sound returning after the phone is locked, pinch zoom on the map, installing to the home screen, and ten minutes without the tab reloading all need checking on a real one. How fast it runs on a phone is unknown.
+- **Landmarks got weather but no new detail.** The cathedral, the Arts Centre, Lancaster Park and the rest have no new stonework, entrances or signage. Suburban yards are empty and Stafford Street is still sparse. Traffic signals are unlit street furniture.
+- **People.** Each figure now has its own face tone, stubble or age, and clothes with collars and cuffs, but brows, eyes and lips are the same on everyone, hair is the same few shapes, and nobody turns their head. The women's model has a crease at the mouth that the lighting picks out as a dark patch; lightening the skin there did not remove it.
+- **Things that switch at a distance.** Trees dissolve to a cheaper version at 120 m with a faint stipple, and their trunks still pop. Cars and figures were watched while driving and showed no pop after the car glass was matched.
+- **Vehicles.** The motorbike and the bus are barely improved. Drivers' legs are hidden by a footwell rather than properly seated.
+- **Buildings.** Streaks are not tied to individual sills or downpipes, and old painted signs do not show brick through the paint.
+- **Ground.** No painted driveway crossings. Far hillsides still streak. There are no reflections of lights in wet roads beyond the shine of the surface itself.
+- **A glitch seen twice and not found.** During the art pass two screenshots came back covered in large dark planes. 138 reruns and four drives did not reproduce it; the likeliest cause is a page that loaded while another agent was half-way through an edit, but that is unproven.
+- **One long frame.** Driving in town just after a teleport there was one frame of 43 ms while chunks were still arriving; otherwise the worst was 28 ms.
+- **The familiar faces are simple.** The likeness is in the name, the place and the lines, not the face. Two of them raise both arms to speak, which reads a little like a stick-up. Nobody carries a prop.
+- **Live radio leans on other people.** The ten real stations play from their own public streams with no arrangement in place: an address can change or a station can object, and then that line in `src/audio/radio/live.ts` has to go. What they broadcast is today's radio, not 1995's.
+- **AI driving.** Traffic and police still sometimes leave the road, and cars turning into the Square from Colombo Street sometimes clip a parked one.
 - **Integrated graphics are unmeasured.** Every number below is from one M2 Max.
-- **Cathedral Square** is furnished but still wider and emptier at its edges than the real one, because building lots stop short of it.
 
 ## What was cut
 
 - Real map data. The first idea was to build from OpenStreetMap; the map is hand-authored and compressed instead.
 - Moving trains on the Main South Line (the line, stations and bridges are there; level crossings would need traffic that understands them) and moving punts on the Avon.
 - Building interiors, apart from what shows through shop windows.
-- A submachine gun, swimming, and any touch or mobile controls.
+- A submachine gun and swimming.
 - CC0 vehicle models: none exist for period New Zealand cars, so vehicles are procedural.
 
 ## Measured frame rate
 
-Apple M2 Max MacBook Pro, 1920 × 1080, quality High, frame rate uncapped, development server, the finished build. `zsh scripts/playtest/measure.sh` reproduces the table (each place is `node scripts/shot.mjs … --fps 6 --size 1920x1080`, run twice). Triangles include the shadow passes.
+Apple M2 Max MacBook Pro, 1920 × 1080, quality High unless stated, frame rate uncapped, development server. `zsh scripts/playtest/measure.sh` reproduces the table (each place is `node scripts/shot.mjs … --fps 6 --size 1920x1080`, run twice). "Before" is the same script before the art pass.
 
-| Place | Frames per second | Draw calls | Triangles |
-|---|---|---|---|
-| The Bay Hill, Timaru (start) | 164–174 | 920–1,160 | 1.4–1.8 M |
-| Linwood (suburban street) | 124–126 | 790–980 | 1.2–1.6 M |
-| Moorhouse Avenue, night, southerly rain, in a car | 112–120 | 1,300 | 3.2 M |
-| Hagley Park and the Avon | 104–106 | 1,080–1,580 | 2.5–3.7 M |
-| Cathedral Square | 95–97 | 1,120–1,300 | 2.6–3.0 M |
-| State Highway 1 at about 100 km/h for 22 s | 158 average; 99th-percentile frame 13 ms; worst 19 ms | | |
+| Place | Before | Now | Draw calls now | Triangles now |
+|---|---|---|---|---|
+| The Bay Hill, Timaru (start) | 164–174 | 225–230 | 580–880 | 0.7–1.0 M |
+| Linwood (suburban street) | 124–126 | 165–175 | 730–760 | 1.1 M |
+| Moorhouse Avenue, night, southerly rain, in a car | 112–120 | 145–188 | 1,000 | 1.7 M |
+| Hagley Park and the Avon | 104–106 | 110–135 | 910–1,050 | 1.4–1.6 M |
+| Cathedral Square | 95–97 | 115–130 | 880–1,040 | 1.6–2.0 M |
+| Cathedral Square, Low | 227 | 342 | 490 | 1.0 M |
+| Cathedral Square, Medium | 129 | 150 | 700 | 1.3 M |
+| Cathedral Square, Ultra | 60, at 70 % render scale | 76, at full scale | 1,300 | 2.3 M |
+| State Highway 1 at about 100 km/h for 22 s | 158 average; 99th-percentile frame 13 ms; worst 19 ms | 224 average; 99th-percentile frame 10 ms; worst 17 ms | | |
 
-The slowest single frame in any of the ten standing runs was 15 ms, so nothing dropped below 60. Cathedral Square at the other settings: Low 227, Medium 129, Ultra 60 (Ultra only holds 60 there by dropping the render resolution to 70 %). The production build served from a sub-path measured 89 in the Square, the same as the development server within the spread between runs. That spread is about 10 %: an earlier pass the same day gave 136–140 in Linwood and 102–103 in the Square, and the machine was shared with other work throughout.
+The slowest single frame in the ten standing runs was 18 ms. A second pass on the same code, by the agent that did the performance work, gave lower figures in two places (113–115 at Hagley, 105–108 in the Square) and the same or higher elsewhere; runs on this machine differ by ten per cent or more, so read the table as "faster everywhere, by a fifth to a third", not to the frame.
+
+Where the saving came from: figures have four levels of detail (thirty pedestrians went from 1.46 M triangles to 0.22 M), trees and cars have cheap distant versions, and small props are drawn only in chunks near the camera. The street dressing costs about a tenth of the frame rate on Christchurch's one-way parking streets (Kilmore Street: 115–117 with it, 128–160 without).
 
 ## Screenshots
 
-All taken from the running game at 1600 × 900, quality High.
+The same view before and after the art pass (`zsh scripts/gallery.sh` takes all 24).
+
+| Before | After |
+|---|---|
+| ![Stafford Street before](screenshots/round3/02-stafford-street-before.jpg) | ![Stafford Street after](screenshots/round3/02-stafford-street-after.jpg) Stafford Street, Timaru |
+| ![Shopfront before](screenshots/round3/24-shopfront-close-before.jpg) | ![Shopfront after](screenshots/round3/24-shopfront-close-after.jpg) A shopfront on Stafford Street |
+| ![Square before](screenshots/round3/08-square-before.jpg) | ![Square after](screenshots/round3/08-square-after.jpg) Cathedral Square |
+| ![Square at night before](screenshots/round3/09-square-night-before.jpg) | ![Square at night after](screenshots/round3/09-square-night-after.jpg) The Square at dusk |
+| ![Linwood before](screenshots/round3/13-linwood-before.jpg) | ![Linwood after](screenshots/round3/13-linwood-after.jpg) A Linwood street |
+| ![Avon before](screenshots/round3/12-avon-hagley-before.jpg) | ![Avon after](screenshots/round3/12-avon-hagley-after.jpg) The Avon and Hagley Park |
+| ![Plains before](screenshots/round3/06-plains-norwester-before.jpg) | ![Plains after](screenshots/round3/06-plains-norwester-after.jpg) The plains under a nor'wester |
+| ![Car before](screenshots/round3/22-car-very-close-before.jpg) | ![Car after](screenshots/round3/22-car-very-close-after.jpg) A car, close up |
 
 | | |
 |---|---|
-| ![The Bay Hill](screenshots/01-bay-hill-start.jpg) The Bay Hill, Timaru: where a new game starts | ![Cathedral Square](screenshots/02-cathedral-square.jpg) Cathedral Square |
-| ![Cathedral Square at night](screenshots/03-cathedral-square-night.jpg) The Square at night | ![New Brighton](screenshots/04-new-brighton-beach.jpg) New Brighton beach |
-| ![Rakaia](screenshots/05-rakaia-riverbed.jpg) The Rakaia: shingle, braids and the road bridge | ![Stafford Street](screenshots/06-stafford-street-timaru.jpg) Stafford Street, Timaru |
-| ![State Highway 1](screenshots/07-state-highway-1.jpg) State Highway 1 under a nor'west arch | ![Vehicles](screenshots/08-vehicles.jpg) Some of the eleven vehicles |
-| ![Linwood](screenshots/09-linwood-suburb.jpg) A Linwood street | ![Lyttelton](screenshots/10-lyttelton.jpg) Lyttelton |
-| ![Night](screenshots/11-southerly-night.jpg) Moorhouse Avenue at night | ![Hagley Park](screenshots/12-avon-hagley-park.jpg) The Avon and Hagley Park |
-| ![Roadblock](screenshots/13-roadblock.jpg) How the test pursuit ended | ![After the fight](screenshots/14-after-the-fight.jpg) After the boat-shed fight |
-| ![Aiming](screenshots/15-aiming.jpg) Aiming, at the start of the boat-shed fight | ![The Warlock](screenshots/16-the-warlock.jpg) The Warlock of the Square, one of the familiar faces |
+| ![Title](screenshots/round3/title.jpg) The title screen | ![Map](screenshots/round3/map.jpg) The island map |
+| ![Phone, driving](screenshots/round3/phone-driving.jpg) On a phone, driving | ![Phone, on foot](screenshots/round3/phone-on-foot.jpg) On a phone, on foot and armed |
+| ![Rain](screenshots/round3/moorhouse-rain.jpg) Moorhouse Avenue at night in a southerly | ![Cars](screenshots/round3/cars.jpg) Six of the eleven vehicles |
+
+Earlier screenshots, from before the art pass, are still in `docs/screenshots/` (`01` to `16`): among them the roadblock that ended the test pursuit, the boat-shed fight, aiming, and the Warlock of the Square.
 
 ## Housekeeping
 
-`shots/` (about 1 GB of working screenshots) and `assets-staging/` (about 1.4 GB of raw asset downloads) are scratch, ignored by `.gitignore`, and can be deleted. `dev/` holds two viewer pages for the figures and the plants; they are not part of the build. `src/vehicles/models/common.ts` is no longer imported by anything and can go too. I have deleted none of these.
+`shots/` (about 2.2 GB of working screenshots, plus each agent's notes from the art pass in `shots/round3/*-report.md`) and `assets-staging/` (about 1.4 GB of raw asset downloads) are scratch, ignored by `.gitignore`, and can be deleted. `dev/` holds two viewer pages for the figures and the plants; they are not part of the build. `src/vehicles/models/common.ts` is no longer imported by anything and can go too. None of these has been deleted.

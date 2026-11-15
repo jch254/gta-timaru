@@ -199,3 +199,44 @@ Read the header of `scripts/shot.mjs` for every option (`--eval` runs JavaScript
 | Dressing | `src/world/scatter/**`, `src/world/landmarks/**` | street life, squares, parks, the Bay, set dressing |
 
 `src/world/world.ts` has two editors this round (Lead: prop instancing, colliders, streaming; Ground + water: colours and ground materials). Make small targeted edits there, re-read before each edit, and never rewrite the file wholesale.
+
+# Round 3: art pass
+
+The game is finished, deployed and playable (six missions, live radio, cameos). This round is about how it looks and how fast it runs. Everything in rounds 1 and 2 still applies, including: never run git, never commit, never deploy, CC0 assets only (tell the lead so `ASSETS.md` gets a row), and verify by looking.
+
+## The look
+
+**Canterbury in 1995, as if shot on 35 mm film.** Realism, not stylisation.
+
+- Hard summer light and long shadows; warm dust haze over the plains under a nor'wester; cold blue-grey under a southerly; white glare off wet roads.
+- Nothing is new. A provincial town in 1995: sun-bleached paint, patched and re-patched tarmac, rust runs on corrugated iron, weeds along fence lines, hand-painted signs gone chalky. Dirt gathers where it would: under sills, at the foot of walls, in gutters, behind wheels.
+- Variety. No two neighbouring buildings, cars or trees should read as the same object in a different colour.
+- Night is sodium-orange pools with dark between them, warm windows, and reflections on wet seal.
+- Detail goes where the player looks: at the car they are driving, the street they are standing in, the landmark they came to see. Far things stay cheap.
+
+## Rules for this round
+
+1. **Before and after.** `zsh scripts/gallery.sh shots/round3/<lane>` takes the same 24 views every time (`... <lane> square` takes only the views with "square" in the name). The untouched set is in `shots/round3/before/` and its numbers in `shots/round3-before.log`. Open your after-shots next to the before-shots with the Read tool and judge them honestly. Add your own close-ups with `node scripts/shot.mjs` (read its header).
+2. **Cost.** The gallery prints draw calls and triangles for each view; those do not depend on how busy the machine is. No view may grow by more than 10 % in draw calls or 15 % in triangles over the before log unless your brief says otherwise, and anything you add has to pay for itself (merge, instance, share materials, alpha-test instead of blend, cheaper at distance, off at Low quality). **Do not measure or report frame rate**: several agents share one GPU and the numbers are meaningless. The lead measures at the end.
+3. **Quality levels.** `src/render/quality.ts` has Low, Medium, High and Ultra. A new effect must be off or at its cheapest at Low, and must not change what Low looks like for the worse.
+4. **Do not break the game.** `pnpm exec tsc --noEmit` clean and `pnpm vitest run --dir src` passing (1,095 tests at the start; use `--dir src`, plain `pnpm test` picks up a stray folder). Do not touch missions, cameos, police, audio or saves. Update tests that encode something you were asked to change, never delete one to get past it.
+5. **Stay in your lane.** Edit only the files in your row below. If you need something outside it, say so in your report rather than doing it. `src/core/types.ts` changes must be small and additive.
+6. **Others are editing at the same time.** If a shot fails or looks broken because of someone else's half-finished change, wait a minute and retry. Never "fix" a file outside your lane.
+7. **Do not use the Browser pane or preview tools, and do not start or stop servers.** The dev server is at `http://localhost:5195/`. `scripts/shot.mjs` keeps the live radio stations switched off; leave that alone.
+8. **Report.** Write your full notes to `shots/round3/<lane>-report.md` (scratch, not committed). Hand back at most 250 words: what changed, which gallery views show it best, draw-call and triangle changes for the views you touched, test results, and what you did not finish or could not verify.
+
+## Round 3 ownership
+
+| Lane | Wave | Files | Brief |
+|---|---|---|---|
+| Light | 1 | `src/render/**` except `glazing.ts`, `textures.ts` and `windows()` in `materials.ts` | film grade, haze, sky and cloud shadows, night lighting, wet reflections, anti-aliasing |
+| Buildings | 1 | `src/world/buildings/**`, `src/render/glazing.ts`, `windows()` in `src/render/materials.ts` | weathering, variety, backs and sides, roofs and rooftop clutter, shopfront depth, aged signs |
+| Vehicles | 1 | `src/vehicles/models/**`, `src/vehicles/occupant.ts` | body shape, lamps, glass and interiors, wheels, dirt, the figure in the seat |
+| Ground + water | 1 | `src/world/ground.ts`, `src/world/roadmesh.ts`, `src/world/height.ts`, `src/render/textures.ts` | road wear and markings, kerbs, cliffs, quays, rivers, sea |
+| Plants | 1 | `src/world/props/vegetation.ts`, `src/world/props/foliage.ts`, the plant kinds in `src/world/props/index.ts` and `extra.ts`, `scripts/assets/foliage/**`, `src/assets/foliage/**` | species variety, distant versions, shrubs and hedges, grass |
+| Landmarks + dressing | 2 | `src/world/landmarks/**`, `src/world/scatter/**`, the non-plant kinds in `src/world/props/**` | hero landmarks, the Square's edges, street furniture, yards |
+| Characters | 2 | `src/actors/**`, `src/ai/looks.ts` | figures, clothing, distant versions, movement |
+| Presentation | 2 | `index.html`, `src/style.css`, `src/ui/**`, `src/main.ts` | title screen, loading, HUD, map |
+| Lead | | everything else, including `src/world/world.ts`, `src/game/**`, `scripts/**`, docs | integration, performance, measurement |
+
+Materials: the shared library is `src/render/materials.ts` (Light's file). Other lanes get new looks through `registerPatched` or a shader patch kept in their own folder, as round 2 did, not by editing the library.

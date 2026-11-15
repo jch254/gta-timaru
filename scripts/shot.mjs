@@ -15,6 +15,8 @@
 //   --car       spawn this vehicle spec and sit in it
 //   --look      camera yaw,pitch,zoom
 //   --quality   low | medium | high | ultra
+//   --live      leave the live radio stations on the dial (off by default here, so automated runs do not
+//               connect to real stations)
 //   --eval      JavaScript to run in the page after setup (may use `dev` and `sleep(ms)`, may await and return a
 //               value; console.log('[shot] …') lines are echoed live). Ready-made ones: scripts/playtest/*.js,
 //               e.g. --eval "$(cat scripts/playtest/missions.js)"
@@ -22,6 +24,10 @@
 //   --fps       measure frame rate over this many seconds and print it
 //   --hud       keep the HUD in the shot (hidden by default)
 //   --size      viewport, default 1600x900
+//   --mobile    emulate an iPhone: landscape 844x390 CSS px, device pixel ratio 3, touch, an iPhone user agent.
+//               `--mobile max` is 932x430, `--mobile portrait` is 390x844; --size still overrides the viewport.
+//               Implies --hud (the touch controller is part of the picture). This is Chrome pretending, not
+//               Safari: see scripts/playtest/phone.mjs for a played-through run with real touch events.
 //   --out       PNG path, default shots/shot.png
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -37,7 +43,11 @@ for (let i = 2; i < process.argv.length; i++) {
 }
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const url = args.url || 'http://localhost:5195/';
-const [width, height] = String(args.size || '1600x900').split('x').map(Number);
+const MOBILE_SIZES = { true: '844x390', max: '932x430', portrait: '390x844' };
+const mobile = args.mobile ? MOBILE_SIZES[String(args.mobile)] || MOBILE_SIZES.true : null;
+const MOBILE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
+const [width, height] = String(args.size || mobile || '1600x900').split('x').map(Number);
+if (mobile) args.hud = true;
 const out = resolve(String(args.out || 'shots/shot.png'));
 mkdirSync(dirname(out), { recursive: true });
 
@@ -45,12 +55,13 @@ const browser = await puppeteer.launch({
   executablePath: CHROME,
   headless: true,
   protocolTimeout: 1_200_000, // long --eval scripts (whole missions) are fine
-  defaultViewport: { width, height, deviceScaleFactor: 1 },
+  defaultViewport: mobile ? { width, height, deviceScaleFactor: 3, isMobile: true, hasTouch: true, isLandscape: width > height } : { width, height, deviceScaleFactor: 1 },
   args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--enable-webgl', '--mute-audio', '--autoplay-policy=no-user-gesture-required', `--window-size=${width},${height}`, '--disable-frame-rate-limit', '--disable-gpu-vsync'].filter((a) => args.fps || !a.includes('rate-limit') && !a.includes('vsync')),
 });
 let failed = false;
 try {
   const page = await browser.newPage();
+  if (mobile) await page.setUserAgent(MOBILE_UA);
   const problems = [];
   page.on('console', (m) => {
     // Progress lines from long --eval scripts: console.log('[shot] …') is echoed as it happens.
@@ -61,19 +72,28 @@ try {
   page.on('response', (r) => {
     if (r.status() >= 400) problems.push('http ' + r.status() + ': ' + r.url());
   });
+  // Settings are written before the page's own scripts run. Automated runs keep the live radio stations off
+  // unless asked (--live): there is no call to connect to a real station on every screenshot.
+  await page.evaluateOnNewDocument(
+    (quality, live) => {
+      try {
+        const key = 'timmaz-hard.settings.v2';
+        const s = JSON.parse(localStorage.getItem(key) || '{}');
+        if (quality) s.quality = quality;
+        s.liveRadio = live;
+        localStorage.setItem(key, JSON.stringify(s));
+      } catch {
+        // No storage: the game falls back to its defaults.
+      }
+    },
+    args.quality ? String(args.quality) : null,
+    !!args.live,
+  );
   await page.goto(url + (url.includes('?') ? '&' : '?') + 'dev', { waitUntil: 'domcontentloaded' });
-  if (args.quality) {
-    await page.evaluate((q) => {
-      const key = 'timmaz-hard.settings.v2';
-      const s = JSON.parse(localStorage.getItem(key) || '{}');
-      s.quality = q;
-      localStorage.setItem(key, JSON.stringify(s));
-    }, String(args.quality));
-    await page.reload({ waitUntil: 'domcontentloaded' });
-  }
   await page.waitForSelector('#btn-new', { timeout: 30000 });
-  await page.click('#btn-new');
-  await page.waitForFunction('window.dev !== undefined', { timeout: 60000 });
+  if (mobile) await page.tap('#btn-new');
+  else await page.click('#btn-new');
+  await page.waitForFunction('window.dev !== undefined', { timeout: mobile ? 120000 : 60000 });
   const setup = await page.evaluate(
     async (o) => {
       const dev = window.dev;

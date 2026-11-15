@@ -41,6 +41,17 @@ Then open the URL Vite prints. `pnpm build` type-checks and writes a self-contai
 
 The mouse is captured when you start; if the browser refuses pointer lock (for example inside an embedded frame), hold any mouse button and drag to look.
 
+### On a phone
+
+The game runs in a phone browser, held sideways, with an on-screen controller that appears on touch devices and goes away again if a keyboard or gamepad is used.
+
+- **Always, top left:** pause, MAP, VIEW (camera distance), and SKIP while someone is talking.
+- **On foot:** a thumb-stick wherever your left thumb lands (push it to the rim to sprint); drag anywhere else to look. On the right: PUNCH or FIRE (hold to keep firing), JUMP, USE when there is something to use, and AIM, RELOAD and WEAPON once you are armed.
+- **Driving:** the stick steers; GO and BRAKE pedals on the right, with HAND BRAKE, OUT, HORN, RADIO and BEHIND around them.
+- Phones start at Low quality, which on a phone is its own lighter tier. Add the page to the home screen to run it full screen.
+
+It has been tested in Chrome's phone emulation with real touch events (`node scripts/playtest/phone.mjs`), not yet in Safari on an iPhone.
+
 ## Playing
 
 - **New game** starts you on the Bay Hill in Timaru. Yellow markers on the minimap are jobs: walk into one and press F. There are six, and they take you up State Highway 1 to Christchurch and back. Everything else is free roam.
@@ -80,9 +91,11 @@ src/missions/        mission runner, mission definitions, shops and safehouses, 
 src/ui/              HUD, minimap, pause menu, map, settings, controls screen
 src/rail/            the heritage tram that runs the city loop
 src/audio/           synthesised sound effects, engines, ambience and radio stations
+src/touch/           the on-screen controller for phones and what Mobile Safari needs
 src/assets/          shipped third-party assets (CC0 textures and character models; see ASSETS.md)
 scripts/assets/      scripts that fetch and optimise those assets (not needed to build or run)
 scripts/shot.mjs     headless screenshots and frame-rate measurements of the running dev server
+scripts/gallery.sh   the same 24 views every time, for before-and-after comparisons
 scripts/playtest/    scripted play sessions for shot.mjs (missions, a police chase, a gunfight)
 infrastructure/      Terraform for S3, CloudFront, certificate, DNS and the CodeBuild deploy project
 buildspec.yml        what CodeBuild runs on a push to main: apply Terraform, build, upload, invalidate
@@ -96,7 +109,7 @@ In `pnpm dev`, or on any build with `?dev` added to the URL, a `dev` object is a
 
 `node scripts/shot.mjs --place cathedral-square --time 15 --fps 5` takes a screenshot of the running dev server with the Chrome already installed on the machine and prints draw calls, triangles and frame rate; its header lists the options.
 
-`scripts/playtest/` holds scripted play sessions for that tool: `missions.js` plays all six missions back to back, `chase.js` runs a three-star pursuit across Christchurch, `fight.js` plays a mission up to its first shoot-out and fights it without cheats, `carjack.js` walks, takes a parked car, drives it and pulls a driver out of another, `escape.js` loses a two-light pursuit by ditching the car, `radio.js` tunes through every station and reports which live streams connect, `soak.js` stands in town counting traffic crashes, `highway.js` records frame times along State Highway 1, and `continue.mjs` (run directly with node) saves, reloads and continues. `zsh scripts/playtest/measure.sh` reproduces the frame-rate table in the report. For example:
+`scripts/playtest/` holds scripted play sessions for that tool: `missions.js` plays all six missions back to back, `chase.js` runs a three-star pursuit across Christchurch, `fight.js` plays a mission up to its first shoot-out and fights it without cheats, `carjack.js` walks, takes a parked car, drives it and pulls a driver out of another, `escape.js` loses a two-light pursuit by ditching the car, `radio.js` tunes through every station and reports which live streams connect, `soak.js` stands in town counting traffic crashes, `highway.js` records frame times along State Highway 1, and `continue.mjs` (run directly with node) saves, reloads and continues. `phone.mjs` (run directly with node) plays it as a phone would, with touch events. `zsh scripts/playtest/measure.sh` reproduces the frame-rate table in the report, and `zsh scripts/gallery.sh shots/now` takes the same 24 views every time for comparing looks. `shot.mjs` keeps the live radio stations off unless given `--live`, and `--mobile` makes it a phone. For example:
 
 ```bash
 node scripts/shot.mjs --place timaru-spawn --hud --eval "$(cat scripts/playtest/missions.js)"
