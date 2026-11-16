@@ -4,7 +4,7 @@ import { el } from './dom';
 import { IconSheet, paintArrow, type IconKind } from './icons';
 import { TILE_M, type MapData } from './mapdata';
 import { arrowAngle, clampToSquare, minimapMatrix, minimapReach, worldToMinimap, type Point } from './mapmath';
-import { landColor, RoadTiles, SIGN_PALETTE, TILE_PAD, type MapRaster } from './maprender';
+import { landColor, RoadTiles, STREET_PALETTE, TILE_PAD, type MapRaster } from './maprender';
 
 /** A fixed symbol on the map (hospital, police station, safehouse, shop). */
 export interface StaticMarker {
@@ -18,9 +18,9 @@ export interface StaticMarker {
 export const MINIMAP_EM = 15;
 
 /**
- * The minimap: a motorway-sign plate, bottom-left, rotating with the camera. Each frame it blits a rotated
- * window of the land-use raster and of the pre-rendered road tiles, then draws blips, the north tab and the
- * player arrow. One canvas redraw, no allocation.
+ * The minimap: a corner of the road atlas, bottom-left, rotating with the camera. Each frame it blits a rotated
+ * window of the land-use raster and of the pre-rendered road tiles, shades the paper after dark, then draws
+ * blips, the north tab and the player arrow. One canvas redraw, no allocation.
  */
 export class Minimap {
   readonly root: HTMLDivElement;
@@ -31,7 +31,10 @@ export class Minimap {
   private frame = 0;
   private tiles: RoadTiles;
   private icons = new IconSheet();
-  private land = landColor(SIGN_PALETTE);
+  private land = landColor(STREET_PALETTE);
+  /** Night shade over the paper, in tenths, and the fill style that goes with it. */
+  private dusk = 0;
+  private duskStyle = '';
   private m: number[] = [1, 0, 0, 1, 0, 0];
   private p: Point = { x: 0, y: 0 };
 
@@ -43,7 +46,7 @@ export class Minimap {
     this.root = el('div', 'nw-mini', parent);
     this.canvas = el('canvas', 'nw-mini-canvas', this.root);
     this.g = this.canvas.getContext('2d', { alpha: false });
-    this.tiles = new RoadTiles(data, SIGN_PALETTE);
+    this.tiles = new RoadTiles(data, STREET_PALETTE);
   }
 
   /** Sizes the canvas for the current viewport. `cssSize` is the plate's inner edge in CSS pixels. */
@@ -105,6 +108,17 @@ export class Minimap {
 
     // Symbols, in screen space.
     g.setTransform(1, 0, 0, 1, 0, 0);
+    // After dark the paper is read by the dashboard light: shaded, so a cream square does not glare out of a
+    // night scene, while the symbols on top stay bright.
+    const dusk = Math.round(Math.min(1, Math.max(0, ctx.env?.night ?? 0)) * 10);
+    if (dusk !== this.dusk) {
+      this.dusk = dusk;
+      this.duskStyle = `rgba(22, 24, 38, ${(dusk * 0.023).toFixed(3)})`;
+    }
+    if (dusk > 0) {
+      g.fillStyle = this.duskStyle;
+      g.fillRect(0, 0, size, size);
+    }
     const p = this.p;
     const icon = this.icons.size;
     const reachPx = half + icon;
@@ -128,6 +142,6 @@ export class Minimap {
     clampToSquare(p, half - icon * 0.52);
     this.icons.draw(g, 'north', half + p.x, half + p.y, 0.9);
 
-    paintArrow(g, half, half, size * 0.1, arrowAngle(heading, player.heading), '#ffffff', '#10141a');
+    paintArrow(g, half, half, size * 0.105, arrowAngle(heading, player.heading), '#c2462b', '#fffaf0');
   }
 }

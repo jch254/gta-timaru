@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { canopy, mergeGeometries, registerProp } from '../../props/index';
+import { mergeGeometries, registerProp } from '../../props/index';
 import { blob, bx, cy, cyX, painted } from '../paint';
 import { plinth, prism } from './kit';
 
@@ -67,57 +67,42 @@ registerProp('chch-lamp-standard', (m) => ({
   collider: { radius: 0.14, height: 4 },
 }));
 
-// Concrete tub with shrubs and bedding plants.
+// Concrete tub; its planting is the `planter-plants` kind, stood on the same spot (see `planter` below).
 registerProp('chch-planter', (m) => ({
   parts: [
-    { geometry: new THREE.CylinderGeometry(0.95, 0.75, 0.7, 10).translate(0, 0.35, 0), material: m.get('concrete', { color: 0xaaa69c }) },
     {
-      geometry: canopy(
-        [
-          [0, 1.0, 0, 0.62, 0.7],
-          [0.4, 0.85, 0.25, 0.4, 0.7],
-          [-0.38, 0.85, -0.2, 0.42, 0.7],
-        ],
-        0,
-      ),
-      material: m.get('foliage', { color: 0x4a7038 }),
-    },
-    {
-      geometry: canopy(
-        [
-          [0.55, 0.74, -0.35, 0.2, 0.6],
-          [-0.5, 0.74, 0.4, 0.2, 0.6],
-          [0.1, 0.74, 0.62, 0.18, 0.6],
-          [-0.62, 0.74, -0.3, 0.17, 0.6],
-        ],
-        0,
-      ),
-      material: m.get('plain', { color: 0xc93a44, roughness: 0.9 }),
+      geometry: mergeGeometries([
+        new THREE.CylinderGeometry(0.95, 0.75, 0.7, 12, 1, true).translate(0, 0.35, 0),
+        new THREE.CylinderGeometry(1.0, 0.95, 0.08, 12, 1, true).translate(0, 0.7, 0),
+        new THREE.RingGeometry(0.84, 1.0, 12).rotateX(-Math.PI / 2).translate(0, 0.74, 0),
+        new THREE.CircleGeometry(0.86, 12).rotateX(-Math.PI / 2).translate(0, 0.6, 0),
+      ]),
+      material: m.get('concrete', { color: 0xaaa69c }),
     },
   ],
   collider: { radius: 0.8, height: 0.7 },
 }));
 
-// Oval bedding display: dug soil, a green edging and two colours of annuals.
-registerProp('chch-flowerbed', (m) => {
-  const blobs = (count: number, phase: number, radius: number): [number, number, number, number, number][] => {
-    const out: [number, number, number, number, number][] = [];
-    for (let i = 0; i < count; i++) {
-      const a = phase + (i / count) * Math.PI * 2;
-      out.push([Math.cos(a) * 2.3 * radius, 0.24, Math.sin(a) * 1.1 * radius, 0.3, 0.6]);
-    }
-    return out;
-  };
-  return {
-    parts: [
-      { geometry: new THREE.CylinderGeometry(1, 1, 0.16, 16).scale(2.7, 1, 1.4).translate(0, 0.08, 0), material: m.get('plain', { color: 0x4a3a2c, roughness: 1 }) },
-      { geometry: canopy(blobs(12, 0, 0.92), 0), material: m.get('plain', { color: 0xd2384a, roughness: 0.9 }) },
-      { geometry: canopy([...blobs(8, 0.3, 0.55), [0, 0.28, 0, 0.36, 0.6]], 0), material: m.get('plain', { color: 0xf0c53a, roughness: 0.9 }) },
-      { geometry: canopy(blobs(6, 0.9, 0.28), 0), material: m.get('foliage', { color: 0x4f7a3a }) },
-    ],
-    minor: true,
-  };
-});
+/** A street tub with its planting. */
+export function planter(out: { instance(kind: string, x: number, y: number, z: number, heading?: number, scale?: number, tint?: number): void }, x: number, y: number, z: number, heading = 0): void {
+  out.instance('chch-planter', x, y, z, heading);
+  out.instance('planter-plants', x, y, z, heading);
+}
+
+// Oval bed of dug soil; the bedding is `flower-bed` drifts laid over it (see `flowerBed` below).
+registerProp('chch-flowerbed', (m) => ({
+  parts: [{ geometry: new THREE.CylinderGeometry(1, 1, 0.14, 16).scale(2.7, 1, 1.4).translate(0, 0.05, 0), material: m.get('plain', { color: 0x3f3226, roughness: 1 }) }],
+  castShadow: false,
+  minor: true,
+}));
+
+/** An oval bedding display, 5.4 m by 2.8 m along its local x: soil with three drifts of flowers on it. */
+export function flowerBed(out: { instance(kind: string, x: number, y: number, z: number, heading?: number, scale?: number, tint?: number): void }, x: number, y: number, z: number, heading = 0): void {
+  out.instance('chch-flowerbed', x, y, z, heading);
+  const cos = Math.cos(heading);
+  const sin = Math.sin(heading);
+  for (const [lx, lz] of [[-1.45, 0], [0.75, -0.42], [0.75, 0.42]]) out.instance('flower-bed', x + lx * cos + lz * sin, y + 0.1, z - lx * sin + lz * cos, heading, lx < 0 ? 0.95 : 1);
+}
 
 // Flat-bottomed punt: varnished hull with raked ends, cushioned thwarts and the pole laid along it.
 registerProp('chch-punt', (m) => {
@@ -190,7 +175,7 @@ registerProp('chch-pigeon', (m) => ({
 
 const GREY = 0x9a9ea0;
 
-// Give-way sign with the street-name blades above it, on a steel post. The triangle faces +z (towards the
+// Give-way sign on a steel post (the street names stand on their own post: see scatter/shopstreets.ts). The triangle faces +z (towards the
 // driver coming up to the junction).
 registerProp('junction-sign', (m) => {
   const tri = (r: number, z: number) => new THREE.CircleGeometry(r, 3, -Math.PI / 2).translate(0, 1.95, z);
@@ -198,15 +183,10 @@ registerProp('junction-sign', (m) => {
     parts: [
       {
         geometry: painted([
-          [cy(0.035, 0.035, 2.95, 0, 1.475, -0.04, 6), GREY],
+          [cy(0.035, 0.035, 2.5, 0, 1.25, -0.04, 6), GREY],
           [tri(0.47, 0), 0xc4231c],
           [tri(0.3, 0.008), 0xf4f2ea],
           [tri(0.47, 0).rotateY(Math.PI).translate(0, 0, -0.012), GREY],
-          // Street-name blades: one along each street, white with a dark line of lettering.
-          [bx(0.8, 0.16, 0.02, 0.1, 2.84, -0.04), 0xf4f2ea],
-          [bx(0.56, 0.06, 0.026, 0.1, 2.84, -0.04), 0x1c2a3a],
-          [bx(0.02, 0.16, 0.8, 0, 2.66, 0.06), 0xf4f2ea],
-          [bx(0.026, 0.06, 0.56, 0, 2.66, 0.06), 0x1c2a3a],
         ]),
         material: m.get('plain', { vertexColors: true, roughness: 0.6 }),
       },

@@ -1,4 +1,9 @@
+import { TouchFeed } from '../touch/feed';
 import type { Action, InputApi, SettingsApi } from './types';
+
+/** Radians of camera turn per CSS pixel of look drag on a touch screen, at sensitivity 1. */
+const TOUCH_YAW = 0.0058;
+const TOUCH_PITCH = 0.0042;
 
 const KEYS: Record<Action, string[]> = {
   forward: ['KeyW', 'ArrowUp'],
@@ -64,6 +69,11 @@ export class Input implements InputApi {
   lookPitch = 0;
   captured = false;
   gamepadActive = false;
+  /**
+   * The on-screen controller (src/touch) writes here; `poll()` mixes it in as one more source. Nothing else in
+   * the game needs to know about touch. Using a key or a gamepad switches it off again.
+   */
+  readonly touch = new TouchFeed();
 
   private down = new Set<string>();
   private hits = new Set<string>();
@@ -80,9 +90,14 @@ export class Input implements InputApi {
       if (PREVENT.has(e.code)) e.preventDefault();
       if (!e.repeat) this.hits.add(e.code);
       this.down.add(e.code);
+      // A real keyboard is in use (dev tools send untrusted key events: those do not count).
+      if (e.isTrusted) this.touch.active = false;
     });
     window.addEventListener('keyup', (e) => this.down.delete(e.code));
-    window.addEventListener('blur', () => this.down.clear());
+    window.addEventListener('blur', () => {
+      this.down.clear();
+      this.touch.releaseAll();
+    });
     element.addEventListener('mousedown', (e) => {
       this.hits.add(`Mouse${e.button}`);
       this.down.add(`Mouse${e.button}`);
@@ -103,6 +118,8 @@ export class Input implements InputApi {
   }
 
   capture() {
+    // On a touch screen there is no pointer to lock, and asking can put up a browser banner.
+    if (this.touch.active) return;
     try {
       const result = this.element.requestPointerLock?.() as Promise<void> | undefined;
       result?.catch?.(() => undefined);
@@ -118,16 +135,22 @@ export class Input implements InputApi {
   held(action: Action): boolean {
     for (const code of KEYS[action]) if (this.down.has(code)) return true;
     const button = PAD[action];
-    return button !== undefined && this.padDown.has(button);
+    if (button !== undefined && this.padDown.has(button)) return true;
+    return this.touch.active && this.touch.held(action);
   }
 
   pressed(action: Action): boolean {
     for (const code of KEYS[action]) if (this.hits.has(code)) return true;
     const button = PAD[action];
-    return button !== undefined && this.padHits.has(button);
+    if (button !== undefined && this.padHits.has(button)) return true;
+    return this.touch.active && this.touch.pressed(action);
   }
 
   label(action: Action): string {
+    if (this.touch.active && !this.gamepadActive) {
+      const text = this.touch.label(action);
+      if (text) return text;
+    }
     if (this.gamepadActive) {
       const names = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'Back', 'Start', 'LS', 'RS', 'D-up', 'D-down', 'D-left', 'D-right'];
       const button = PAD[action];
@@ -153,6 +176,7 @@ export class Input implements InputApi {
 
     const pad = navigator.getGamepads?.().find((p) => p && p.connected && p.mapping === 'standard');
     this.padHits.clear();
+    let padUsed = false;
     if (pad) {
       const dz = (v: number) => (Math.abs(v) < 0.15 ? 0 : (v - Math.sign(v) * 0.15) / 0.85);
       const lx = dz(pad.axes[0]);
@@ -166,7 +190,7 @@ export class Input implements InputApi {
         if (b.pressed) this.padDown.add(i);
         else this.padDown.delete(i);
       });
-      if (lx || ly || rx || ry || rt || lt || this.padHits.size) this.gamepadActive = true;
+      if (lx || ly || rx || ry || rt || lt || this.padHits.size) this.gamepadActive = padUsed = true;
       if (this.gamepadActive) {
         if (lx || ly) {
           this.moveX = -lx;
@@ -179,6 +203,22 @@ export class Input implements InputApi {
       }
     }
     if (this.hits.size && !this.padHits.size) this.gamepadActive = this.gamepadActive && !this.hits.size;
+
+    // The on-screen controller, last: whichever device was used most recently is the one in charge.
+    const touch = this.touch;
+    const touched = touch.poll();
+    if (padUsed) touch.active = false;
+    else if (touched && touch.active) this.gamepadActive = false;
+    if (touch.active) {
+      if (touch.moveX || touch.moveZ) {
+        this.moveX = touch.moveX;
+        this.moveZ = touch.moveZ;
+      }
+      this.throttle = Math.max(this.throttle, touch.throttle);
+      this.brake = Math.max(this.brake, touch.brake);
+      this.lookYaw += -touch.lookX * TOUCH_YAW * sens;
+      this.lookPitch += touch.lookY * TOUCH_PITCH * sens * invert;
+    }
   }
 
   /**
@@ -192,6 +232,7 @@ export class Input implements InputApi {
     this.stash = { hits: new Set(this.hits), padHits: new Set(this.padHits), yaw: this.lookYaw, pitch: this.lookPitch };
     this.hits.clear();
     this.padHits.clear();
+    this.touch.suspend();
     this.lookYaw = 0;
     this.lookPitch = 0;
   }
@@ -201,6 +242,7 @@ export class Input implements InputApi {
     this.suspended = false;
     for (const h of this.stash.hits) this.hits.add(h);
     for (const h of this.stash.padHits) this.padHits.add(h);
+    this.touch.resume();
     this.lookYaw = this.stash.yaw;
     this.lookPitch = this.stash.pitch;
     this.stash = null;

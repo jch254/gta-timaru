@@ -36,29 +36,32 @@ function roadTable(styles: Record<string, RoadStyle>): RoadStyle[] {
   return ROAD_ORDER.map((cls) => styles[cls]);
 }
 
-/** Motorway-sign colours for the minimap: white roads on green, the highway in fingerpost yellow. */
-export const SIGN_PALETTE: MapPalette = {
+/**
+ * Street-map colours for the minimap: the island map's atlas page, inked a little heavier so the road classes
+ * read at a glance in a window the size of a beer mat.
+ */
+export const STREET_PALETTE: MapPalette = {
   terrain: terrainTable({
-    [T_LAND]: [21, 107, 67],
-    [T_WATER]: [20, 54, 92],
-    [T_PARK]: [62, 146, 74],
-    [T_BEACH]: [178, 162, 104],
-    [T_TOWN]: [30, 88, 68],
-    [T_SUBURB]: [25, 99, 66],
-    [T_INDUSTRY]: [36, 86, 76],
+    [T_LAND]: [234, 225, 196],
+    [T_WATER]: [150, 196, 222],
+    [T_PARK]: [174, 207, 144],
+    [T_BEACH]: [240, 222, 164],
+    [T_TOWN]: [219, 194, 158],
+    [T_SUBURB]: [229, 211, 180],
+    [T_INDUSTRY]: [206, 198, 186],
   }),
-  casing: '#083a27',
+  casing: '#5d5646',
   roads: roadTable({
-    pedestrian: { color: '#a6dcc2', width: 7, minPx: 1 },
-    gravel: { color: '#dccb96', width: 6, minPx: 1, dash: [11, 8] },
-    lane: { color: '#cfe4d9', width: 5.5, minPx: 1 },
-    street: { color: '#f3f7f4', width: 9, minPx: 1.2 },
-    arterial: { color: '#ffffff', width: 15, minPx: 2.2 },
-    highway: { color: '#f4c417', width: 14, minPx: 3 },
+    pedestrian: { color: '#f6efdc', width: 6, minPx: 1 },
+    gravel: { color: '#c7a676', width: 6, minPx: 1, dash: [11, 8] },
+    lane: { color: '#ffffff', width: 5.5, minPx: 1 },
+    street: { color: '#ffffff', width: 9, minPx: 1.2 },
+    arterial: { color: '#f2ae3d', width: 15, minPx: 2.2 },
+    highway: { color: '#cf3f2d', width: 15, minPx: 3 },
   }),
-  railBed: '#062a1c',
-  railTie: '#e9efe9',
-  tram: '#ffe9a8',
+  railBed: '#2a2d33',
+  railTie: '#f4eedd',
+  tram: '#7a5a3a',
 };
 
 /** Road-atlas colours for the island map: cream paper, red highways, orange main roads. */

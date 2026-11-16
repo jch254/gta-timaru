@@ -1,6 +1,7 @@
 import { clamp01, damp } from '../core/math';
 import type { GameContext } from '../core/types';
 import { el, Flag, Retrigger, TextCache } from './dom';
+import { TEXT_FONT } from './type';
 import { compactCount, conditionWord, formatClock, formatDelta, formatMoney, formatTimer, minuteOfDay, parsePrompt, plateDigits, toKmh, weekdayName } from './format';
 
 const LAMPS = 5;
@@ -198,7 +199,9 @@ export class Hud {
     this.plateText = new TextCache(el('span', 'nw-plate-digits', plate));
     el('span', 'nw-plate-unit', plate, 'km/h');
 
-    const weapon = el('div', 'nw-weapon', corner);
+    // Weapon and vitals share one pane.
+    const kit = el('div', 'nw-kit', corner);
+    const weapon = el('div', 'nw-weapon', kit);
     this.weaponUnarmed = new Flag(weapon, 'unarmed');
     this.weaponName = new TextCache(el('span', 'nw-weapon-name', weapon));
     const ammo = el('span', 'nw-ammo', weapon);
@@ -208,7 +211,7 @@ export class Hud {
     el('span', 'nw-ammo-slash', ammo, '/');
     this.reserveText = new TextCache(el('span', 'nw-ammo-reserve', ammo));
 
-    const vitals = el('div', 'nw-vitals', corner);
+    const vitals = el('div', 'nw-vitals', kit);
     const healthRow = el('div', 'nw-vital health', vitals);
     this.healthLow = new Flag(healthRow, 'low');
     el('span', 'nw-vital-icon', healthRow);
@@ -534,7 +537,7 @@ function paintDial(g: CanvasRenderingContext2D, px: number) {
   g.lineCap = 'butt';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.font = `700 ${Math.max(7, Math.round(px * 0.092))}px 'Avenir Next Condensed', 'Arial Narrow', Arial, sans-serif`;
+  g.font = `700 ${Math.max(8, Math.round(px * 0.098))}px ${TEXT_FONT}`;
   for (let v = 0; v <= DIAL_MAX; v += 10) {
     // Angle clockwise from straight up.
     const a = ((-DIAL_SWEEP / 2 + (v / DIAL_MAX) * DIAL_SWEEP) * Math.PI) / 180;

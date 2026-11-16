@@ -99,6 +99,15 @@ The atlas is derived, not copied: `scripts/assets/fetch-foliage.mjs` cuts each s
 
 To rebuild: `node scripts/assets/fetch-foliage.mjs --preview` (downloads are cached in the git-ignored `assets-staging/foliage/`; `--preview` also writes a viewable sheet there). `dev/vegetation.html` shows every plant kind on a lawn, and `scripts/assets/foliage/view.mjs` takes a headless screenshot of it.
 
+A second, smaller sheet, `src/assets/foliage/extra.webp` (251 kB), was added in the round 3 art pass for the new plant kinds (flower beds, roses, shrubs, long grass, the distant stand-ins for trees). It is cut and arranged from the same CC0 leaf sources listed above by the scripts in `scripts/assets/foliage/`; no new third-party source was used.
+
+## Made for the game
+
+| File | What it is |
+|---|---|
+| `src/assets/ui/` (title photograph, 156 kB) | A screenshot of the game itself, the Bay Hill at dusk, treated as a faded print. Retake with `zsh scripts/title-still.sh` (dev server running). |
+| `public/manifest.webmanifest`, `public/icon-512.png`, `public/apple-touch-icon.png` | Home-screen manifest and icons, drawn for the game. |
+
 ## Character models
 
 People are rigged, animated models built from two asset packs by [Quaternius](https://quaternius.com), both published under CC0 1.0 Universal (public domain dedication, <https://creativecommons.org/publicdomain/zero/1.0/>). Copies of the packs' licence files ship beside the models. The code-built figure in `src/actors/humanoid.ts` remains as the fallback if the models fail to load.

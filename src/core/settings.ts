@@ -1,3 +1,4 @@
+import { deviceHints, isPhone } from '../touch/device';
 import { SETTINGS_KEY as KEY } from './storage';
 import type { SettingsApi, SettingsData } from './types';
 
@@ -14,18 +15,22 @@ const DEFAULTS: SettingsData = {
   showFps: false,
 };
 
+/** Where a phone starts when nothing has been chosen yet: the lightest level, scaling itself to hold frame rate. */
+export const PHONE_DEFAULTS: Partial<SettingsData> = { quality: 'low', dynamicResolution: true };
+
 export class Settings implements SettingsApi {
   data: SettingsData;
   private handlers = new Set<(key: keyof SettingsData) => void>();
 
-  constructor() {
+  constructor(phone = isPhone(deviceHints())) {
     let stored: Partial<SettingsData> = {};
     try {
       stored = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<SettingsData>;
     } catch {
       // Corrupt settings: fall back to defaults.
     }
-    this.data = { ...DEFAULTS, ...stored };
+    // Anything the player has stored wins; a phone that has stored nothing starts lighter than a Mac does.
+    this.data = { ...DEFAULTS, ...(phone ? PHONE_DEFAULTS : null), ...stored };
   }
 
   set<K extends keyof SettingsData>(key: K, value: SettingsData[K]) {

@@ -14,6 +14,7 @@ import {
   box,
   cyl,
   door,
+  downpipe,
   flagpole,
   glow,
   ground,
@@ -21,6 +22,7 @@ import {
   mat,
   pad,
   pane,
+  patches,
   poleSign,
   prop,
   quad,
@@ -37,6 +39,7 @@ import {
   winRow,
 } from './kit';
 import { CHURCH_HALLS, CLASSIC, FUEL_BRAND, GARAGES, GARAGE_TAGS, GROCERS, GROCER_TAGS, HALLS, type Look, PUBS, STOCK_AGENTS, STOCK_TAGS, STONE, TRADE, TRADES, type Trade, board, locality, signMat, wrap } from './names';
+import { serviceWall } from './service';
 import { hotel, shopLot, terrace } from './shops';
 import { cottage, houseLot } from './villa';
 import type { YardStyle } from './yard';
@@ -151,7 +154,8 @@ const garage: LotBuilder = (lot, out, rng) => {
   const cz = front - d / 2;
   const h = 4.2;
   const iron = rng.chance(0.5);
-  const skin = iron ? mat(s, 'corrugated', rng.pick(CLADDING)) : mat(s, 'plaster', rng.pick(RENDER));
+  const skinColor = iron ? rng.pick(CLADDING) : rng.pick(RENDER);
+  const skin = iron ? mat(s, 'corrugated', skinColor) : mat(s, 'plaster', skinColor);
   walls(s, 0, cz, w, d, h, skin);
   solid(s, 0, cz, w, d, h);
   roof(s, 0, h, cz, w, d, 1.2, mat(s, 'corrugated', 0x9aa0a4), { eave: 0.15 });
@@ -178,6 +182,15 @@ const garage: LotBuilder = (lot, out, rng) => {
     box(s, side * 0.85, 1.46, fz, 0.6, 0.3, 0.44, green);
   }
   poleSign(s, rng.pick(SIDES) * (w / 2 - 1.2), s.hd - 1, 4.4, 2.2, 1.1, signMat(s, FUEL_BRAND, 2, BRAND), Math.PI / 2);
+
+  // Round the sides and the back of the workshop: the office door, a high window or two, pipes, the meter
+  // box, sheets replaced after somebody reversed into them.
+  for (const side of SIDES) {
+    serviceWall(s, { x: (side * w) / 2, z: cz, yaw: (side * Math.PI) / 2, len: d, top: h, ground: h, upper: 3, rows: 0, wall: skin, kind: 'back', doors: 1, dock: false, room: 0.45, paint });
+    if (iron) patches(s, cz - d / 2 + 0.5, cz + d / 2 - 0.5, (side * w) / 2, 0, h - 0.3, skinColor, 2, (side * Math.PI) / 2);
+  }
+  serviceWall(s, { x: 0, z: cz - d / 2, yaw: Math.PI, len: w, top: h, ground: h, upper: 3, rows: 0, wall: skin, kind: 'back', doors: 1, dock: false, room: 0.55, paint });
+  if (iron) patches(s, -w / 2 + 0.5, w / 2 - 0.5, cz - d / 2, 0, h - 0.3, skinColor, 3, Math.PI);
 
   // Decoration.
   if (s.spare(4)) {
@@ -209,6 +222,35 @@ function forecourt(s: Site, doorZ: number, floor: number) {
   const kind = s.fx.pick(['picket-fence', 'hedge', 'none']);
   if (kind === 'none') return;
   for (const [a, b] of stretches(-s.hw + 0.2, s.hw - 0.2, [[-1.1, 1.1]])) run(s, kind, a, zf, b, zf, kind === 'hedge' ? 2 : 2.4);
+}
+
+/**
+ * The back and the sides of a hall: a lean-to (supper room, vestry) where the section has room for one, the
+ * kitchen door on its step, a high window, rainwater pipes down the back corners, the meter box, and vents
+ * to the space under the floor.
+ */
+function rear(h: Site, s: Site, w: number, d: number, cz: number, fl: number, top: number, wall: ReturnType<typeof mat>, roofing: ReturnType<typeof mat>, share: number) {
+  const back = cz - d / 2;
+  const margin = back + s.hd;
+  const side = h.rng.pick(SIDES);
+  if (margin > 3.1 && h.spare(6)) {
+    const ld = Math.min(2.8, margin - 0.8);
+    const lw = w * share;
+    const lx = (side * (w - lw)) / 2;
+    walls(h, lx, back - ld / 2 + 0.1, lw, ld + 0.2, fl + 2.35, wall);
+    solid(h, lx, back - ld / 2, lw, ld, fl + 2.35);
+    slope(h, lx, fl + 3.25, back + 0.05, lx, fl + 2.37, back - ld - 0.25, lw + 0.4, 0.07, roofing);
+    serviceWall(h, { x: lx, z: back - ld, yaw: Math.PI, len: lw, top: fl + 2.35, ground: fl + 2.35, upper: 3, rows: 0, wall, kind: 'back', doors: 1, dock: false, room: margin - ld });
+  } else {
+    serviceWall(h, { x: 0, z: back, yaw: Math.PI, len: w, top, ground: top, upper: 3, rows: 0, wall, kind: 'back', doors: 1, dock: false, room: margin });
+  }
+  if (!h.near) return;
+  for (const e of SIDES) {
+    if (h.spare()) downpipe(h, (e * w) / 2, back + 0.35, Math.min(0, ground(h, (e * w) / 2, back)) - 0.3, top - 0.1, (e * Math.PI) / 2, 0xe4dccb);
+    // Vents to the under-floor along each side.
+    if (h.spare(2)) for (const t of [-0.3, 0.05, 0.4]) pane(h, 'fitting', e * (w / 2 + 0.03), fl - 0.24, cz + t * d, 0.42, 0.17, (e * Math.PI) / 2, { color: 0x6a6258, variant: 1 });
+  }
+  if (h.spare()) pane(h, 'fitting', -side * (w / 2 + 0.03), fl + 1.25, cz + d / 2 - 0.75, 0.42, 0.6, (-side * Math.PI) / 2, { color: 0xb9b4a8, variant: 0 });
 }
 
 const hall: LotBuilder = (lot, out, rng) => {
@@ -245,6 +287,8 @@ const hall: LotBuilder = (lot, out, rng) => {
   const count = Math.max(2, Math.min(4, Math.round(d / 3.8)));
   for (const side of SIDES) winRow(h, (side * w) / 2, cz + d / 2 - 1.8, (side * w) / 2, cz - d / 2 + 1.8, fl + 2.3, count, 1, 2.2, (side * Math.PI) / 2, 0.25);
   board(h, wrap(name), 0, top + rise * 0.42, F + 0.06, Math.min(2.4, w * 0.3), 3, CLASSIC);
+
+  rear(h, s, w, d, cz, fl, top, wall, iron, boards ? 0.72 : 0.6);
 
   // Decoration.
   if (h.spare(2)) flagpole(h, -w / 2 + 0.4, Math.min(-0.3, ground(h, -w / 2 + 0.4, F + pd + 1) - 0.2), F + pd + 1, 7, 0x1f3f7a);
@@ -289,6 +333,8 @@ const churchHall: LotBuilder = (lot, out, rng) => {
   // Bell-cote on the ridge at the street end.
   box(h, 0, top + rise - 0.5, F - 0.7, 0.9, 1.5, 0.9, wall);
   h.out.gable(h.f, 0, top + rise + 1, F - 0.7, 1.2, 1.2, 0.9, roofing, 0.59);
+
+  rear(h, s, w, d, cz, fl, top, wall, roofing, 0.62);
 
   // Decoration: finial, corner buttresses, the notice board by the gate.
   if (h.spare()) box(h, 0, top + rise + 1.85, F - 0.7, 0.06, 0.8, 0.06, trim(h, 0x2a2c2e));

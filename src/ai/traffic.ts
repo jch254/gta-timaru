@@ -552,14 +552,14 @@ export class TrafficSystem implements TrafficApi, System {
     if (!hit) return;
     const e = hit.edge;
     const classWeight = TRAFFIC.parkClass[e.cls];
-    if (classWeight <= 0 || e.bridge || e.tunnel || e.length < TRAFFIC.nodeClearance * 2 + 6) return;
+    if (classWeight <= 0 || e.bridge || e.tunnel || e.length < TRAFFIC.parkClearance * 2 + 6) return;
     const district = ctx.world.districtAt(hit.x, hit.z);
     const commercial = district.type === 'cbd' || district.type === 'shops' || district.type === 'industrial' || district.type === 'port';
     if (!rng.chance(classWeight * (TRAFFIC.parkDistrict[district.type] ?? 0.5) * parkedTimeFactor(ctx.clock.hour, commercial))) return;
     const specId = this.pickSpec(district.type);
     const spec = ctx.vehicles.specs.get(specId);
     if (!spec) return;
-    const s = clamp(hit.s, TRAFFIC.nodeClearance, e.length - TRAFFIC.nodeClearance);
+    const s = clamp(hit.s, TRAFFIC.parkClearance, e.length - TRAFFIC.parkClearance);
     const dir = e.oneway || rng.chance(0.5) ? 1 : -1;
     // At the kerb on the left, facing the way traffic on that side travels. On gravel, half on the verge.
     sampleEdge(e, s, _pt);

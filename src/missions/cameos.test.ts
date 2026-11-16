@@ -177,7 +177,7 @@ describe('what a cameo says next', () => {
 
 const LOOK = { skin: 0xe2b090, hair: 0x3a2a1c, top: 0x17171b, legs: 0x17171b, shoes: 0x121214 };
 /** A cameo in open ground 200 m from any road of the toy map, and one on the Colombo Street footpath. */
-const ORATOR: CameoDef = { id: 'orator', name: 'The Orator', about: 'Test cameo standing in open ground.', look: LOOK, at: { x: 300, z: -500, turn: 1 }, hours: [9, 17], lines: ['First.', 'Second.', 'Third.', 'Fourth.'], oi: 'Oi! Steady on!', gesture: 'arms' };
+const ORATOR: CameoDef = { id: 'orator', name: 'The Orator', about: 'Test cameo standing in open ground.', look: LOOK, at: { x: 300, z: -500, turn: 1 }, hours: [9, 17], lines: ['First.', 'Second.', 'Third.', 'Fourth.'], oi: 'Oi! Steady on!', gesture: 'orate' };
 const FORECASTER: CameoDef = { id: 'forecaster', name: 'The Forecaster', about: 'Test cameo with a line for the weather.', look: LOOK, at: { place: 'arts-centre', snap: 'verge', out: 3 }, lines: ['Plain one.', 'Plain two.', 'Plain three.', 'Plain four.'], weather: { southerly: 'Southerly!' }, oi: 'Oi! Not me!' };
 
 function harness(defs: readonly CameoDef[] = [ORATOR, FORECASTER]) {

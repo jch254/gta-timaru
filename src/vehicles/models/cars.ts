@@ -1,36 +1,13 @@
 import * as THREE from 'three';
 import type { MaterialLibrary, VehicleModel, VehicleSpec } from '../../core/types';
 import type { Cabin, Shell } from './body';
-import { AMBER, CHROME, CLEAR_LENS, curve, DARK, HEAD, Kit, PAINT, PLASTIC, RED_LENS, RUBBER, SMOKED, smooth, TAIL, TAIL_LENS, tint, type Pt, type Tint, type V3 } from './kit';
-import { aerial, assemble, bumper, exhaust, Face, fuelFlap, handles, mirrors, mudflaps, wipers, type CarPlan } from './parts';
+import { AMBER, AMBER_LENS, BRIGHT, CHROME, CLEAR_LENS, curve, DARK, dice, HEAD, Kit, LENS, PAINT, PLASTIC, RED_LENS, RUBBER, SMOKED, smooth, TAIL_LENS, tint, type Pt, type Tint, type V3, type WheelStyle } from './kit';
+import { aerial, assemble, bumper, CHERISHED, cornerLens, EVERYDAY, type Ageing, exhaust, Face, fuelFlap, handles, mirrors, mudflaps, roofRack, scuttle, shadeBand, TIRED, towbar, wipers, type CarPlan } from './parts';
 
 /**
  * The passenger cars. Each is a plan (shell, glasshouse, interior, fittings) handed to `assemble`.
  * Makes and models are invented; the shapes are the general run of early-90s New Zealand traffic.
  */
-
-/** Yaw of the skin's outward normal at a point on the +x flank (0 = facing forward, π/2 = sideways). */
-function yawAt(shell: Shell, z: number, y: number): number {
-  const slope = (shell.F(z + 0.004, y) - shell.F(z - 0.004, y)) / 0.008;
-  return Math.atan2(1, -slope);
-}
-
-/** Lamp or reflector laid on the rounded corner of the body, both sides. */
-export function cornerLens(k: Kit, shell: Shell, surface: Tint, z: number, y: number, w: number, h: number): void {
-  const p = shell.side(z, y, 0.004);
-  const yaw = yawAt(shell, z, y);
-  for (const s of [1, -1]) k.box(surface, w, h, 0.016, s * p[0], y, p[2], [0, s * yaw, 0]);
-}
-
-/** Dark strip along the base of the windscreen that the wipers park on. */
-export function scuttle(k: Kit, cab: Cabin, width = 0.07): void {
-  const pts: V3[] = [];
-  for (let i = -8; i <= 8; i++) {
-    const p = cab.screen(i / 8, 0, 0.004);
-    pts.push([p[0], p[1] + 0.004, p[2] + width * 0.35]);
-  }
-  k.ribbon(DARK, pts, [0, 0, 1], width, [0, -3, 0]);
-}
 
 /** Small side repeater / marker lamp on both flanks. */
 function repeater(k: Kit, shell: Shell, z: number, y: number, surface: Tint = AMBER): void {
@@ -42,10 +19,13 @@ function repeater(k: Kit, shell: Shell, z: number, y: number, surface: Tint = AM
 interface SedanOptions {
   /** Height of the roof panel (a light bar or a rack stands on top of it). */
   top: number;
-  wheel: 'hubcap' | 'steel';
+  wheel: WheelStyle;
   rim?: number;
   cloth: number;
   wagon?: boolean;
+  /** Imitation woodgrain along the flanks (wagon). */
+  wood?: boolean;
+  ageing?: Ageing;
   extras?: (k: Kit, shell: Shell, cab: Cabin) => void;
 }
 
@@ -122,9 +102,10 @@ function sedanPlan(spec: VehicleSpec, o: SedanOptions): CarPlan {
     wheel: o.wheel,
     rim: o.rim,
     belly: 0.16,
+    ageing: o.ageing ?? TIRED,
     dress(k, shell, cab) {
-      const F = new Face(k, h, 1);
-      const R = new Face(k, -h, -1);
+      const F = new Face(k, shell, 'front');
+      const R = new Face(k, shell, 'rear');
       // Chrome blade bumpers with a rubber insert, wrapped round to the arches.
       const blade: Pt[] = [[-0.03, -0.058], [0.05, -0.058], [0.074, -0.03], [0.074, 0.03], [0.05, 0.058], [-0.03, 0.058]];
       const insert: Pt[] = [[0.0745, -0.02], [0.084, 0], [0.0745, 0.02]];
@@ -133,17 +114,16 @@ function sedanPlan(spec: VehicleSpec, o: SedanOptions): CarPlan {
         bumper(k, shell, end, CHROME, blade, { zStart, y: 0.47 });
         bumper(k, shell, end, RUBBER, insert, { zStart, y: 0.47 });
       }
-      // Nose: twin square lamps each side of a slatted grille, amber indicators on the corners.
-      F.headlamps(0.55, 0.705, 0.36, 0.15, { twin: true, bezel: CHROME });
-      F.box(DARK, 0.7, 0.15, 0, 0.705, 0.02, 0.003);
-      for (const dy of [-0.05, -0.025, 0, 0.025, 0.05]) F.box(CHROME, 0.7, 0.009, 0, 0.705 + dy, 0.012, 0.012);
-      F.box(CHROME, 0.72, 0.012, 0, 0.787, 0.02, 0.02);
-      F.box(CHROME, 0.72, 0.012, 0, 0.623, 0.02, 0.02);
-      F.box(CHROME, 0.075, 0.075, 0, 0.705, 0.01, 0.022);
-      cornerLens(k, shell, AMBER, h - 0.055, 0.705, 0.11, 0.13);
+      // Nose: twin square sealed beams each side of a slatted grille, amber indicators round the corners.
+      F.headlamps(0.545, 0.705, 0.34, 0.15, { twin: true, bezel: CHROME });
+      F.grille(0, 0.705, 0.7, 0.15, { bars: 6, upright: 1, badge: [0.075, 0.075], frame: CHROME });
+      cornerLens(k, shell, 'front', AMBER, 0.705, 0.13, 0.15);
+      // Over-riders on the bumper, either side of the plate.
+      for (const s of [1, -1]) k.pad(RUBBER, 0.05, 0.15, 0.05, s * 0.34, 0.475, h + 0.085, 0.015);
       // Shut lines on the bonnet, scuttle, doors.
-      shell.deckLine(k, DARK, (z) => shell.sx(z) - 0.05, 1.02, h - 0.02);
+      shell.deckLine(k, DARK, (z) => shell.sx(z) - 0.05, 1.02, h - 0.05);
       scuttle(k, cab);
+      shadeBand(k, cab);
       shell.vline(k, DARK, 0.95, 0.33, 0.955);
       shell.vline(k, DARK, -0.04, 0.33, 0.955);
       shell.vline(k, DARK, -1.055, 0.56, 0.955);
@@ -166,7 +146,7 @@ function sedanPlan(spec: VehicleSpec, o: SedanOptions): CarPlan {
       fuelFlap(k, shell, o.wagon ? -2.02 : -1.98, 0.8);
       if (o.wagon) {
         // Tailgate: upright lamps on the corners, plate recess, handle, wiper, and its shut lines.
-        R.taillamps(0.71, 0.74, 0.16, 0.3, { upright: true, bezel: CHROME });
+        R.taillamps(0.7, 0.74, 0.15, 0.3, { upright: true, bezel: CHROME });
         R.box(DARK, 1.2, 0.008, 0, 0.56, 0.006, 0.003);
         R.both(DARK, 0.008, 0.36, 0.6, 0.74, 0.006, 0.003);
         R.box(CHROME, 0.2, 0.03, 0, 0.86, 0.02, 0.014);
@@ -175,7 +155,7 @@ function sedanPlan(spec: VehicleSpec, o: SedanOptions): CarPlan {
         // Imitation woodgrain along the flanks, framed in a paler moulding.
         const wood = tint(0x5d3f25, 'satin');
         const edge = tint(0xb89a6c, 'satin');
-        for (const [z0, z1] of [
+        for (const [z0, z1] of !o.wood ? [] : [
           [-h + 0.14, -ax - ar - 0.07],
           [-ax + ar + 0.07, ax - ar - 0.07],
           [ax + ar + 0.07, h - 0.18],
@@ -184,22 +164,17 @@ function sedanPlan(spec: VehicleSpec, o: SedanOptions): CarPlan {
           shell.hline(k, edge, 0.78, z0, z1, 0.012, [1, -1], 0.006);
           shell.hline(k, edge, 0.62, z0, z1, 0.012, [1, -1], 0.006);
         }
-        // Roof rack: two rails on feet, four bars.
-        const y = cab.roofY(-1) + 0.035;
-        for (const s of [1, -1]) {
-          k.tube(CHROME, [s * 0.54, y, -h + 0.5], [s * 0.54, y, -0.1], 0.014, 6);
-          for (const z of [-h + 0.55, -1.15, -0.15]) k.box(DARK, 0.04, 0.05, 0.07, s * 0.54, y - 0.03, z);
-        }
-        for (const z of [-h + 0.62, -1.45, -0.9, -0.3]) k.box(CHROME, 1.08, 0.012, 0.035, 0, y + 0.004, z);
       } else {
         // Tail: wide lamp clusters either side of the plate, a bright strip under them, boot shut lines.
-        R.taillamps(0.51, 0.775, 0.5, 0.16, { bezel: CHROME });
-        cornerLens(k, shell, RED_LENS, -h + 0.05, 0.775, 0.1, 0.15);
+        R.taillamps(0.5, 0.775, 0.48, 0.16, { bezel: CHROME });
+        cornerLens(k, shell, 'rear', RED_LENS, 0.775, 0.15, 0.12);
         R.box(CHROME, 1.5, 0.014, 0, 0.672, 0.012, 0.01);
         R.box(DARK, 1.46, 0.008, 0, 0.652, 0.006, 0.003);
         R.box(CHROME, 0.035, 0.035, 0, 0.9, 0.012, 0.008);
         R.box(CHROME, 0.17, 0.018, -0.55, 0.9, 0.006, 0.006);
-        shell.deckLine(k, DARK, (z) => shell.sx(z) - 0.075, -h + 0.02, -1.62);
+        // Rubber-faced over-riders.
+        for (const s of [1, -1]) k.pad(RUBBER, 0.05, 0.15, 0.05, s * 0.34, 0.475, -h - 0.085, 0.015);
+        shell.deckLine(k, DARK, (z) => shell.sx(z) - 0.075, -h + 0.05, -1.62);
         shell.deckCross(k, DARK, -1.62, shell.sx(-1.62) - 0.075);
       }
       o.extras?.(k, shell, cab);
@@ -207,17 +182,62 @@ function sedanPlan(spec: VehicleSpec, o: SedanOptions): CarPlan {
   };
 }
 
-export function buildSedan(spec: VehicleSpec, color: number, m: MaterialLibrary): VehicleModel {
-  const h = spec.length / 2 - 0.075;
-  const plan = sedanPlan(spec, { top: spec.height, wheel: 'hubcap', cloth: 0x5a4a3c });
-  return assemble(spec, color, m, spec.id, plan, (k) => k.plates(h + 0.09, 0.47, -h - 0.012, 0.775, 'any')).model;
+/** What one car has that the next of its kind may not. Each is a small cached piece of its own. */
+interface Fittings {
+  /** Tow bar: z of the tail, height of the tongue. */
+  tow?: [z: number, y: number];
+  /** Mud flaps behind the rear wheels: half-track, z, top, width. */
+  flaps?: [x: number, z: number, top: number, w: number];
+  /** Roof rack: half-width, roof height, z of its ends, bars. */
+  rack?: [x: number, y: number, z0: number, z1: number, bars: number];
 }
 
-/** The sedan's long-roofed cousin with a roof rack and a strip of imitation woodgrain. */
+function fit(k: Kit, id: string, f: Fittings): void {
+  const { tow, flaps, rack } = f;
+  if (tow) k.cached(`${id}|tow`, (c) => towbar(c, tow[0], tow[1]));
+  if (flaps) k.cached(`${id}|flaps`, (c) => mudflaps(c, flaps[0], flaps[1], flaps[2], flaps[3], 0.14));
+  if (rack) k.cached(`${id}|rack${rack[4]}`, (c) => roofRack(c, rack[0], rack[1], rack[2], rack[3], rack[4]));
+}
+
+/** Pick one of several by weight. */
+function pick<T>(...options: [T, number][]): T {
+  let roll = dice.next() * options.reduce((sum, o) => sum + o[1], 0);
+  for (const [value, weight] of options) if ((roll -= weight) <= 0) return value;
+  return options[0][0];
+}
+
+export function buildSedan(spec: VehicleSpec, color: number, m: MaterialLibrary): VehicleModel {
+  const h = spec.length / 2 - 0.075;
+  // Most still wear their fluted covers; some have the plainer ones, some have lost them altogether.
+  const wheel = pick<WheelStyle>(['hubcap', 5], ['cap', 3], ['steel', 2]);
+  const fittings: Fittings = {
+    tow: dice.chance(0.35) ? [-h - 0.1, 0.36] : undefined,
+    flaps: dice.chance(0.25) ? [spec.track / 2, -spec.wheelbase / 2 - spec.wheelRadius - 0.075, 0.36, 0.2] : undefined,
+    rack: dice.chance(0.08) ? [0.5, spec.height - 0.012, -0.85, 0.15, 2] : undefined,
+  };
+  const plan = sedanPlan(spec, { top: spec.height, wheel, rim: 0x8f8a7c, cloth: pick([0x5a4a3c, 1], [0x4a4f57, 1], [0x6b2f2a, 1]) });
+  return assemble(spec, color, m, spec.id, plan, (k) => {
+    fit(k, spec.id, fittings);
+    k.plates(h + 0.09, 0.47, -h - 0.012, 0.775, 'any');
+  }).model;
+}
+
+/** The sedan's long-roofed cousin: most carry a roof rack and a strip of imitation woodgrain. */
 export function buildWagon(spec: VehicleSpec, color: number, m: MaterialLibrary): VehicleModel {
   const h = spec.length / 2 - 0.075;
-  const plan = sedanPlan(spec, { top: spec.height - 0.055, wheel: 'hubcap', cloth: 0x6a5a48, wagon: true });
-  return assemble(spec, color, m, spec.id, plan, (k) => k.plates(h + 0.09, 0.47, -h - 0.012, 0.72, 'any')).model;
+  const top = spec.height - 0.055;
+  const wheel = pick<WheelStyle>(['hubcap', 4], ['cap', 3], ['steel', 3]);
+  const wood = dice.chance(0.6);
+  const fittings: Fittings = {
+    tow: dice.chance(0.55) ? [-h - 0.1, 0.36] : undefined,
+    flaps: dice.chance(0.3) ? [spec.track / 2, -spec.wheelbase / 2 - spec.wheelRadius - 0.075, 0.36, 0.2] : undefined,
+    rack: dice.chance(0.65) ? [0.54, top - 0.012, -h + 0.5, -0.1, 4] : undefined,
+  };
+  const plan = sedanPlan(spec, { top, wheel, rim: 0x8f8a7c, cloth: 0x6a5a48, wagon: true, wood });
+  return assemble(spec, color, m, `${spec.id}|${wood}`, plan, (k) => {
+    fit(k, spec.id, fittings);
+    k.plates(h + 0.09, 0.47, -h - 0.012, 0.72, 'any');
+  }).model;
 }
 
 /** White patrol car: the sedan on steel wheels with a light bar and an invented livery. */
@@ -231,9 +251,11 @@ export function buildPolice(spec: VehicleSpec, color: number, m: MaterialLibrary
   const word = m.sign('POLICE', { bg: '#1d5f8a', fg: '#ffffff', style: 'block', aspect: 4, border: false });
   const plan = sedanPlan(spec, {
     top: roof,
-    wheel: 'steel',
-    rim: 0xe9e9e4,
+    // Black steel wheels with chrome dog-dish caps: fleet specification.
+    wheel: 'dish',
+    rim: 0x1c1d1f,
     cloth: 0x3c4046,
+    ageing: CHERISHED,
     extras(k, shell) {
       // Roof bar: black base, red lens over the driver, blue over the passenger, clear centre.
       k.pad(PLASTIC, 1.16, 0.04, 0.3, 0, roof + 0.012, -0.3, 0.012);
@@ -265,8 +287,9 @@ export function buildPolice(spec: VehicleSpec, color: number, m: MaterialLibrary
     },
   });
   const built = assemble(spec, color, m, spec.id, plan, (k) => {
-    k.role('beacon0', beacons[0]);
-    k.role('beacon1', beacons[1]);
+    // The beacons are drawn at every distance: a flashing light bar is how a patrol car is seen coming.
+    k.role('beacon0', beacons[0], true);
+    k.role('beacon1', beacons[1], true);
     k.plates(h + 0.09, 0.47, -h - 0.012, 0.775, 'new');
   });
   return { ...built.model, beacons };
@@ -282,6 +305,9 @@ export function buildV8Sedan(spec: VehicleSpec, color: number, m: MaterialLibrar
   const W = spec.width / 2;
   const ar = r + 0.05;
   const top = spec.height;
+  const wheel = pick<WheelStyle>(['alloy', 6], ['mesh', 4]);
+  const spoiler = dice.chance(0.7);
+  const fittings: Fittings = { tow: dice.chance(0.15) ? [-h - 0.1, 0.3] : undefined };
   const seats = [
     { x: -0.4, y: 0.27, z: 0.02 },
     { x: 0.4, y: 0.27, z: 0.02 },
@@ -332,11 +358,12 @@ export function buildV8Sedan(spec: VehicleSpec, color: number, m: MaterialLibrar
       frame: RUBBER,
     },
     interior: { floor: 0.25, z0: -1.33, z1: 1.06, seats, bench: [2, 3], dash: { z: 0.53, y: 0.9 }, shelf: { y: 0.965, z: -1.46 }, cloth: tint(0x2c2e33, 'cloth') },
-    wheel: 'alloy',
+    wheel,
     belly: 0.13,
+    ageing: CHERISHED,
     dress(k, shell, cab) {
-      const F = new Face(k, h, 1);
-      const R = new Face(k, -h, -1);
+      const F = new Face(k, shell, 'front');
+      const R = new Face(k, shell, 'rear');
       // Moulded body-colour bumpers with a black insert; a deep front air dam with driving lamps.
       const moulding: Pt[] = [[-0.03, -0.15], [0.02, -0.155], [0.04, -0.12], [0.046, -0.04], [0.046, 0.05], [0.032, 0.085], [-0.03, 0.09]];
       const insert: Pt[] = [[0.0465, -0.012], [0.054, 0.012], [0.0465, 0.036]];
@@ -345,28 +372,26 @@ export function buildV8Sedan(spec: VehicleSpec, color: number, m: MaterialLibrar
         bumper(k, shell, end, PAINT, moulding, { zStart, y: 0.42, bow: 0.02 });
         bumper(k, shell, end, DARK, insert, { zStart, y: 0.42, bow: 0.02 });
       }
-      F.box(DARK, 0.9, 0.07, 0, 0.3, 0.02, 0.066);
-      F.both(HEAD, 0.14, 0.05, 0.56, 0.3, 0.01, 0.07);
-      // Nose: slim flush lamps, a slot of a grille, amber on the corners.
-      F.headlamps(0.56, 0.675, 0.42, 0.1);
-      F.box(DARK, 0.66, 0.075, 0, 0.67, 0.02, 0.004);
-      F.box(PAINT, 0.66, 0.014, 0, 0.67, 0.012, 0.014);
-      F.box(CHROME, 0.06, 0.04, 0, 0.67, 0.01, 0.02);
-      cornerLens(k, shell, AMBER, h - 0.09, 0.675, 0.13, 0.095);
+      F.box(DARK, 0.86, 0.07, 0, 0.3, 0.02, 0.066);
+      F.both(BRIGHT, 0.15, 0.06, 0.5, 0.3, 0.012, 0.068);
+      F.both(HEAD, 0.12, 0.04, 0.5, 0.3, 0.006, 0.07);
+      F.lens(LENS, 0.14, 0.052, 0.5, 0.3, 0.072);
+      // Nose: slim flush lamps, a slot of a grille, amber round the corners.
+      F.headlamps(0.44, 0.675, 0.38, 0.095);
+      F.grille(0, 0.672, 0.44, 0.07, { bars: 2, surface: PAINT, depth: 0.05, badge: [0.06, 0.04] });
+      cornerLens(k, shell, 'front', AMBER, 0.675, 0.09, 0.25);
       // Tail: lamp clusters joined by a reflector panel, plate down in the bumper.
-      R.taillamps(0.52, 0.815, 0.5, 0.13);
-      R.box(tint(0x5c100c, 'gloss'), 0.56, 0.11, 0, 0.815, 0.02, 0.01);
-      cornerLens(k, shell, RED_LENS, -h + 0.075, 0.815, 0.12, 0.12);
-      R.box(DARK, 1.5, 0.008, 0, 0.72, 0.006, 0.003);
-      // Boot spoiler on two pedestals.
-      const sy = shell.deckY(-h + 0.16, 0) + 0.07;
-      k.pad(PAINT, 2 * W - 0.3, 0.035, 0.21, 0, sy, -h + 0.15, 0.014, [0.07, 0, 0], true);
-      k.boxes(PAINT, 0.07, 0.07, 0.14, 0.6, sy - 0.04, -h + 0.16);
+      R.taillamps(0.47, 0.815, 0.46, 0.13);
+      R.box(tint(0x5c100c, 'gloss'), 0.47, 0.11, 0, 0.815, 0.02, 0.006);
+      R.pane(TAIL_LENS, 0.46, 0.1, 0, 0.815, 0.008);
+      cornerLens(k, shell, 'rear', RED_LENS, 0.815, 0.12, 0.2);
+      R.box(DARK, 1.36, 0.008, 0, 0.72, 0.006, 0.003);
       // Shut lines.
-      shell.deckLine(k, DARK, (z) => shell.sx(z) - 0.08, -h + 0.03, -1.58);
+      shell.deckLine(k, DARK, (z) => shell.sx(z) - 0.08, -h + 0.05, -1.58);
       shell.deckCross(k, DARK, -1.58, shell.sx(-1.58) - 0.08);
-      shell.deckLine(k, DARK, (z) => shell.sx(z) - 0.05, 1.08, h - 0.05);
+      shell.deckLine(k, DARK, (z) => shell.sx(z) - 0.05, 1.08, h - 0.06);
       scuttle(k, cab);
+      shadeBand(k, cab);
       shell.vline(k, DARK, 0.98, 0.28, 0.93);
       shell.vline(k, DARK, -0.035, 0.28, 0.955);
       shell.vline(k, DARK, -1.04, 0.56, 0.975);
@@ -384,7 +409,18 @@ export function buildV8Sedan(spec: VehicleSpec, color: number, m: MaterialLibrar
       fuelFlap(k, shell, -1.98, 0.8);
     },
   };
-  return assemble(spec, color, m, spec.id, plan, (k) => k.plates(h + 0.078, 0.42, -h - 0.078, 0.43, 'new')).model;
+  return assemble(spec, color, m, spec.id, plan, (k, shell) => {
+    if (spoiler) {
+      // Boot spoiler on two pedestals.
+      k.cached(`${spec.id}|spoiler`, (c) => {
+        const sy = shell.deckY(-h + 0.16, 0) + 0.07;
+        c.pad(PAINT, 2 * W - 0.3, 0.035, 0.21, 0, sy, -h + 0.15, 0.014, [0.07, 0, 0], true);
+        c.boxes(PAINT, 0.07, 0.07, 0.14, 0.6, sy - 0.04, -h + 0.16);
+      });
+    }
+    fit(k, spec.id, fittings);
+    k.plates(h + 0.078, 0.42, -h - 0.078, 0.43, 'new');
+  }).model;
 }
 
 // ───────────────────────────── Import coupe ─────────────────────────────
@@ -397,6 +433,9 @@ export function buildCoupe(spec: VehicleSpec, color: number, m: MaterialLibrary)
   const W = spec.width / 2;
   const ar = r + 0.045;
   const top = spec.height;
+  const wheel = pick<WheelStyle>(['mesh', 5], ['alloy', 5]);
+  const wing = dice.chance(0.75);
+  const sunroof = dice.chance(0.6);
   const seats = [
     { x: -0.36, y: 0.16, z: -0.2 },
     { x: 0.36, y: 0.16, z: -0.2 },
@@ -444,34 +483,31 @@ export function buildCoupe(spec: VehicleSpec, color: number, m: MaterialLibrary)
       rearGlass: SMOKED,
     },
     interior: { floor: 0.2, z0: -0.72, z1: 0.9, seats, dash: { z: 0.32, y: 0.79 }, cargo: { y: 0.5, z: -1.6 }, cloth: tint(0x25262a, 'cloth'), back: 0.56 },
-    wheel: 'mesh',
+    wheel,
     belly: 0.1,
+    ageing: CHERISHED,
     dress(k, shell, cab) {
-      const F = new Face(k, h, 1);
-      const R = new Face(k, -h, -1);
+      const F = new Face(k, shell, 'front');
+      const R = new Face(k, shell, 'rear');
       const moulding: Pt[] = [[-0.03, -0.13], [0.018, -0.135], [0.036, -0.1], [0.042, -0.03], [0.042, 0.045], [0.03, 0.08], [-0.03, 0.085]];
       for (const end of ['front', 'rear'] as const) bumper(k, shell, end, PAINT, moulding, { zStart: (end === 'front' ? 1 : -1) * (ax + ar + 0.03), y: 0.35, bow: 0.025 });
       // Nose: slim lamps under the bonnet's leading edge, indicators and an intake in the bumper.
-      F.headlamps(0.5, 0.505, 0.36, 0.07);
-      F.box(DARK, 0.56, 0.035, 0, 0.505, 0.02, 0.004);
-      cornerLens(k, shell, AMBER, h - 0.11, 0.5, 0.14, 0.06);
-      F.box(DARK, 0.7, 0.06, 0, 0.27, 0.02, 0.066);
-      F.both(CLEAR_LENS, 0.16, 0.035, 0.52, 0.36, 0.01, 0.066);
-      // Tail: one lamp bar the width of the car, plate in the bumper.
-      R.box(RED_LENS, 1.3, 0.1, 0, 0.74, 0.03, 0.012);
-      R.both(TAIL, 0.3, 0.07, 0.48, 0.74, 0.004, 0.0145);
-      R.both(AMBER, 0.12, 0.07, 0.24, 0.74, 0.004, 0.0145);
-      R.both(CLEAR_LENS, 0.1, 0.07, 0.11, 0.74, 0.004, 0.0145);
-      R.lens(TAIL_LENS, 0.646, 0.094, 0.324, 0.74, 0.019);
-      cornerLens(k, shell, RED_LENS, -h + 0.085, 0.74, 0.14, 0.095);
-      // Pedestal wing.
-      const sy = shell.deckY(-h + 0.14, 0) + 0.1;
-      k.pad(PAINT, 2 * W - 0.26, 0.03, 0.2, 0, sy, -h + 0.14, 0.012, [0.09, 0, 0], true);
-      k.boxes(PAINT, 0.05, 0.1, 0.11, 0.5, sy - 0.055, -h + 0.15);
+      F.headlamps(0.34, 0.49, 0.3, 0.06, { depth: 0.04 });
+      F.grille(0, 0.49, 0.3, 0.04, { bars: 1, surface: DARK, depth: 0.04 });
+      cornerLens(k, shell, 'front', AMBER, 0.49, 0.055, 0.3);
+      F.box(DARK, 0.6, 0.06, 0, 0.27, 0.02, 0.066);
+      F.both(CLEAR_LENS, 0.16, 0.035, 0.4, 0.36, 0.01, 0.066);
+      F.lens(LENS, 0.16, 0.035, 0.4, 0.36, 0.068);
+      // Tail: a lamp bar the width of the car (clusters joined by a reflector), plate in the bumper.
+      R.taillamps(0.36, 0.74, 0.46, 0.09);
+      R.box(RED_LENS, 0.26, 0.085, 0, 0.74, 0.02, 0.006);
+      R.pane(TAIL_LENS, 0.25, 0.075, 0, 0.74, 0.008);
+      cornerLens(k, shell, 'rear', RED_LENS, 0.74, 0.085, 0.24);
       // Hatch and bonnet shut lines, long doors.
-      shell.deckCross(k, DARK, -h + 0.035, shell.sx(-h + 0.3) - 0.1);
+      shell.deckCross(k, DARK, -h + 0.05, shell.sx(-h + 0.3) - 0.1);
       shell.deckLine(k, DARK, (z) => shell.sx(z) - 0.05, 0.92, h - 0.07);
       scuttle(k, cab, 0.06);
+      shadeBand(k, cab, 0.13);
       shell.vline(k, DARK, 0.82, 0.24, 0.81);
       shell.vline(k, DARK, -0.56, 0.24, 0.86);
       shell.hline(k, DARK, 0.235, -0.56, 0.82);
@@ -480,16 +516,30 @@ export function buildCoupe(spec: VehicleSpec, color: number, m: MaterialLibrary)
       mirrors(k, shell, 0.7, 0.905, PAINT, 0.13, 0.085);
       wipers(k, cab, { span: 0.48 });
       repeater(k, shell, ax + ar + 0.08, 0.5);
-      // Glass sunroof.
-      const ry = cab.roofY(-0.25) - 0.004;
-      k.poly(SMOKED, [[-0.36, ry, -0.46], [0.36, ry, -0.46], [0.36, ry - 0.006, -0.06], [-0.36, ry - 0.006, -0.06]], [0, 0, -0.25]);
-      for (const z of [-0.46, -0.06]) k.box(RUBBER, 0.74, 0.006, 0.014, 0, ry + 0.002 - (z > -0.2 ? 0.006 : 0), z);
-      k.boxes(RUBBER, 0.014, 0.006, 0.4, 0.36, ry, -0.26);
       exhaust(k, -0.48, 0.19, -h - 0.05, 0.04, 0.25);
       fuelFlap(k, shell, -1.85, 0.72, 1, 0.14, 0.12);
     },
   };
-  return assemble(spec, color, m, spec.id, plan, (k) => k.plates(h + 0.076, 0.35, -h - 0.076, 0.36, 'new')).model;
+  return assemble(spec, color, m, spec.id, plan, (k, shell) => {
+    if (wing) {
+      // Pedestal wing.
+      k.cached(`${spec.id}|wing`, (c) => {
+        const sy = shell.deckY(-h + 0.14, 0) + 0.1;
+        c.pad(PAINT, 2 * W - 0.26, 0.03, 0.2, 0, sy, -h + 0.14, 0.012, [0.09, 0, 0], true);
+        c.boxes(PAINT, 0.05, 0.1, 0.11, 0.5, sy - 0.055, -h + 0.15);
+      });
+    }
+    if (sunroof) {
+      // Glass sunroof in a rubber seal.
+      k.cached(`${spec.id}|sunroof`, (c) => {
+        const ry = top - 0.01;
+        c.poly(SMOKED, [[-0.36, ry, -0.46], [0.36, ry, -0.46], [0.36, ry - 0.006, -0.06], [-0.36, ry - 0.006, -0.06]], [0, 0, -0.25]);
+        for (const z of [-0.46, -0.06]) c.box(RUBBER, 0.74, 0.006, 0.014, 0, ry + 0.002 - (z > -0.2 ? 0.006 : 0), z);
+        c.boxes(RUBBER, 0.014, 0.006, 0.4, 0.36, ry, -0.26);
+      });
+    }
+    k.plates(h + 0.076, 0.35, -h - 0.076, 0.36, 'new');
+  }).model;
 }
 
 // ───────────────────────────── Small hatchback ─────────────────────────────
@@ -502,6 +552,12 @@ export function buildHatch(spec: VehicleSpec, color: number, m: MaterialLibrary)
   const W = spec.width / 2;
   const ar = r + 0.05;
   const top = spec.height;
+  const wheel = pick<WheelStyle>(['steel', 9], ['cap', 7], ['hubcap', 4]);
+  const fittings: Fittings = {
+    tow: dice.chance(0.15) ? [-h - 0.09, 0.3] : undefined,
+    flaps: dice.chance(0.3) ? [spec.track / 2, -ax - r - 0.07, 0.3, 0.17] : undefined,
+    rack: dice.chance(0.12) ? [0.5, top - 0.014, -0.95, -0.15, 2] : undefined,
+  };
   const seats = [
     { x: -0.34, y: 0.26, z: -0.12 },
     { x: 0.34, y: 0.26, z: -0.12 },
@@ -550,23 +606,24 @@ export function buildHatch(spec: VehicleSpec, color: number, m: MaterialLibrary)
       frame: RUBBER,
     },
     interior: { floor: 0.25, z0: -1.28, z1: 0.73, seats, bench: [2, 3], dash: { z: 0.36, y: 0.85 }, cargo: { y: 0.56, z: -h + 0.08 }, cloth: tint(0x55606a, 'cloth'), back: 0.56 },
-    wheel: 'steel',
+    wheel,
     rim: 0xb9bcbe,
     belly: 0.13,
+    ageing: EVERYDAY,
     dress(k, shell, cab) {
-      const F = new Face(k, h, 1);
-      const R = new Face(k, -h, -1);
+      const F = new Face(k, shell, 'front');
+      const R = new Face(k, shell, 'rear');
       // Unpainted grey bumpers.
       const moulding: Pt[] = [[-0.03, -0.085], [0.04, -0.085], [0.064, -0.055], [0.064, 0.05], [0.045, 0.08], [-0.03, 0.08]];
       for (const end of ['front', 'rear'] as const) bumper(k, shell, end, grey, moulding, { zStart: (end === 'front' ? 1 : -1) * (ax + ar + 0.03), y: 0.4 });
       // Nose: plain rectangular lamps, a narrow grille, indicators in the bumper.
-      F.headlamps(0.5, 0.635, 0.3, 0.13);
-      F.box(DARK, 0.66, 0.1, 0, 0.635, 0.02, 0.003);
-      for (const dy of [-0.025, 0.025]) F.box(grey, 0.66, 0.012, 0, 0.635 + dy, 0.012, 0.01);
-      F.both(AMBER, 0.17, 0.045, 0.5, 0.42, 0.01, 0.068);
-      cornerLens(k, shell, AMBER, h - 0.07, 0.635, 0.07, 0.11);
+      F.headlamps(0.455, 0.625, 0.28, 0.12);
+      F.grille(0, 0.625, 0.58, 0.09, { bars: 3, surface: grey, depth: 0.05 });
+      F.both(AMBER, 0.17, 0.045, 0.42, 0.42, 0.01, 0.068);
+      F.lens(AMBER_LENS, 0.17, 0.045, 0.42, 0.42, 0.07);
+      cornerLens(k, shell, 'front', AMBER, 0.625, 0.1, 0.13);
       // Tailgate: upright lamps on the corners, plate between, handle, wiper.
-      R.taillamps(0.63, 0.7, 0.16, 0.25, { upright: true });
+      R.taillamps(0.585, 0.7, 0.14, 0.25, { upright: true });
       R.box(DARK, 1.0, 0.008, 0, 0.52, 0.006, 0.003);
       R.both(DARK, 0.008, 0.36, 0.52, 0.7, 0.006, 0.003);
       R.box(grey, 0.16, 0.03, 0, 0.82, 0.02, 0.012);
@@ -574,6 +631,7 @@ export function buildHatch(spec: VehicleSpec, color: number, m: MaterialLibrary)
       // Bonnet and door shut lines (two long doors), rubbing strip.
       shell.deckLine(k, DARK, (z) => shell.sx(z) - 0.045, 0.74, h - 0.03);
       scuttle(k, cab, 0.06);
+      shadeBand(k, cab, 0.13);
       shell.vline(k, DARK, 0.7, 0.27, 0.885);
       shell.vline(k, DARK, -0.4, 0.27, 0.9);
       shell.hline(k, DARK, 0.265, -0.4, 0.7);
@@ -586,6 +644,9 @@ export function buildHatch(spec: VehicleSpec, color: number, m: MaterialLibrary)
       fuelFlap(k, shell, -1.5, 0.72, 1, 0.13, 0.12);
     },
   };
-  return assemble(spec, color, m, spec.id, plan, (k) => k.plates(h + 0.072, 0.4, -h - 0.012, 0.66, 'any')).model;
+  return assemble(spec, color, m, spec.id, plan, (k) => {
+    fit(k, spec.id, fittings);
+    k.plates(h + 0.072, 0.4, -h - 0.012, 0.66, 'any');
+  }).model;
 }
 

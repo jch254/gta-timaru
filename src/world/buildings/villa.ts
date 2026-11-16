@@ -63,7 +63,7 @@ export function scheme(s: Site, paints: readonly number[] = HOUSE_PAINT) {
 
 /** What a timber house stands on: a band of base boards (or a concrete ring) between the ground and the floor. */
 export function skirt(h: Site, cx: number, cz: number, w: number, d: number, fl: number, color: number) {
-  if (h.spare()) walls(h, cx, cz, w + 0.05, d + 0.05, fl - 0.06, trim(h, color));
+  if (h.spare()) walls(h, cx, cz, w + 0.05, d + 0.05, fl - 0.06, mat(h, 'timber', color));
 }
 
 /** Corner boards on a weatherboard box. */
@@ -169,7 +169,7 @@ export const bayVilla: HouseCore = (s, spot) => {
   } else {
     for (const e of SIDES) win(h, bx + e * 0.62, fl + 1.72, zb, 0.95, 1.95, 0, 0.5);
   }
-  for (const side of SIDES) winRow(h, ox + (side * w) / 2, cz + d / 2 - 1.7, ox + (side * w) / 2, cz - d / 2 + 1.7, fl + 1.72, 2, 1, 1.95, (side * Math.PI) / 2, 0.4);
+  for (const side of SIDES) winRow(h, ox + (side * w) / 2, cz + d / 2 - 1.7, ox + (side * w) / 2, cz - d / 2 + 1.7, fl + 1.72, 2, 1, 1.95, (side * Math.PI) / 2, { lit: 0.4, hood: true });
   chimney(h, ox - bs * w * 0.2, cz + 0.5, top, rise + 0.9, mat(h, 'brick'), true);
   chimney(h, ox + bs * w * 0.12, cz - d * 0.28, top, rise * 0.55 + 1, mat(h, 'brick'));
   steps(h, doorX, F + p, fl);
@@ -214,7 +214,7 @@ export const cottage: HouseCore = (s, spot) => {
   const wx = Math.max(1.45, w * 0.29);
   for (const side of SIDES) {
     win(h, ox + side * wx, fl + 1.65, F, Math.min(1, w * 0.14), 1.85, 0, 0.5);
-    winRow(h, ox + (side * w) / 2, cz + d / 2 - 1.6, ox + (side * w) / 2, cz - d / 2 + 1.6, fl + 1.65, d > 7 ? 2 : 1, 1, 1.85, (side * Math.PI) / 2, 0.4);
+    winRow(h, ox + (side * w) / 2, cz + d / 2 - 1.6, ox + (side * w) / 2, cz - d / 2 + 1.6, fl + 1.65, d > 7 ? 2 : 1, 1, 1.85, (side * Math.PI) / 2, { lit: 0.4, hood: true });
   }
   chimney(h, ox - w * 0.22, cz, top, rise + 0.8, mat(h, 'brick'), true);
   if (rng.chance(0.6)) chimney(h, ox + w * 0.24, cz - d * 0.2, top, rise * 0.6 + 0.9, mat(h, 'brick'));
@@ -283,7 +283,7 @@ export const bungalow: HouseCore = (s, spot) => {
   box(h, bx, fl + 2.3, F + 0.35, 3, 0.1, 0.8, roofing);
   win(h, bx, fl + 1.5, F + 0.6, 2.3, 1.25, 0, 0.5);
   if (h.spare(2)) for (const e of SIDES) win(h, bx + e * 1.35, fl + 1.5, F + 0.3, 0.42, 1.25, (e * Math.PI) / 2, 0.5, false);
-  for (const side of SIDES) winRow(h, ox + (side * w) / 2, cz + d / 2 - 1.8, ox + (side * w) / 2, cz - d / 2 + 1.8, fl + 1.5, 2, 1.3, 1.2, (side * Math.PI) / 2, 0.4);
+  for (const side of SIDES) winRow(h, ox + (side * w) / 2, cz + d / 2 - 1.8, ox + (side * w) / 2, cz - d / 2 + 1.8, fl + 1.5, 2, 1.3, 1.2, (side * Math.PI) / 2, { lit: 0.4, hood: true });
   chimney(h, ox - ps * (w / 2 - 0.7), cz + d * 0.1, top, 1.9, mat(h, 'brick'));
   steps(h, px, F + pd, fl, 1.4);
   skirt(h, ox, cz, w, d, fl, shade(c.wall, 0.78));

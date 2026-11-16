@@ -39,7 +39,14 @@ function cladding(h: Site): Cladding {
 
 /** The concrete foundation ring every state house sits on. */
 function foundation(h: Site, cx: number, cz: number, w: number, d: number, fl: number) {
-  if (h.spare()) walls(h, cx, cz, w + 0.05, d + 0.05, fl - 0.08, mat(h, 'concrete', 0xb7b3a8));
+  if (!h.spare()) return;
+  walls(h, cx, cz, w + 0.05, d + 0.05, fl - 0.08, mat(h, 'concrete', 0xb7b3a8));
+  // Cast vents to the space under the floor, along the front and down each side.
+  if (!h.spare(2) || fl < 0.4) return;
+  for (const t of [-0.3, 0.3]) {
+    pane(h, 'fitting', cx + t * w, fl - 0.27, cz + d / 2 + 0.035, 0.36, 0.15, 0, { color: 0x5a5852, variant: 1 });
+    for (const e of SIDES) pane(h, 'fitting', cx + e * (w / 2 + 0.035), fl - 0.27, cz + t * d, 0.36, 0.15, (e * Math.PI) / 2, { color: 0x5a5852, variant: 1 });
+  }
 }
 
 /** Concrete landing and a flat or gabled hood over a front door at (x, F). */

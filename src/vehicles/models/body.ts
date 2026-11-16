@@ -1,12 +1,15 @@
-import { add3, clamp01, cross3, DARK, dot3, Kit, len3, mix, mix3, norm3, PAINT, smooth, sub3, tint, WINDOW, type Fn, type Glaze, type Pt, type Surface, type Tint, type V3 } from './kit';
+import * as THREE from 'three';
+import { add3, BRIGHT, clamp01, cross3, DARK, dot3, Kit, len3, mix, mix3, norm3, PAINT, smooth, sub3, tint, WINDOW, type Fn, type Glaze, type Pt, type Surface, type Tint, type V3 } from './kit';
 
 /**
  * Body surfacing shared by every four-wheeled vehicle.
  *
  * `Shell` is the lower body: a skin lofted through cross-sections along the vehicle, with a plan shape
- * that tapers and rounds at the ends, a radiused shoulder, a flank that leans in above the waist line and
- * tucks under at the sill, wheel arches cut into it (with a lip and a slight flare) and crowned bonnet /
- * boot decks. It also answers "where is the surface here?" so trim can be laid on it.
+ * that tapers and rounds at the ends, a radiused shoulder, a barrelled flank that leans in above the waist
+ * line, tucks under and rolls round the sill, wheel arches cut into it (with a rolled lip and a flare),
+ * crowned bonnet / boot decks that roll over into the nose and tail, and end panels with real openings
+ * cut in them for lamps and grilles. It also answers "where is the surface here?" so trim can be laid on
+ * it. Built with `lo` it is the same shape through a quarter of the points, for the distant version.
  *
  * `cabin()` builds the glasshouse on top: pillars, roof and glazing as one lattice with tumblehome, a
  * crowned roof, radiused cant rails and bowed screens; window surrounds; and an inner lining so the far
@@ -60,24 +63,64 @@ export interface ShellDef {
   stations?: number[];
   /** Largest gap between cross-sections. */
   spacing?: number;
+  /** Convex belly of the flank between sill and shoulder, metres at mid-height (default 0.014). */
+  barrel?: number;
+  /** Radius of the roll under the sill (default 0.035). */
+  sillR?: number;
+  /** Radius with which a deck rolls over into the tail and the nose: [rear, front] (default 0.035). */
+  roll?: [number, number];
+}
+
+/** An opening in an end panel (a lamp recess, a grille). */
+export interface Cut {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  depth: number;
+  /** What the walls are made of (default: body paint). */
+  wall?: Surface;
+  /** How much smaller the back of the recess is than its mouth, each side: [across, up]. */
+  taper?: [number, number];
+  /** Cut the corners off by this much. */
+  chamfer?: number;
 }
 
 const LIP = 0.035;
-const DECK_U = [0, 0.3, 0.56, 0.78, 0.92, 1];
+const DECK_U = [0, 0.24, 0.46, 0.66, 0.82, 0.93, 1];
+const DECK_U_LO = [0, 0.62, 1];
+const rad = (deg: number) => (deg * Math.PI) / 180;
 
 export class Shell {
   readonly stations: number[];
   readonly mid: number;
+  /** Radius of the roll-over at the tail and the nose (0 where the glasshouse runs to the end). */
+  private roll: [number, number];
+  private cuts: Cut[][] = [[], []];
+  private deckU: number[];
 
-  constructor(readonly d: ShellDef) {
+  constructor(
+    readonly d: ShellDef,
+    readonly lo = false,
+  ) {
     this.mid = (d.zr + d.zf) / 2;
+    this.deckU = lo ? DECK_U_LO : DECK_U;
+    // (The distant version has too few cross-sections to turn the corner: its decks end square.)
+    this.roll = lo ? [0, 0] : [d.rearDeck && Math.abs(d.rearDeck[0] - d.zr) < 1e-6 ? (d.roll?.[0] ?? 0.035) : 0, d.frontDeck && Math.abs(d.frontDeck[1] - d.zf) < 1e-6 ? (d.roll?.[1] ?? 0.035) : 0];
     const zs: number[] = [...(d.stations ?? [])];
-    for (const deg of [0, 22.5, 45, 67.5, 90]) {
-      const s = Math.sin((deg * Math.PI) / 180);
+    for (const deg of lo ? [0, 45, 90] : [0, 22.5, 45, 67.5, 90]) {
+      const s = Math.sin(rad(deg));
       zs.push(d.zf - d.cornerF[0] * (1 - s), d.zr + d.cornerR[0] * (1 - s));
     }
+    if (!lo) {
+      for (const deg of [0, 35, 65]) {
+        const s = Math.sin(rad(deg));
+        if (this.roll[1]) zs.push(d.zf - this.roll[1] * (1 - s));
+        if (this.roll[0]) zs.push(d.zr + this.roll[0] * (1 - s));
+      }
+    }
     for (const a of d.arches) {
-      const n = 8;
+      const n = lo ? 4 : 10;
       for (let i = 0; i <= n; i++) {
         const z = a.z + a.r * Math.cos((Math.PI * i) / n);
         if (i === 0 || i === n) {
@@ -90,7 +133,7 @@ export class Shell {
     for (const zone of [d.rearDeck, d.frontDeck]) if (zone) zs.push(zone[0], zone[1]);
     const sorted = [...new Set(zs.filter((z) => z >= d.zr - 1e-6 && z <= d.zf + 1e-6).map((z) => Math.round(z * 10000) / 10000))].sort((p, q) => p - q);
     const out: number[] = [];
-    const gap = d.spacing ?? 0.38;
+    const gap = lo ? Math.max(0.95, d.spacing ?? 0) : (d.spacing ?? 0.32);
     for (let i = 0; i < sorted.length; i++) {
       if (i > 0) {
         const span = sorted[i] - sorted[i - 1];
@@ -113,8 +156,20 @@ export class Shell {
     return x;
   }
 
+  /** Height of the top of the flank at z: the shoulder line, rolling over at the ends of the decks. */
   yS(z: number): number {
-    return this.d.shoulder(z);
+    const d = this.d;
+    let y = d.shoulder(z);
+    const [rr, rf] = this.roll;
+    if (rf > 0) {
+      const q = clamp01((z - (d.zf - rf)) / rf);
+      if (q > 0) y -= rf * (1 - Math.sqrt(1 - q * q));
+    }
+    if (rr > 0) {
+      const q = clamp01((d.zr + rr - z) / rr);
+      if (q > 0) y -= rr * (1 - Math.sqrt(1 - q * q));
+    }
+    return y;
   }
 
   /** Top of the arch cut at z (−∞ outside any arch). */
@@ -152,6 +207,10 @@ export class Shell {
       const t = clamp01((yw - y) / Math.max(0.08, yw - d.lower(z)));
       x -= d.tuck * t * t;
     }
+    // A slight barrel from sill to shoulder, so reflections bend along the flank instead of lying flat.
+    const lowest = d.lower(z);
+    const tb = clamp01((y - lowest) / Math.max(0.2, this.yS(z) - lowest));
+    x += (d.barrel ?? 0.014) * 4 * tb * (1 - tb);
     const flare = d.flare ?? 0.014;
     for (const a of d.arches) {
       const dz = z - a.z;
@@ -187,30 +246,47 @@ export class Shell {
     return inDeck(d.rearDeck) || inDeck(d.frontDeck) ? this.deckY(z, x) : this.yS(z);
   }
 
-  /** Flank cross-section at z on the +x side, shoulder first, sill lip last. */
+  /**
+   * Flank cross-section at z on the +x side, shoulder first: the shoulder radius, the flank, the roll
+   * under the sill (or the tight roll of an arch lip), and last the return flange.
+   */
   section(z: number): V3[] {
     const d = this.d;
+    const lo = this.lo;
     const ys = this.yS(z);
     const r = d.rS;
     const cx = this.F(z, ys - r);
     const out: V3[] = [];
-    for (const deg of [90, 45, 0]) {
-      const t = (deg * Math.PI) / 180;
+    for (const deg of lo ? [90, 0] : [90, 60, 30, 0]) {
+      const t = rad(deg);
       out.push([cx - r + r * Math.cos(t), ys - r + r * Math.sin(t), z]);
     }
     const yw = this.yW(z);
     const yl = this.yL(z);
-    for (const f of [0.5, 1]) {
+    const arch = yl > d.lower(z) + 1e-6;
+    const rs = lo ? 0 : arch ? 0.014 : Math.min(d.sillR ?? 0.035, (yw - yl) * 0.45);
+    const yb = yl + rs;
+    for (const f of lo ? [1] : [0.5, 1]) {
       const y = mix(ys - r, yw, f);
       out.push([this.F(z, y), y, z]);
     }
-    for (const f of [0.26, 0.52, 0.8, 1]) {
-      const y = mix(yw, yl, f);
+    for (const f of lo ? [0.5, 1] : [0.22, 0.44, 0.66, 0.85, 1]) {
+      const y = mix(yw, yb, f);
       out.push([this.F(z, y), y, z]);
+    }
+    if (!lo) {
+      const xb = this.F(z, yb);
+      for (const deg of [35, 70, 90]) out.push([xb - rs + rs * Math.cos(rad(deg)), yb - rs * Math.sin(rad(deg)), z]);
     }
     const last = out[out.length - 1];
     out.push([last[0] - LIP, last[1], z]);
     return out;
+  }
+
+  /** Inner edge of the return flange at z: where liners and the floor pan meet the skin. */
+  private lipX(z: number): number {
+    const s = this.section(z);
+    return s[s.length - 1][0];
   }
 
   /** Point on the +x flank, `lift` proud of the skin. */
@@ -223,10 +299,20 @@ export class Shell {
     return [x, this.deckY(z, x) + lift, z];
   }
 
-  /** The painted skin: flanks, decks and end caps. */
+  /**
+   * Cut an opening in the tail (`rear`) or nose (`front`) panel: the panel is built round it and its walls
+   * run `depth` back into the body. Whoever cuts it fills it (see `Face` in parts.ts). Call before `build`;
+   * the distant version ignores cuts.
+   */
+  cut(end: 'front' | 'rear', c: Cut): void {
+    if (!this.lo) this.cuts[end === 'front' ? 1 : 0].push(c);
+  }
+
+  /** The painted skin: flanks, decks and end panels. Call after everything that cuts openings. */
   build(k: Kit): void {
     const d = this.d;
     const ref: V3 = [0, 0.45, this.mid];
+    const U = this.deckU;
     k.grid(
       PAINT,
       this.stations.map((z) => this.section(z)),
@@ -240,26 +326,70 @@ export class Shell {
       const rows = this.stations
         .filter((z) => z >= zone[0] - 1e-6 && z <= zone[1] + 1e-6)
         .map((z) =>
-          DECK_U.map((u): V3 => {
+          U.map((u): V3 => {
             const zz = z + shift(z, u);
             return [u * this.sx(z), this.deckY(zz, u * this.sx(zz)), zz];
           }),
         );
       k.grid(PAINT, rows, { out: [0, -2, this.mid], mirror: true, group: 'body' });
     });
-    // End caps: the last section, filled straight across.
     [d.zr, d.zf].forEach((z, end) => {
-      if (d.open?.[end]) return;
-      const zone = end === 0 ? d.rearDeck : d.frontDeck;
-      const half: V3[] = [];
-      if (zone && Math.abs((end === 0 ? zone[0] : zone[1]) - z) < 1e-6) for (const u of DECK_U.slice(0, -1)) half.push([u * this.sx(z), this.deckY(z, u * this.sx(z)), z]);
-      half.push(...this.section(z).slice(0, -1));
-      k.grid(
-        PAINT,
-        half.map((p) => [p, [-p[0], p[1], p[2]] as V3]),
-        { out: ref, group: 'body' },
-      );
+      if (!d.open?.[end]) this.panel(k, z, end);
     });
+  }
+
+  /** An end panel: the outline of the last cross-section filled in, less the openings cut in it. */
+  private panel(k: Kit, z: number, end: number): void {
+    const d = this.d;
+    const dir = end === 0 ? -1 : 1;
+    const zone = end === 0 ? d.rearDeck : d.frontDeck;
+    const decked = zone !== null && Math.abs((end === 0 ? zone[0] : zone[1]) - z) < 1e-6;
+    // Right half of the outline, from the top (the centre line if there is a deck) round to the sill.
+    const right: V3[] = [];
+    if (decked) for (const u of this.deckU.slice(0, -1)) right.push([u * this.sx(z), this.deckY(z, u * this.sx(z)), z]);
+    right.push(...this.section(z).slice(0, -1));
+    const outline: V3[] = [...right];
+    for (let i = right.length - 1; i >= (decked ? 1 : 0); i--) outline.push([-right[i][0], right[i][1], z]);
+    const holes: V3[][] = [];
+    for (const c of this.cuts[end]) {
+      const hw = c.w / 2;
+      const hh = c.h / 2;
+      const ch = Math.min(c.chamfer ?? 0, hw * 0.45, hh * 0.45);
+      const ring = (sx: number, sy: number, zz: number): V3[] => {
+        const w = hw - sx;
+        const h = hh - sy;
+        const corners: [number, number][] = ch > 0 ? [[w - ch, -h], [w, -h + ch], [w, h - ch], [w - ch, h], [-w + ch, h], [-w, h - ch], [-w, -h + ch], [-w + ch, -h]] : [[w, -h], [w, h], [-w, h], [-w, -h]];
+        return corners.map(([a, b]): V3 => [c.x + a, c.y + b, zz]);
+      };
+      const mouth = ring(0, 0, z);
+      for (const p of mouth) {
+        if (inside2(p, outline)) continue;
+        const ys = outline.map((q) => q[1]);
+        const room = `the panel is ±${this.F(z, p[1]).toFixed(3)} wide there and runs from y ${Math.min(...ys).toFixed(3)} to ${Math.max(...ys).toFixed(3)}`;
+        throw new Error(`Opening at x ${c.x}, y ${c.y} (${c.w} by ${c.h}) does not fit the ${end ? 'nose' : 'tail'} panel: corner ${p[0].toFixed(3)}, ${p[1].toFixed(3)}; ${room}`);
+      }
+      holes.push(mouth);
+      const back = ring(c.taper?.[0] ?? 0, c.taper?.[1] ?? 0, z - dir * c.depth);
+      const centre: V3 = [c.x, c.y, z - dir * c.depth * 0.5];
+      for (let i = 0; i < mouth.length; i++) {
+        const j = (i + 1) % mouth.length;
+        const midpoint = mix3(mix3(mouth[i], mouth[j], 0.5), mix3(back[i], back[j], 0.5), 0.5);
+        k.poly(c.wall ?? PAINT, [mouth[i], mouth[j], back[j], back[i]], add3(midpoint, sub3(midpoint, centre), 4));
+      }
+    }
+    const flat = (pts: V3[]) => pts.map((p) => new THREE.Vector2(p[0], p[1]));
+    const all = [...outline, ...holes.flat()];
+    const pos: number[] = [];
+    for (const [a, b, c] of THREE.ShapeUtils.triangulateShape(flat(outline), holes.map(flat))) {
+      const A = all[a];
+      const B = all[b];
+      const C = all[c];
+      // Wind each triangle to face out of the car.
+      const nz = (B[0] - A[0]) * (C[1] - A[1]) - (B[1] - A[1]) * (C[0] - A[0]);
+      if (nz * dir >= 0) pos.push(...A, ...B, ...C);
+      else pos.push(...A, ...C, ...B);
+    }
+    k.tris(PAINT, pos, { group: 'body' });
   }
 
   /**
@@ -270,9 +400,15 @@ export class Shell {
   underbody(k: Kit, track: number, wheelWidth: number, o: { pan?: boolean; belly?: number } = {}): void {
     const d = this.d;
     for (const a of d.arches) {
-      const xo = this.F(a.z, a.y + a.r) - LIP + 0.006;
+      const xo = this.lipX(a.z) + 0.006;
       const xi = Math.max(0.05, track / 2 - wheelWidth / 2 - 0.07);
       const r = a.r + 0.006;
+      if (k.lo) {
+        // From a distance: one dark block filling the pair of arches behind the wheels.
+        const low = Math.max(0.12, d.lower(a.z) - 0.08);
+        k.box(DARK, xi * 2, a.y + r - low, Math.min(2 * r, 2 * Math.min(d.zf - a.z, a.z - d.zr)), 0, (a.y + r + low) / 2, a.z);
+        continue;
+      }
       for (const s of [1, -1]) {
         const rows: V3[][] = [];
         const ring: V3[] = [];
@@ -326,7 +462,7 @@ export class Shell {
         continue;
       }
       const y = this.yL(z) + 0.004;
-      const x = this.F(z, y) - LIP + 0.004;
+      const x = this.lipX(z) + 0.004;
       run.push([
         [x, y, z],
         [-x, y, z],
@@ -339,6 +475,7 @@ export class Shell {
 
   /** Vertical line (a door shut line) on both flanks, or one: `sides` of +1 / −1. */
   vline(k: Kit, surface: Surface, z: number, y0: number, y1: number, w = 0.009, sides: number[] = [1, -1], lift = 0.0025): void {
+    if (k.lo) return;
     const pts: V3[] = [];
     for (let i = 0; i <= 5; i++) pts.push(this.side(z, mix(y0, y1, i / 5), lift));
     for (const s of sides) k.ribbon(surface, s > 0 ? pts : pts.map((p): V3 => [-p[0], p[1], p[2]]), [0, 0, 1], w, [0, 0.5, z]);
@@ -346,6 +483,7 @@ export class Shell {
 
   /** Line along the flanks at height `y` (a number, or a function of z). */
   hline(k: Kit, surface: Surface, y: number | Fn, z0: number, z1: number, h = 0.01, sides: number[] = [1, -1], lift = 0.0025): void {
+    if (k.lo) return;
     const n = Math.max(1, Math.ceil(Math.abs(z1 - z0) / 0.3));
     const pts: V3[] = [];
     for (let i = 0; i <= n; i++) {
@@ -356,10 +494,12 @@ export class Shell {
   }
 
   /** Filled band on the flanks between two heights (stripes, cladding, a rubbing strip with some depth). */
-  band(k: Kit, surface: Surface, yLo: number | Fn, yHi: number | Fn, z0: number, z1: number, sides: number[] = [1, -1], lift = 0.003, rows = 2): void {
-    const n = Math.max(1, Math.ceil(Math.abs(z1 - z0) / 0.3));
+  band(k: Kit, surface: Surface, yLo: number | Fn, yHi: number | Fn, z0: number, z1: number, sides: number[] = [1, -1], lift = 0.003, rows = 2, step = 0.3): void {
     const lo = (z: number) => (typeof yLo === 'number' ? yLo : yLo(z));
     const hi = (z: number) => (typeof yHi === 'number' ? yHi : yHi(z));
+    // From a distance only the broad bands (a livery, woodgrain) are worth their triangles.
+    if (k.lo && (hi((z0 + z1) / 2) - lo((z0 + z1) / 2) < 0.1 || Math.abs(z1 - z0) < 0.6)) return;
+    const n = Math.max(1, Math.ceil(Math.abs(z1 - z0) / (k.lo ? 0.9 : step)));
     for (const s of sides) {
       const lattice: V3[][] = [];
       for (let i = 0; i <= n; i++) {
@@ -377,6 +517,7 @@ export class Shell {
 
   /** Line on a deck running fore and aft at `x` (both sides) … */
   deckLine(k: Kit, surface: Surface, x: number | Fn, z0: number, z1: number, w = 0.009, lift = 0.0025): void {
+    if (k.lo) return;
     const n = Math.max(2, Math.ceil(Math.abs(z1 - z0) / 0.3));
     const pts: V3[] = [];
     for (let i = 0; i <= n; i++) {
@@ -388,6 +529,7 @@ export class Shell {
 
   /** … and one running across it at `z`, out to ±x. */
   deckCross(k: Kit, surface: Surface, z: number, x: number, w = 0.009, lift = 0.0025): void {
+    if (k.lo) return;
     const pts: V3[] = [];
     for (let i = -6; i <= 6; i++) pts.push(this.top(z, (x * i) / 6, lift));
     k.ribbon(surface, pts, [0, 0, 1], w, [0, -2, z]);
@@ -411,7 +553,7 @@ export class Shell {
       plan.push([this.F(z, y), z]);
     }
     for (const deg of [0, 22.5, 45, 67.5, 90]) {
-      const z = zc + dir * corner * Math.sin((deg * Math.PI) / 180);
+      const z = zc + dir * corner * Math.sin(rad(deg));
       plan.push([this.F(z, y), z]);
     }
     const xe = plan[plan.length - 1][0];
@@ -436,6 +578,17 @@ export class Shell {
     }
     return frames;
   }
+}
+
+/** Is the point inside the outline (both in the x-y plane)? */
+function inside2(p: V3, outline: V3[]): boolean {
+  let inside = false;
+  for (let i = 0, j = outline.length - 1; i < outline.length; j = i++) {
+    const a = outline[i];
+    const b = outline[j];
+    if (a[1] > p[1] !== b[1] > p[1] && p[0] < ((b[0] - a[0]) * (p[1] - a[1])) / (b[1] - a[1]) + a[0]) inside = !inside;
+  }
+  return inside;
 }
 
 // ───────────────────────────── Glasshouse ─────────────────────────────
@@ -476,6 +629,8 @@ export interface CabinDef {
   black?: Tint;
   /** Headlining. */
   lining?: Tint;
+  /** A rain gutter along the cant rail, in this finish. */
+  gutter?: Tint;
 }
 
 export interface Cabin {
@@ -489,15 +644,20 @@ export interface Cabin {
   roofY(z: number): number;
   /** Half-width of the roof panel at z. */
   roofX(z: number): number;
+  /** z of the windscreen's base and top on the centre line. */
+  readonly front: { zb: number; zt: number };
 }
 
-const SCREEN_U = [0, 0.34, 0.63, 0.85, 1];
-const GLASS_T = [0, 0.3, 0.65, 1];
+const SCREEN_U_HI = [0, 0.34, 0.63, 0.85, 1];
+const GLASS_T_HI = [0, 0.3, 0.65, 1];
 const BLACK_PILLAR = tint(0x0b0b0c, 'gloss');
 const LINING = tint(0x8d8a82, 'cloth');
 
 /** Build the glasshouse on a shell. */
 export function cabin(k: Kit, shell: Shell, c: CabinDef): Cabin {
+  // The distant version keeps the outline and drops the curvature, the surrounds and the lining.
+  const SCREEN_U = k.lo ? [0, 0.62, 1] : SCREEN_U_HI;
+  const GLASS_T = k.lo ? [0, 1] : GLASS_T_HI;
   const N = SCREEN_U.length;
   const lean = (z: number) => (typeof c.lean === 'number' ? c.lean : c.lean(z));
   const bowR = c.rear.bow ?? 0;
@@ -514,7 +674,7 @@ export function cabin(k: Kit, shell: Shell, c: CabinDef): Cabin {
     let from: [number, number] = [c.rear.zb, c.rear.zt];
     for (const pane of list) {
       const to = pane.to === 'front' ? ([c.front.zb, c.front.zt] as [number, number]) : pane.to;
-      const pieces = pane.kind === 'black' ? 1 : Math.max(1, Math.ceil(Math.max(Math.abs(to[0] - from[0]), Math.abs(to[1] - from[1])) / (c.split ?? 0.55)));
+      const pieces = pane.kind === 'black' ? 1 : Math.max(1, Math.ceil(Math.max(Math.abs(to[0] - from[0]), Math.abs(to[1] - from[1])) / (k.lo ? Math.max(1.5, c.split ?? 0) : (c.split ?? 0.55))));
       for (let i = 0; i < pieces; i++) knots.push({ zb: mix(from[0], to[0], i / pieces), zt: mix(from[1], to[1], i / pieces), kind: pane.kind });
       from = to;
     }
@@ -561,7 +721,7 @@ export function cabin(k: Kit, shell: Shell, c: CabinDef): Cabin {
       const v1 = sub3(T1, O);
       const v2 = sub3(T2, O);
       const psi = Math.PI - alpha;
-      for (const t of [0.5, 1]) {
+      for (const t of k.lo ? [1] : [0.34, 0.67, 1]) {
         if (psi < 1e-3) pts.push(mix3(T1, T2, t));
         else pts.push(add3(add3(O, v1, Math.sin((1 - t) * psi) / Math.sin(psi)), v2, Math.sin(t * psi) / Math.sin(psi)));
       }
@@ -596,7 +756,7 @@ export function cabin(k: Kit, shell: Shell, c: CabinDef): Cabin {
       const kind = cols[s].kind;
       if (kind === 'glass') {
         k.grid(cols[s].part === 'rear' ? (c.rearGlass ?? glass) : glass, rows, { out: core });
-        if (c.frame) frames(k, c.frame, cols, s, e + 1, G, core, s === 0 || e + 1 === cols.length - 1);
+        if (c.frame && !k.lo) frames(k, c.frame, cols, s, e + 1, G, core, s === 0 || e + 1 === cols.length - 1);
       } else {
         k.grid(kind === 'paint' ? PAINT : (c.black ?? BLACK_PILLAR), rows, { out: core, group: 'cabin' });
         liningRows.push(rows);
@@ -622,11 +782,26 @@ export function cabin(k: Kit, shell: Shell, c: CabinDef): Cabin {
     liningRows.push(roof);
     // Lining: the same panels seen from inside, a little inboard.
     const lining = c.lining ?? LINING;
-    for (const rows of liningRows) {
-      k.grid(
-        lining,
-        rows.map((row) => row.map((p) => add3(p, norm3(sub3(coreAt(p), p)), 0.022))),
-        { out: core, inward: true },
+    k.inside = true;
+    if (!k.lo) {
+      for (const rows of liningRows) {
+        k.grid(
+          lining,
+          rows.map((row) => row.map((p) => add3(p, norm3(sub3(coreAt(p), p)), 0.022))),
+          { out: core, inward: true },
+        );
+      }
+    }
+    k.inside = false;
+    // Rain gutter: a bead standing off the cant rail from the rear quarter to the screen pillar.
+    if (c.gutter && !k.lo) {
+      const run = cols.slice(N - 1, N - 1 + S).map((col) => col.pts[G + 1]);
+      k.ribbon(
+        c.gutter,
+        run.map((p): V3 => [p[0] + side * 0.007, p[1] + 0.002, p[2]]),
+        [0, 1, 0],
+        0.016,
+        core,
       );
     }
 
@@ -670,6 +845,7 @@ export function cabin(k: Kit, shell: Shell, c: CabinDef): Cabin {
     flank: (z, t, lift = 0.004) => screens.flank(z, t, lift),
     roofY: (z) => c.roof(z) + c.crown,
     roofX: (z) => shell.sx(Math.min(c.front.zb, Math.max(c.rear.zb, z))) - lean(z),
+    front: { zb: c.front.zb, zt: c.front.zt },
   };
 }
 
@@ -738,18 +914,36 @@ export interface InteriorDef {
   /** Seat-back height above the cushion. */
   back?: number;
   headrests?: boolean;
+  /** No centre console (a bench front, or an engine cover the builder supplies). */
+  console?: boolean;
 }
 
 const VINYL = tint(0x26282b, 'satin');
 const CARPET = tint(0x1b1c1e, 'cloth');
+const DIAL = tint(0xd4d6d2, 'satin');
 
-/** Furnish a cabin. Nothing here casts a shadow. */
-export function interior(k: Kit, shell: Shell, d: InteriorDef): void {
+/**
+ * Furnish a cabin: door cards with armrests, carpet, a dashboard with its binnacle, dials, vents and radio,
+ * the wheel on the right, a console with the gear lever and handbrake, seats with headrests on posts, the
+ * rear-view mirror and a parcel shelf with a pair of speakers. Nothing here casts a shadow or takes road
+ * film. The distant version is a dark tub and the two front seat backs.
+ */
+export function interior(k: Kit, shell: Shell, d: InteriorDef, cab?: Cabin): void {
   const vinyl = d.vinyl ?? VINYL;
   const cloth = d.cloth ?? tint(0x4a4f57, 'cloth');
   const inner = (z: number) => shell.sx(z) - 0.05;
-  // Door cards with a capping at the belt line, both sides.
+  const back = d.back ?? 0.6;
   const wz0 = d.cargo ? d.cargo.z : d.z0;
+  k.inside = true;
+  if (k.lo) {
+    const top = shell.yS((wz0 + d.z1) / 2) - 0.1;
+    const w = Math.min(inner(wz0 + 0.1), inner(d.z1 - 0.1)) * 2;
+    k.box(vinyl, w, top - d.floor, d.z1 - wz0, 0, (top + d.floor) / 2, (wz0 + d.z1) / 2);
+    for (const s of d.seats.slice(0, 2)) k.box(cloth, 0.46, back + 0.24, 0.14, s.x, s.y + 0.06 + (back + 0.24) / 2, s.z - 0.3);
+    k.inside = false;
+    return;
+  }
+  // Door cards with a capping at the belt line, both sides.
   const n = Math.max(2, Math.ceil((d.z1 - wz0) / 0.4));
   const wall: V3[][] = [];
   for (let i = 0; i <= n; i++) {
@@ -768,7 +962,12 @@ export function interior(k: Kit, shell: Shell, d: InteriorDef): void {
   k.poly(CARPET, [[-x0, d.floor, d.z0], [x0, d.floor, d.z0], [x1, d.floor, d.z1], [-x1, d.floor, d.z1]], [0, -3, 0]);
   const yr = d.shelf?.y ?? shell.yS(d.z0) - 0.02;
   if (!d.cargo) k.poly(vinyl, [[-x0, d.floor, d.z0], [x0, d.floor, d.z0], [x0, yr, d.z0], [-x0, yr, d.z0]], [0, 0.6, d.z0 - 3]);
-  if (d.shelf) k.poly(vinyl, [[-x0, yr, d.z0], [x0, yr, d.z0], [shell.sx(d.shelf.z) - 0.03, yr, d.shelf.z], [-(shell.sx(d.shelf.z) - 0.03), yr, d.shelf.z]], [0, -3, 0]);
+  if (d.shelf) {
+    const xs = shell.sx(d.shelf.z) - 0.03;
+    k.poly(vinyl, [[-x0, yr, d.z0], [x0, yr, d.z0], [xs, yr, d.shelf.z], [-xs, yr, d.shelf.z]], [0, -3, 0]);
+    // A pair of speakers let into the shelf.
+    for (const sx of [1, -1]) k.drum(DARK, 0.075, 0.006, sx * xs * 0.62, yr + 0.004, (d.z0 + d.shelf.z) / 2, 'y', 10);
+  }
   if (d.cargo) {
     const xc = inner(d.cargo.z);
     const yb = shell.yS(d.cargo.z) - 0.012;
@@ -778,18 +977,43 @@ export function interior(k: Kit, shell: Shell, d: InteriorDef): void {
   }
   // Dashboard: a padded top roll over a lower fascia, with a binnacle and the wheel on the right.
   const dw = inner(d.dash.z) * 2 - 0.01;
+  const driver = d.seats[0];
   k.pad(vinyl, dw, 0.16, d.z1 - d.dash.z + 0.1, 0, d.dash.y - 0.08, (d.z1 + d.dash.z) / 2 + 0.05, 0.04);
   k.box(vinyl, dw, d.dash.y - 0.14 - d.floor, 0.05, 0, (d.dash.y - 0.14 + d.floor) / 2, d.dash.z + 0.2);
-  const driver = d.seats[0];
-  if (!d.plainDash) k.pad(vinyl, 0.36, 0.1, 0.16, driver.x, d.dash.y + 0.015, d.dash.z + 0.1, 0.03);
+  if (!d.plainDash) {
+    const fz = d.dash.z - 0.003;
+    const fy = d.dash.y - 0.085;
+    k.pad(vinyl, 0.38, 0.1, 0.17, driver.x, d.dash.y + 0.012, d.dash.z + 0.1, 0.03);
+    // Instruments under the hood: a dark panel and two pale dials; then vents, radio and glovebox.
+    k.box(BLACK_PANEL, 0.3, 0.085, 0.006, driver.x, fy, fz);
+    for (const sx of [1, -1]) k.drum(DIAL, 0.033, 0.004, driver.x + sx * 0.07, fy, fz - 0.004, 'z', 10);
+    k.box(BLACK_PANEL, 0.22, 0.06, 0.006, 0, fy - 0.07, fz);
+    k.box(BRIGHT, 0.2, 0.008, 0.008, 0, fy - 0.043, fz - 0.001);
+    for (const x of [-driver.x, 0]) k.box(DARK, 0.15, 0.035, 0.006, x, fy + 0.005, fz);
+    k.box(DARK, 0.3, 0.005, 0.006, -driver.x, fy - 0.045, fz);
+    k.box(BRIGHT, 0.03, 0.012, 0.012, -driver.x, fy - 0.058, fz - 0.003);
+    // Indicator stalk.
+    k.beam(DARK, [driver.x - 0.03, driver.y + 0.5, driver.z + 0.43], [driver.x - 0.2, driver.y + 0.52, driver.z + 0.39], 0.012, 0.012);
+  }
   steeringWheel(k, driver.x, driver.y + 0.53, driver.z + 0.345, vinyl);
+  // Rear-view mirror hanging from the screen's header.
+  if (cab) {
+    const p = cab.screen(0, 0.9, -0.03);
+    k.box(DARK, 0.21, 0.055, 0.02, 0, p[1] - 0.015, p[2] - 0.035, [-0.25, 0, 0]);
+    k.box(BRIGHT, 0.19, 0.04, 0.004, 0, p[1] - 0.015, p[2] - 0.048, [-0.25, 0, 0]);
+    k.beam(DARK, [0, p[1] + 0.03, p[2] + 0.005], [0, p[1] - 0.005, p[2] - 0.03], 0.016, 0.016);
+  }
   // Seats.
   const bench = new Set(d.bench ?? []);
-  const back = d.back ?? 0.6;
   const single = (s: Seat, w: number) => {
-    k.box(cloth, w, 0.13, 0.5, s.x, s.y - 0.005, s.z + 0.06);
-    k.pad(cloth, w - 0.02, back, 0.11, s.x, s.y + 0.04 + back / 2, s.z - 0.27, 0.035, [-0.2, 0, 0]);
-    if (d.headrests !== false) k.pad(cloth, 0.25, 0.16, 0.09, s.x, s.y + 0.13 + back, s.z - 0.385, 0.03, [-0.15, 0, 0]);
+    k.pad(cloth, w, 0.15, 0.52, s.x, s.y - 0.012, s.z + 0.06, 0.05);
+    k.pad(cloth, w - 0.02, back, 0.12, s.x, s.y + 0.04 + back / 2, s.z - 0.27, 0.045, [-0.2, 0, 0]);
+    // Side bolsters give the back its shape.
+    for (const sx of [1, -1]) k.pad(cloth, 0.07, back * 0.72, 0.1, s.x + sx * (w / 2 - 0.045), s.y + 0.03 + back * 0.42, s.z - 0.235, 0.03, [-0.2, 0, 0]);
+    if (d.headrests !== false) {
+      k.pad(cloth, 0.25, 0.16, 0.09, s.x, s.y + 0.14 + back, s.z - 0.39, 0.035, [-0.15, 0, 0]);
+      for (const sx of [1, -1]) k.tube(BRIGHT, [s.x + sx * 0.06, s.y + back - 0.02, s.z - 0.365], [s.x + sx * 0.06, s.y + back + 0.1, s.z - 0.385], 0.006, 4);
+    }
   };
   d.seats.forEach((s, i) => {
     if (!bench.has(i)) single(s, 0.5);
@@ -797,10 +1021,26 @@ export function interior(k: Kit, shell: Shell, d: InteriorDef): void {
   if (bench.size) {
     const s = d.seats[[...bench][0]];
     const w = Math.min(inner(s.z), inner(s.z - 0.3)) * 2 - 0.04;
-    k.box(cloth, w, 0.13, 0.5, 0, s.y - 0.005, s.z + 0.06);
-    k.pad(cloth, w, back - 0.04, 0.12, 0, s.y + 0.04 + (back - 0.04) / 2, s.z - 0.28, 0.035, [-0.27, 0, 0]);
+    k.pad(cloth, w, 0.15, 0.52, 0, s.y - 0.012, s.z + 0.06, 0.05);
+    k.pad(cloth, w, back - 0.04, 0.13, 0, s.y + 0.04 + (back - 0.04) / 2, s.z - 0.28, 0.045, [-0.27, 0, 0]);
+    // A fold-down armrest's outline in the middle of the back.
+    k.box(vinyl, 0.008, back * 0.5, 0.004, 0, s.y + 0.06 + back * 0.4, s.z - 0.21, [-0.27, 0, 0]);
   }
+  // Console between two separate front seats: gear lever in its gaiter, handbrake.
+  const [a, b] = d.seats;
+  if (d.console !== false && b && !bench.has(0) && !bench.has(1) && Math.abs(a.z - b.z) < 0.05) {
+    k.pad(vinyl, 0.19, 0.17, 0.82, 0, d.floor + 0.085, a.z + 0.16, 0.035);
+    k.pad(CARPET, 0.1, 0.05, 0.12, 0, d.floor + 0.185, a.z + 0.36, 0.02);
+    k.tube(BRIGHT, [0, d.floor + 0.19, a.z + 0.36], [0.01, d.floor + 0.36, a.z + 0.33], 0.008, 5);
+    k.ball(DARK, 0.026, 0.01, d.floor + 0.375, a.z + 0.33, 1, 1, 6);
+    k.beam(DARK, [0.05, d.floor + 0.18, a.z - 0.08], [0.05, d.floor + 0.25, a.z + 0.14], 0.03, 0.03);
+  }
+  // Armrests on the front doors.
+  for (const sx of [1, -1]) k.pad(vinyl, 0.07, 0.05, 0.44, sx * (inner(a.z + 0.1) - 0.03), a.y + 0.27, a.z + 0.1, 0.02);
+  k.inside = false;
 }
+
+const BLACK_PANEL = tint(0x0c0c0d, 'gloss');
 
 /** Steering wheel facing the driver, with its column. */
 export function steeringWheel(k: Kit, x: number, y: number, z: number, surface: Surface, radius = 0.185): void {

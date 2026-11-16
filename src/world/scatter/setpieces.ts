@@ -7,7 +7,7 @@ import { Geo, Site } from '../landmarks/rural/kit';
 import '../landmarks/rural/props';
 import { SCATTERERS } from './registry';
 import { junctionReach } from './streets';
-import { type Area, DRESSING_OFF, edgesIn, Keep, Lights } from './util';
+import { type Area, DRESSING_OFF, edgesIn, Keep, Lights, ROUND3_OFF } from './util';
 
 /**
  * Hand-authored dressing for particular places, outside any landmark's clear radius: the Caroline Bay foreshore,
@@ -114,7 +114,7 @@ function seafront(c: Ctx, o: Seafront): void {
   if (o.lawn) {
     const grass = new Geo();
     s.drape(grass, lx((o.lawn[0] + o.lawn[1]) / 2), 0, o.lawn[1] - o.lawn[0], zb - za, 0.05, 0, 8);
-    grass.flush(c.out, s.ground('grass', 0x6f9a4a), s.f);
+    grass.flush(c.out, s.ground('grass', 0x8a9150), s.f);
   }
 
   // The walk and the rail follow the brink, sampled every 12 m (on a grid of latitudes, so chunks agree).
@@ -154,6 +154,25 @@ function seafront(c: Ctx, o: Seafront): void {
   }
 }
 
+/** A bed of dug soil with `n` drifts of bedding side by side along its heading's x, or bush roses when `roses`. */
+function bedding(c: Ctx, x: number, z: number, heading: number, n: number, roses = false): void {
+  if (ROUND3_OFF || !c.owns(x, z, 1.6)) return;
+  const s = c.site(x, z, heading);
+  const soil = new Geo();
+  soil.box(0, 0.05, 0, n * 2.2 + 0.5, 0.12, 1.9);
+  soil.flush(c.out, s.mat('plain', 0x3f3226), s.f);
+  const cos = Math.cos(heading);
+  const sin = Math.sin(heading);
+  const count = roses ? n * 2 : n;
+  for (let i = 0; i < count; i++) {
+    const lx = (i - (count - 1) / 2) * (roses ? 1.1 : 2.2);
+    const lz = roses ? (i % 2 === 0 ? -0.35 : 0.35) : 0;
+    const px = x + lx * cos + lz * sin;
+    const pz = z - lx * sin + lz * cos;
+    c.out.instance(roses ? 'rose-bush' : 'flower-bed', px, c.world.heightAt(px, pz) + 0.1, pz, heading + (roses ? i : 0), roses ? 0.95 + (i % 3) * 0.07 : 1);
+  }
+}
+
 /** Round paddling pool with a concrete apron and a painted toadstool fountain in the middle. */
 function paddlingPool(c: Ctx, x: number, z: number, r: number): void {
   if (!c.owns(x, z, r + 2)) return;
@@ -167,6 +186,7 @@ function paddlingPool(c: Ctx, x: number, z: number, r: number): void {
   b.flush();
   c.out.collider(s.f, 0, 0.7, 0, 0.6, 1.4, 0.6);
   for (const a of [0.5, 2.1, 3.7, 5.3]) c.put('bench', x + Math.sin(a) * (r + 3.2), z + Math.cos(a) * (r + 3.2), a + Math.PI, 0.9);
+  for (const a of [1.3, 2.9, 4.5, 6.1]) bedding(c, x + Math.sin(a) * (r + 5.6), z + Math.cos(a) * (r + 5.6), a, 2);
   c.put('tree-phoenix-palm', x + r + 4.5, z - r - 1, 1, 1, 0.9);
   c.put('tree-phoenix-palm', x + r + 4.5, z + r + 1, 2, 1, 0.95);
   c.lights.add(x, s.y + 4.5, z + r + 1, 0xffe2b0, 130, 20);
@@ -201,6 +221,8 @@ function aviary(c: Ctx, x: number, z: number): void {
   c.out.collider(s.f, 0, 1.8, 0, R * 1.85, 3.6, R * 1.85);
   c.put('bench', x - 2.5, z + R + 3, 0, 0.9);
   c.put('bench', x + 2.5, z + R + 3, 0, 0.9);
+  bedding(c, x - 7.5, z + R + 3, 0, 2, true);
+  bedding(c, x + 7.5, z + R + 3, 0, 2, true);
 }
 
 /** Low stone memorial wall with bronze plaques, facing `heading`. */
@@ -214,6 +236,7 @@ function memorialWall(c: Ctx, x: number, z: number, heading: number, len: number
   for (let i = 0; i < Math.floor(len / 2.2); i++) bronze.box(-len / 2 + 1.1 + i * 2.2, 0.85, 0.26, 1.3, 0.5, 0.03);
   b.flush();
   c.out.collider(s.f, 0, 0.7, 0, len, 1.4, 0.5);
+  bedding(c, x + Math.sin(heading) * 2.4, z + Math.cos(heading) * 2.4, heading, 4, true);
   c.put('flax', x + Math.cos(heading) * (len / 2 + 1), z - Math.sin(heading) * (len / 2 + 1), 1, 0.5);
   c.put('flax', x - Math.cos(heading) * (len / 2 + 1), z + Math.sin(heading) * (len / 2 + 1), 2, 0.5);
 }
@@ -382,6 +405,12 @@ function lytteltonWharf(c: Ctx): void {
     c.out.collider(s.f, 0, 1, 0, 1.2, 2, 2.6);
     c.put('pallet', 1445.6, -2286.8, 0.7, 0.8);
   }
+  // What a working wharf leaves lying about the apron: skips, sawn timber waiting for a ship, a van, a trailer.
+  for (const [x, z, yaw, tint] of [[1455, -2329, 0.1, 0xc9a23a], [1440, -2331, 1.5, 0x2f5d3a], [1392, -2314, 0.05, 0x2b4a6b]] as const) c.put('skip-bin', x, z, yaw, 2, 1, tint);
+  for (const [x, z] of [[1461, -2293], [1461, -2286.6], [1467.6, -2293], [1416, -2266]] as const) c.put('timber-stack', x, z, EAST, 2.2);
+  c.put('van-parked', 1452, -2297, 2.9, 2.3, 1, 0xe8e6df);
+  c.put('trailer', 1437, -2314, 0.4, 1.6, 1, 0x8f959a);
+  c.put('car-parked-wagon', 1404.6, -2291, 0.02, 1.3, 1, 0x6f3a2c);
   // Bollards along the quay face, loose cargo behind them, floodlight masts over the apron.
   const span = c.spanX(1396, 1566);
   if (span) {
@@ -481,7 +510,7 @@ export const setPieces: Scatterer = (area, out) => {
       const s = k.site(2554, -4404);
       const grass = new Geo();
       s.drape(grass, 0, 0, 30, 34, 0.05, 0, 8);
-      grass.flush(out, s.ground('grass', 0x6f9a4a), s.f);
+      grass.flush(out, s.ground('grass', 0x8a9150), s.f);
       const path = new Geo();
       s.ribbon(path, [[-15, -6], [46, -6]], 3, 0.08);
       path.flush(out, s.ground('concrete', 0xd2cbb8), s.f);

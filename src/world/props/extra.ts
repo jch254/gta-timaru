@@ -1,6 +1,8 @@
 import * as THREE from 'three';
+import type { MaterialLibrary } from '../../core/types';
 import { canvasTexture } from '../../render/textures';
-import { mergeGeometries, registerProp } from './index';
+import { painted } from '../landmarks/paint';
+import { mergeGeometries, registerProp, type PropDef } from './index';
 import { VEGETATION } from './vegetation';
 
 /**
@@ -227,6 +229,32 @@ registerProp('chainlink-fence', (m) => {
   };
 });
 
+registerProp('trampoline', (m) => {
+  // The round back-yard trampoline: black mat slung in a galvanised ring on six splayed legs.
+  const R = 1.25;
+  const parts: [THREE.BufferGeometry, number][] = [];
+  const ring = new THREE.TorusGeometry(R, 0.03, 5, 18).rotateX(Math.PI / 2).translate(0, 0.78, 0);
+  parts.push([ring, 0x9aa0a4]);
+  parts.push([new THREE.CircleGeometry(R - 0.09, 18).rotateX(-Math.PI / 2).translate(0, 0.74, 0), 0x1b1c1e]);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const leg = cy(0.022, 0.022, 0.82, 0, 0.39, 0).rotateZ(0.22).rotateY(a).translate(Math.sin(a) * (R - 0.12), 0, Math.cos(a) * (R - 0.12));
+    parts.push([leg, 0x9aa0a4]);
+  }
+  return { parts: [{ geometry: painted(parts), material: m.get('paintedMetal', { color: 0xffffff, vertexColors: true }) }], castShadow: false, minor: true };
+});
+
+registerProp('kennel', (m) => {
+  // A dog kennel: gabled box, dark doorway, facing +z.
+  const parts: [THREE.BufferGeometry, number][] = [
+    [bx(0.8, 0.62, 0.95, 0, 0.31, 0), 0x8a7a66],
+    [bx(0.9, 0.05, 1.05, 0, 0.66, 0).rotateZ(0.5), 0x6f5236],
+    [bx(0.9, 0.05, 1.05, 0, 0.66, 0).rotateZ(-0.5), 0x6f5236],
+    [bx(0.34, 0.4, 0.03, 0, 0.24, 0.47), 0x171310],
+  ];
+  return { parts: [{ geometry: painted(parts), material: m.get('timber', { color: 0xffffff, vertexColors: true }) }], castShadow: false, minor: true };
+});
+
 registerProp('washing-line', (m) => {
   // Rotary clothesline: the back-yard landmark.
   const parts: THREE.BufferGeometry[] = [cy(0.03, 0.03, 2, 0, 1, 0, 6)];
@@ -239,43 +267,93 @@ registerProp('washing-line', (m) => {
   return { parts: [{ geometry: mergeGeometries(parts), material: m.get('metal') }], castShadow: false, minor: true };
 });
 
-registerProp('car-parked', (m) => {
-  // Static early-90s sedan, nose to +z; the instance tint is the paint. Scenery only: it cannot be driven.
-  // Body: a shaped shell up to the waistline, a roof on pillars. Dark part: the glasshouse, tyres, bumpers, grille.
-  const shell = extrudeX(
-    [
-      [-2.16, 0.3],
-      [-2.2, 0.62],
-      [-2.08, 0.86],
-      [-1.3, 0.9],
-      [0.98, 0.9],
-      [2.02, 0.8],
-      [2.2, 0.6],
-      [2.16, 0.3],
-    ],
-    0.84,
-  );
-  const paint: THREE.BufferGeometry[] = [shell, bx(1.34, 0.05, 1.28, 0, 1.385, -0.26)];
-  // Pillars from the waist to the roof.
-  for (const x of [-0.69, 0.69]) {
-    paint.push(bx(0.07, 0.5, 0.09, x, 1.13, 0.42), bx(0.07, 0.5, 0.13, x, 1.13, -0.92), bx(0.06, 0.5, 0.07, x, 1.13, -0.22));
+// ───────────────────────────── Static cars ─────────────────────────────
+// Scenery that cannot be driven, nose to +z. One part each: the paintwork is white in the vertex colours, so the
+// instance tint is the car's colour, and the glass, rubber and trim are dark enough that the tint barely shows.
+
+const CAR_GLASS = 0x10161b;
+const CAR_RUBBER = 0x0c0c0d;
+const CAR_TRIM = 0x1b1c1f;
+
+/** Six-sided solid between two rectangles `[x0, x1, z0, z1]`, one at height y0 and one at y1. */
+function loft(b: readonly number[], y0: number, t: readonly number[], y1: number): THREE.BufferGeometry {
+  const P = [
+    [b[0], y0, b[2]], [b[1], y0, b[2]], [b[1], y0, b[3]], [b[0], y0, b[3]],
+    [t[0], y1, t[2]], [t[1], y1, t[2]], [t[1], y1, t[3]], [t[0], y1, t[3]],
+  ];
+  const pos: number[] = [];
+  for (const [a, c, d, e] of [[4, 7, 6, 5], [0, 1, 2, 3], [3, 2, 6, 7], [1, 0, 4, 5], [2, 1, 5, 6], [0, 3, 7, 4]]) {
+    for (const i of [a, c, d, a, d, e]) pos.push(P[i][0], P[i][1], P[i][2]);
   }
-  const glasshouse = new THREE.BoxGeometry(1.52, 0.5, 2.26);
-  const pos = glasshouse.getAttribute('position');
-  for (let i = 0; i < pos.count; i++) {
-    if (pos.getY(i) > 0) pos.setXYZ(i, pos.getX(i) * 0.88, pos.getY(i), pos.getZ(i) * 0.58 - 0.1);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array((pos.length / 3) * 2), 2));
+  g.computeVertexNormals();
+  return g;
+}
+
+interface StaticCar {
+  /** Side profile of the body below the waist, [z, y]. */
+  shell: readonly (readonly [number, number])[];
+  hw: number;
+  waist: number;
+  roof: number;
+  /** The glasshouse: back and front at the waist, back and front at the roof. */
+  cabin: readonly [z0: number, z1: number, r0: number, r1: number];
+  /** A panel van: the cabin is sheet metal behind this point. */
+  panel?: number;
+  wheels: readonly [rear: number, front: number];
+  wheelR: number;
+  /** Door shut lines. */
+  seams: readonly number[];
+}
+
+function staticCar(c: StaticCar): THREE.BufferGeometry {
+  const { hw, waist, roof } = c;
+  const [z0, z1, r0, r1] = c.cabin;
+  const back = c.shell[0][0];
+  const nose = c.shell[c.shell.length - 1][0];
+  const top = hw * 0.8;
+  const base = hw * 0.95;
+  const white = 0xffffff;
+  const parts: [THREE.BufferGeometry, number][] = [[extrudeX(c.shell, hw), white]];
+  // Glasshouse, with the roof and the pillars over it in body colour.
+  const split = c.panel ?? z0;
+  const at = (z: number) => r0 + ((r1 - r0) * (z - z0)) / (z1 - z0);
+  if (c.panel !== undefined) parts.push([loft([-base, base, z0, split], waist, [-top, top, r0, at(split)], roof), white]);
+  parts.push([loft([-base + 0.01, base - 0.01, split, z1], waist, [-top + 0.01, top - 0.01, at(split), r1], roof - 0.01), CAR_GLASS]);
+  parts.push([bx(top * 2 + 0.05, 0.05, r1 - r0 + 0.08, 0, roof + 0.005, (r0 + r1) / 2), white]);
+  const pillars = c.panel !== undefined ? [z1] : [z0, z1, ...c.seams.filter((z) => z > z0 + 0.3 && z < z1 - 0.5)];
+  for (const z of pillars) {
+    const zt = at(z);
+    for (const side of [-1, 1]) {
+      // A post 6 cm wide, standing a centimetre proud of the glass.
+      const span = (x: number): [number, number] => (side > 0 ? [x - 0.05, x + 0.012] : [x - 0.012, x + 0.05]);
+      parts.push([loft([...span(side * base), z - 0.05, z + 0.05], waist, [...span(side * top), zt - 0.05, zt + 0.05], roof), white]);
+    }
   }
-  glasshouse.computeVertexNormals();
-  glasshouse.translate(0, 1.13, -0.17);
-  const dark: THREE.BufferGeometry[] = [glasshouse, bx(1.74, 0.16, 0.14, 0, 0.42, 2.19), bx(1.74, 0.16, 0.14, 0, 0.42, -2.19), bx(1.2, 0.14, 0.04, 0, 0.66, 2.2), bx(1.5, 0.12, 0.04, 0, 0.7, -2.2)];
-  for (const x of [-0.8, 0.8]) for (const z of [-1.36, 1.36]) dark.push(cyX(0.31, 0.22, x, 0.31, z, 8), bx(0.1, 0.24, 0.76, x * 1.02, 0.5, z));
-  return {
-    parts: [
-      { geometry: mergeGeometries(paint), material: m.get('carpaint', { color: 0xffffff }) },
-      { geometry: mergeGeometries(dark), material: m.get('glass') },
-    ],
-  };
-});
+  // Bumpers, grille, tail lamps, rubbing strips, shut lines.
+  parts.push([bx(hw * 2 + 0.06, 0.16, 0.14, 0, 0.42, nose - 0.01), CAR_TRIM], [bx(hw * 2 + 0.06, 0.16, 0.14, 0, 0.42, back + 0.01), CAR_TRIM]);
+  parts.push([bx(hw * 1.45, 0.13, 0.04, 0, 0.66, nose + 0.02), CAR_TRIM], [bx(hw * 1.8, 0.11, 0.04, 0, 0.7, back - 0.015), 0x4a0d0a]);
+  for (const side of [-1, 1]) {
+    const flank = (w: number, h: number, y: number, z: number) => new THREE.PlaneGeometry(w, h).rotateY((side * Math.PI) / 2).translate(side * (hw + 0.004), y, z);
+    parts.push([flank((nose - back) * 0.66, 0.04, 0.57, (nose + back) / 2), CAR_TRIM]);
+    for (const z of c.seams) parts.push([flank(0.014, waist - 0.42, (waist + 0.42) / 2, z), CAR_TRIM]);
+    for (const z of c.wheels) {
+      parts.push([cyX(c.wheelR, 0.22, side * (hw - 0.05), c.wheelR, z, 8), CAR_RUBBER]);
+      parts.push([bx(0.1, 0.24, c.wheelR * 2 + 0.14, side * (hw - 0.024), c.wheelR + 0.19, z), CAR_TRIM]);
+    }
+  }
+  return painted(parts);
+}
+
+const SEDAN: StaticCar = { shell: [[-2.16, 0.3], [-2.2, 0.62], [-2.08, 0.86], [-1.3, 0.9], [0.98, 0.9], [2.02, 0.8], [2.2, 0.6], [2.16, 0.3]], hw: 0.84, waist: 0.9, roof: 1.37, cabin: [-1.4, 1.0, -0.88, 0.42], wheels: [-1.36, 1.36], wheelR: 0.31, seams: [-0.92, 0.02, 0.92] };
+const WAGON: StaticCar = { shell: [[-2.2, 0.3], [-2.24, 0.6], [-2.2, 0.9], [1.0, 0.9], [2.04, 0.8], [2.22, 0.6], [2.18, 0.3]], hw: 0.84, waist: 0.9, roof: 1.41, cabin: [-2.17, 1.02, -1.98, 0.44], wheels: [-1.38, 1.38], wheelR: 0.31, seams: [-1.22, -0.1, 0.94] };
+const VAN: StaticCar = { shell: [[-2.2, 0.34], [-2.22, 1.02], [1.5, 1.02], [2.12, 0.94], [2.24, 0.62], [2.2, 0.34]], hw: 0.86, waist: 1.02, roof: 1.92, cabin: [-2.2, 1.62, -2.18, 1.04], panel: 0.5, wheels: [-1.3, 1.42], wheelR: 0.33, seams: [-0.55, 0.5, 1.5] };
+
+for (const [kind, car] of [['car-parked', SEDAN], ['car-parked-wagon', WAGON], ['van-parked', VAN]] as const) {
+  registerProp(kind, (m) => ({ parts: [{ geometry: staticCar(car), material: m.get('carpaint', { color: 0xffffff, vertexColors: true }) }] }));
+}
 
 registerProp('bunting', (m) => {
   // 7 m of car-yard flags along x, sagging between pole tops at 4.4 m.
@@ -334,3 +412,208 @@ registerProp('pallet', (m) => {
   parts.push(bx(0.8, 0.5, 0.7, 0.1, 0.7, -0.05));
   return { parts: [{ geometry: mergeGeometries(parts), material: m.get('timber', { color: 0xb89868 }) }], minor: true };
 });
+
+// ───────────────────────────── Round 3: the shopping street ─────────────────────────────
+// Small things that stand at the kerb or against a shop wall. One part each, in vertex colours on one shared
+// material, and none casts a shadow: a kind costs one draw call per chunk and nothing in the shadow passes.
+
+const STEEL = 0x8d9194;
+const streetPaint = (m: Parameters<Parameters<typeof registerProp>[1]>[0]) => m.get('plain', { vertexColors: true, roughness: 0.55 });
+
+registerProp('parking-meter', (m) => ({
+  // Coin meter at the head of a marked bay; the dial faces +z (the footpath).
+  parts: [
+    {
+      geometry: painted([
+        [cy(0.03, 0.035, 1.05, 0, 0.525, 0, 5), STEEL],
+        [bx(0.17, 0.24, 0.13, 0, 1.17, 0), 0x3f444a],
+        [bx(0.13, 0.07, 0.13, 0, 1.325, 0), 0x3f444a],
+        [bx(0.11, 0.06, 0.012, 0, 1.3, 0.064), 0xe8e4d4],
+        [bx(0.035, 0.035, 0.014, 0.025, 1.3, 0.066), 0xb5261e],
+        [bx(0.07, 0.1, 0.012, 0, 1.15, 0.064), 0xa4a9ad],
+      ]),
+      material: streetPaint(m),
+    },
+  ],
+  castShadow: false,
+  minor: true,
+}));
+
+registerProp('zebra-pole', (m) => {
+  // Black and white banded pole with an orange globe, one each side of a pedestrian crossing.
+  const parts: [THREE.BufferGeometry, number][] = [[new THREE.IcosahedronGeometry(0.17, 1).translate(0, 2.3, 0), 0xf29a1c], [cy(0.07, 0.07, 0.05, 0, 2.13, 0, 8), 0x1a1a1c]];
+  for (let i = 0; i < 7; i++) parts.push([cy(0.045, 0.045, 0.3, 0, 0.15 + i * 0.3, 0, 8), i % 2 === 0 ? 0x1a1a1c : 0xf0eee6]);
+  return { parts: [{ geometry: painted(parts), material: streetPaint(m) }], castShadow: false };
+});
+
+registerProp('stop-sign', (m) => {
+  // Red octagon on a steel post, facing +z; the letters are set in from a 3 by 5 dot face.
+  const FACE: Record<string, string> = { S: '111100111001111', T: '111010010010010', O: '111101101101111', P: '111101111100100' };
+  const parts: [THREE.BufferGeometry, number][] = [
+    [cy(0.03, 0.03, 2.5, 0, 1.25, -0.035, 6), STEEL],
+    [new THREE.CircleGeometry(0.41, 8, Math.PI / 8).translate(0, 2.1, 0), 0xf2efe6],
+    [new THREE.CircleGeometry(0.37, 8, Math.PI / 8).translate(0, 2.1, 0.006), 0xc4231c],
+    [new THREE.CircleGeometry(0.41, 8, Math.PI / 8).rotateY(Math.PI).translate(0, 2.1, -0.008), STEEL],
+  ];
+  const px = 0.038;
+  'STOP'.split('').forEach((ch, k) => {
+    for (let i = 0; i < 15; i++) {
+      if (FACE[ch][i] !== '1') continue;
+      const x = (k * 4 + (i % 3) - 7) * px;
+      const y = 2.1 + (2 - Math.floor(i / 3)) * px;
+      parts.push([new THREE.PlaneGeometry(px * 1.04, px * 1.04).translate(x, y, 0.012), 0xf6f4ee]);
+    }
+  });
+  return { parts: [{ geometry: painted(parts), material: streetPaint(m) }], castShadow: false };
+});
+
+registerProp('sandwich-board', (m) => {
+  // A-frame board at the kerb, read from either way along the footpath (its faces look along ±z). The boards
+  // are white here: tint the instance for cream, yellow, pale blue or a blackboard.
+  const face = (flip: number): [THREE.BufferGeometry, number][] => {
+    const leaf: [THREE.BufferGeometry, number][] = [
+      [bx(0.56, 0.88, 0.022, 0, 0.44, 0), 0xffffff],
+      [bx(0.5, 0.15, 0.006, 0, 0.74, 0.014), 0x8a1f1a],
+      [bx(0.56, 0.03, 0.03, 0, 0.87, 0), 0x2a2622],
+    ];
+    for (let i = 0; i < 4; i++) leaf.push([bx(i === 3 ? 0.26 : 0.4 - (i % 2) * 0.08, 0.045, 0.006, i === 3 ? -0.07 : 0, 0.58 - i * 0.115, 0.014), 0x26282c]);
+    return leaf.map(([g, c]): [THREE.BufferGeometry, number] => [g.rotateX(-0.21).translate(0, 0, 0.19).rotateY(flip), c]);
+  };
+  return { parts: [{ geometry: painted([...face(0), ...face(Math.PI)]), material: streetPaint(m) }], castShadow: false, minor: true };
+});
+
+type Painted = [THREE.BufferGeometry, number][];
+
+/**
+ * The day's newspaper poster in its wire frame, leaning back against a shop wall; faces +z. Coloured pieces, for
+ * the prop below or to merge into a chunk's own geometry (it stands against a wall: nothing drives into it).
+ */
+export function newsBillboardParts(): Painted {
+  const flat: Painted = [
+    [bx(0.5, 0.74, 0.012, 0, 0.47, 0), 0xf0ede2],
+    [bx(0.5, 0.11, 0.006, 0, 0.785, 0.008), 0x1f3f7a],
+    [bx(0.4, 0.1, 0.006, 0, 0.62, 0.008), 0x141416],
+    [bx(0.44, 0.1, 0.006, 0, 0.49, 0.008), 0x141416],
+    [bx(0.3, 0.1, 0.006, -0.06, 0.36, 0.008), 0x141416],
+    [bx(0.36, 0.03, 0.006, 0, 0.22, 0.008), 0x6a6c70],
+    [bx(0.54, 0.03, 0.03, 0, 0.86, 0), 0x2a2c2e],
+    [bx(0.03, 0.88, 0.03, -0.27, 0.44, 0), 0x2a2c2e],
+    [bx(0.03, 0.88, 0.03, 0.27, 0.44, 0), 0x2a2c2e],
+  ];
+  return flat.map(([g, c]): [THREE.BufferGeometry, number] => [g.rotateX(-0.16).translate(0, 0, 0.14), c]);
+}
+
+/** A greengrocer's stand: a sloping board on trestles with three boxes of fruit; the customer stands at +z. */
+export function shopCratesParts(): Painted {
+  const top: Painted = [[bx(1.5, 0.03, 0.62, 0, 0, 0), 0xa98a62]];
+  const fruit = [0xe08a1e, 0xb5261e, 0x86a83c];
+  for (let i = 0; i < 3; i++) {
+    const x = -0.5 + i * 0.5;
+    top.push([bx(0.46, 0.13, 0.54, x, 0.08, 0), 0xc9a877], [bx(0.4, 0.06, 0.48, x, 0.15, 0), fruit[i]]);
+    for (let k = 0; k < 4; k++) top.push([new THREE.IcosahedronGeometry(0.075, 0).translate(x - 0.11 + (k % 2) * 0.22, 0.2, -0.12 + Math.floor(k / 2) * 0.24), fruit[i]]);
+  }
+  const parts = top.map(([g, c]): [THREE.BufferGeometry, number] => [g.rotateX(0.24).translate(0, 0.62, 0), c]);
+  for (const x of [-0.66, 0.66]) parts.push([bx(0.05, 0.7, 0.05, x, 0.35, -0.24), 0x6f5a44], [bx(0.05, 0.54, 0.05, x, 0.27, 0.24), 0x6f5a44]);
+  parts.push([bx(0.5, 0.3, 0.36, -0.3, 0.15, -0.02), 0xb89868], [bx(0.5, 0.3, 0.36, 0.3, 0.15, 0.0), 0x9c8258]);
+  return parts;
+}
+
+registerProp('news-billboard', (m) => ({ parts: [{ geometry: painted(newsBillboardParts()), material: streetPaint(m) }], castShadow: false, minor: true }));
+registerProp('shop-crates', (m) => ({ parts: [{ geometry: painted(shopCratesParts()), material: streetPaint(m) }], castShadow: false, minor: true }));
+
+// ───────────────────────────── Round 3: yards ─────────────────────────────
+
+registerProp('skip-bin', (m) => {
+  // Steel skip, 3.4 m along z, half full; tint it.
+  const parts: [THREE.BufferGeometry, number][] = [[loft([-0.72, 0.72, -1.25, 1.25], 0, [-0.86, 0.86, -1.7, 1.7], 1.15), 0xffffff], [bx(1.6, 0.06, 3.2, 0, 1.12, 0), 0x3d362e], [bx(1.0, 0.3, 1.2, 0.15, 1.2, -0.5), 0x5a5046], [bx(0.5, 0.2, 1.6, -0.3, 1.2, 0.6), 0x8a7a66]];
+  for (const z of [-0.8, 0.8]) for (const x of [-0.82, 0.82]) parts.push([bx(0.07, 1.1, 0.09, x, 0.6, z), 0xd8d8d8]);
+  for (const z of [-1.72, 1.72]) parts.push([bx(1.76, 0.07, 0.07, 0, 1.14, z), 0xd8d8d8]);
+  return { parts: [{ geometry: painted(parts), material: m.get('paintedMetal', { color: 0xffffff, vertexColors: true }) }] };
+});
+
+registerProp('timber-stack', (m) => {
+  // Packs of sawn timber on bearers, 4.2 m along z, strapped.
+  const parts: [THREE.BufferGeometry, number][] = [];
+  const tones = [0xd2b48a, 0xc6a677, 0xdcc096];
+  for (let k = 0; k < 3; k++) {
+    const y = 0.1 + k * 0.62;
+    const w = k === 2 ? 1.0 : 1.15;
+    parts.push([bx(w, 0.5, 4.2 - k * 0.3, k === 2 ? -0.07 : 0, y + 0.25, k * 0.1), tones[k]]);
+    for (const z of [-1.4, 0, 1.4]) parts.push([bx(1.2, 0.1, 0.1, 0, y - 0.05, z), 0x6f5a44], [bx(w + 0.012, 0.512, 0.03, k === 2 ? -0.07 : 0, y + 0.25, z + 0.5), 0x2a2c2e]);
+  }
+  return { parts: [{ geometry: painted(parts), material: m.get('timber', { color: 0xffffff, vertexColors: true }) }] };
+});
+
+registerProp('woodpile', (m) => {
+  // A winter's firewood stacked along x, split ends showing to ±z.
+  const parts: [THREE.BufferGeometry, number][] = [];
+  const tones = [0x8a6a48, 0x9c7a55, 0x6f5236, 0xa98a62];
+  for (let row = 0; row < 4; row++) {
+    for (let i = 0; i < 8 - (row === 3 ? 3 : 0); i++) {
+      const r = 0.1 + ((i * 7 + row * 3) % 4) * 0.012;
+      parts.push([new THREE.CylinderGeometry(r, r, 0.42 + ((i + row) % 3) * 0.03, 6).rotateX(Math.PI / 2).translate(-0.82 + i * 0.235 + (row % 2) * 0.11, 0.11 + row * 0.2, 0), tones[(i + row * 2) % 4]]);
+    }
+  }
+  return { parts: [{ geometry: painted(parts), material: m.get('timber', { color: 0xffffff, vertexColors: true }) }], castShadow: false, minor: true };
+});
+
+registerProp('water-tank', (m) => {
+  // Corrugated rainwater tank on a timber stand, with a downpipe elbow.
+  const parts: [THREE.BufferGeometry, number][] = [[cy(0.95, 0.95, 1.7, 0, 1.75, 0, 14), 0xa7adb0], [cy(0.2, 0.98, 0.26, 0, 2.73, 0, 14), 0x8f9598], [bx(1.9, 0.12, 1.9, 0, 0.84, 0), 0x6f5a44]];
+  for (let i = 0; i < 5; i++) parts.push([cy(0.965, 0.965, 0.05, 0, 1.1 + i * 0.33, 0, 14), 0x8f9598]);
+  for (const x of [-0.8, 0.8]) for (const z of [-0.8, 0.8]) parts.push([bx(0.14, 0.8, 0.14, x, 0.4, z), 0x5e4d3c]);
+  parts.push([cy(0.04, 0.04, 0.5, 0.7, 0.55, 0.99, 6), 0x8f9598]);
+  return { parts: [{ geometry: painted(parts), material: m.get('corrugated', { color: 0xffffff, vertexColors: true }) }] };
+});
+
+registerProp('trailer', (m) => {
+  // Single-axle garden trailer, drawbar to +z; tint the tray.
+  const parts: [THREE.BufferGeometry, number][] = [[bx(1.3, 0.05, 2.3, 0, 0.5, -0.2), 0xffffff], [bx(0.08, 0.08, 1.3, 0, 0.44, 1.5), 0x2a2c2e], [bx(0.1, 0.1, 0.1, 0, 0.46, 2.16), 0x8d9194], [cy(0.025, 0.025, 0.42, 0, 0.21, 1.9, 5), 0x2a2c2e], [bx(1.5, 0.06, 0.06, 0, 0.36, -0.2), 0x2a2c2e]];
+  for (const x of [-0.63, 0.63]) parts.push([bx(0.04, 0.4, 2.3, x, 0.72, -0.2), 0xffffff], [cyX(0.28, 0.16, x * 1.2, 0.28, -0.2, 10), CAR_RUBBER], [bx(0.2, 0.03, 0.74, x * 1.2, 0.6, -0.2), 0xffffff]);
+  for (const z of [-1.33, 0.93]) parts.push([bx(1.3, 0.4, 0.04, 0, 0.72, z), 0xffffff]);
+  return { parts: [{ geometry: painted(parts), material: m.get('paintedMetal', { color: 0xffffff, vertexColors: true }) }] };
+});
+
+registerProp('boat-trailer', (m) => {
+  // Aluminium dinghy on its trailer, bow and drawbar to +z, outboard tilted up at the stern.
+  const hull = loft([-0.34, 0.34, -1.9, 1.5], 0.58, [-0.74, 0.74, -1.95, 1.55], 1.12);
+  const bow = loft([-0.34, 0.34, 1.5, 1.9], 0.62, [-0.74, 0.74, 1.55, 2.5], 1.12);
+  const p = bow.getAttribute('position');
+  for (let i = 0; i < p.count; i++) if (p.getZ(i) > 1.6) p.setX(i, p.getX(i) * 0.12);
+  bow.computeVertexNormals();
+  const parts: [THREE.BufferGeometry, number][] = [[hull, 0xb4b9bc], [bow, 0xb4b9bc], [bx(1.3, 0.04, 0.26, 0, 1.0, -0.6), 0x8a6a48], [bx(1.2, 0.04, 0.26, 0, 1.0, 0.5), 0x8a6a48], [bx(0.24, 0.42, 0.3, 0, 1.3, -2.02), 0x1d1e21], [bx(0.1, 0.6, 0.1, 0, 0.9, -2.12), 0x4a4f55]];
+  parts.push([bx(0.08, 0.08, 4.6, 0, 0.42, 0.6), 0x8d9194], [bx(1.5, 0.06, 0.06, 0, 0.36, -0.5), 0x8d9194], [cy(0.025, 0.025, 0.4, 0, 0.2, 2.6, 5), 0x2a2c2e]);
+  for (const x of [-0.78, 0.78]) parts.push([cyX(0.26, 0.15, x, 0.26, -0.5, 10), CAR_RUBBER], [bx(0.19, 0.03, 0.66, x, 0.56, -0.5), 0x8d9194]);
+  return { parts: [{ geometry: painted(parts), material: m.get('paintedMetal', { color: 0xffffff, vertexColors: true }) }] };
+});
+
+/**
+ * Three-aspect signal on a yellow post, facing +z (the driver waiting at the limit line), with its black
+ * target board. The lamps are live where the library can drive them (one town-wide cycle; `axis` says which
+ * phase this signal follows — the placement gives crossing roads opposite axes), dark rounds anywhere else.
+ */
+function trafficSignal(m: MaterialLibrary, axis: 'a' | 'b'): PropDef {
+  const BLACK = 0x17181a;
+  const parts: [THREE.BufferGeometry, number][] = [
+    [cy(0.055, 0.07, 3.7, 0, 1.85, 0, 8), 0xc49a22],
+    [cy(0.09, 0.1, 0.5, 0, 0.25, 0, 8), BLACK],
+    [bx(0.56, 1.3, 0.03, 0, 3.05, 0.09), BLACK],
+    [bx(0.3, 1.02, 0.2, 0, 3.05, 0.2), 0x202124],
+    [bx(0.13, 0.2, 0.09, 0, 1.15, 0.09), 0xc49a22],
+  ];
+  for (const x of [-0.27, 0.27]) parts.push([bx(0.025, 1.3, 0.035, x, 3.05, 0.092), 0xe9e6dc]);
+  for (const y of [2.41, 3.69]) parts.push([bx(0.56, 0.025, 0.035, 0, y, 0.092), 0xe9e6dc]);
+  for (const y of [3.38, 3.05, 2.72]) parts.push([bx(0.26, 0.02, 0.15, 0, y + 0.125, 0.36), BLACK]);
+  const out: PropDef['parts'] = [{ geometry: painted(parts), material: streetPaint(m) }];
+  const aspects: ['red' | 'amber' | 'green', number][] = [['red', 3.38], ['amber', 3.05], ['green', 2.72]];
+  const dark = [0x5c1714, 0x6a4a10, 0x15401f];
+  for (let i = 0; i < aspects.length; i++) {
+    const [aspect, y] = aspects[i];
+    const lens = new THREE.CircleGeometry(0.1, 10).translate(0, y, 0.302);
+    out.push({ geometry: lens, material: m.signalLamp?.(axis, aspect) ?? m.get('plain', { color: dark[i] }) });
+  }
+  return { parts: out, castShadow: false };
+}
+
+registerProp('traffic-signal', (m) => trafficSignal(m, 'a'));
+registerProp('traffic-signal-cross', (m) => trafficSignal(m, 'b'));

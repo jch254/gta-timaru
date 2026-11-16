@@ -5,6 +5,8 @@ import type { Pt, TerrainSource } from './mapsource';
 
 export const WORLD_BOUNDS = { minX: -3072, maxX: 3072, minZ: -6144, maxZ: 6144 };
 export const SEA_LEVEL = 0;
+/** How far onto built land (0..1, see `TerrainModel.quay`) the quay wall stands. */
+const QUAY_LINE = 0.5;
 
 export interface RiverPath {
   name: string;
@@ -155,22 +157,51 @@ export class TerrainModel {
         sea = Math.max(sea, w);
       }
     }
+    const seaOpen = sea;
     let built = 0;
+    let top = 0;
     for (const mole of src.moles) {
       const e = ellipse(x, z, mole);
       if (e > -0.3) {
         const w = smooth(-0.05, 0.25, e);
+        if (w > built) top = mole.height;
         built = Math.max(built, w);
         sea = Math.min(sea, 1 - w);
         h = lerp(h, mole.height, w);
       }
     }
     if (sea <= 0) return h;
+    // Where built land stands in what would be water it ends in a quay: the apron runs level to the
+    // wall line (see `quay`), and the bottom is dredged to working depth right up to it.
+    const walled = built > 0.3 ? smooth(0.45, 0.75, seaOpen) : 0;
     // Harbours and reclaimed land: the ground eases to the waterline, then drops away to working depth.
     const quay = lerp(h, lerp(1.2, -14, smooth(0.3, 1, sea)), smooth(0, 0.55, sea));
     // The open coast is a proper strand instead: bank, dry sand, swash, and a shelf you can wade out on.
     const beach = smooth(0, 0.12, open - harbour) * (1 - smooth(0, 0.2, built));
-    return beach <= 0 ? quay : lerp(quay, strand(seaward, h), beach);
+    const shore = beach <= 0 ? quay : lerp(quay, strand(seaward, h), beach);
+    if (walled <= 0) return shore;
+    const stand = smooth(QUAY_LINE, QUAY_LINE + 0.1, built);
+    return lerp(shore, lerp(Math.min(shore, -6.5), top, stand), walled);
+  }
+
+  /**
+   * Quays. Positive on the apron of a mole, wharf or reclamation, negative in the water off it; the quay
+   * wall stands along zero. `top` is the height of the apron. Null away from any built land, or where
+   * that land meets the natural shore rather than the water.
+   */
+  quay(x: number, z: number): { edge: number; top: number } | null {
+    let built = 0;
+    let top = 0;
+    for (const mole of this.src.moles) {
+      const e = ellipse(x, z, mole);
+      if (e <= -0.3) continue;
+      const w = smooth(-0.05, 0.25, e);
+      if (w > built) {
+        built = w;
+        top = mole.height;
+      }
+    }
+    return built > 0.05 ? { edge: built - QUAY_LINE, top } : null;
   }
 
   private riverAt(x: number, z: number): RiverHit | null {

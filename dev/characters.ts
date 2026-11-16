@@ -18,7 +18,7 @@ import { HumanoidRig } from '../src/actors/humanoid';
 import { createGltfHumanoid, preloadCharacters } from '../src/actors/gltf';
 import type { Humanoid, HumanoidLook, HumanoidPose, MaterialLibrary } from '../src/core/types';
 
-const POSES: HumanoidPose[] = ['idle', 'walk', 'run', 'jump', 'fall', 'aim', 'aimRifle', 'punch', 'cower', 'handsUp', 'drive', 'ride', 'sit', 'dead'];
+const POSES: HumanoidPose[] = ['idle', 'walk', 'run', 'jump', 'fall', 'aim', 'aimRifle', 'punch', 'cower', 'handsUp', 'point', 'orate', 'drive', 'ride', 'sit', 'dead'];
 const q = new URLSearchParams(location.search);
 const num = (key: string, fallback: number) => (q.has(key) ? Number(q.get(key)) : fallback);
 
@@ -55,6 +55,8 @@ renderer.setPixelRatio(Math.min(2, devicePixelRatio));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true;
 const scene = new THREE.Scene();
+// For poking at materials from the console or a headless screenshot script.
+(window as unknown as { __scene: THREE.Scene }).__scene = scene;
 scene.background = new THREE.Color(0x8fa3b4);
 const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 200);
 const controls = new OrbitControls(camera, canvas);

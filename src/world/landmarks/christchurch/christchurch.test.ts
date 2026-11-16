@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { ChunkBuilder, District, LandmarkPlacement, MaterialLibrary, RailLine, RoadGraph, WorldApi } from '../../../core/types';
-import { LANDMARKS } from '../registry';
+import { LANDMARKS, runLandmark } from '../registry';
 import './index';
 
 /** Clear radius per kind, from docs/CONTRACT.md. */
@@ -237,7 +237,7 @@ const placementOf = (kind: string, x = 1234, z = -3456, heading = 0.83): Landmar
 
 function build(kind: string, world = fakeWorld(), placement = placementOf(kind)): Recorder {
   const out = new Recorder(fakeMaterials(), world);
-  LANDMARKS[kind](placement, out);
+  runLandmark(LANDMARKS[kind], placement, out);
   return out;
 }
 

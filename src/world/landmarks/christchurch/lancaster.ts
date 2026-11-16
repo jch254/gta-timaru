@@ -75,6 +75,11 @@ export const lancasterPark: LandmarkBuilder = (p, out) => {
   g.box(0, 4.1, 0, 12, 1.7, 0.5, brick);
   g.sign('LANCASTER PARK', 0, 4.95, 0.27, 11, 1.3, 0, { bg: '#ecebe4', fg: '#7a1418', style: 'block' });
   g.sign('LANCASTER PARK', 0, 4.95, -0.27, 11, 1.3, Math.PI, { bg: '#ecebe4', fg: '#7a1418', style: 'block' });
+  // Gate numbers over the turnstile bays, and the Saturday fixture chalked up by the gate.
+  for (let i = 0; i < 5; i++) g.sign(`GATE ${i + 1}`, -12 + i * 6, 2.9, 1.53, 1.5, 0.42, 0, { bg: '#1c2a22', fg: '#f2efe2', style: 'block', border: false, aspect: 3.5 });
+  g.dbox(17.4, 0, 1.2, 0.1, 2.3, 0.1, steel).dbox(19.6, 0, 1.2, 0.1, 2.3, 0.1, steel);
+  g.box(18.5, 1.25, 1.2, 2.3, 1.05, 0.07, m.get('timber', { color: 0x2a3330 }));
+  g.sign('SATURDAY 2.15 PM\nCANTERBURY v OTAGO', 18.5, 1.78, 1.24, 2.1, 0.9, 0, { bg: '#1c2a22', fg: '#f2efe2', style: 'paint', aspect: 2.5 });
 
   // Corrugated-iron perimeter fence with chamfered corners.
   const ring: Pt2[] = [[16.5, 90], [58, 90], [98, 44], [98, -44], [58, -90], [-58, -90], [-98, -44], [-98, 44], [-58, 90], [-16.5, 90]];

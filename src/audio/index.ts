@@ -16,6 +16,7 @@ import { Ambience, renderRain } from './ambience';
 import { Mixer, renderNoiseBed } from './mixer';
 import { PassBy, Sirens } from './nearby';
 import { DRUM_IDS, renderDrum } from './radio/drums';
+import { LiveStream } from './radio/live';
 import { Radio } from './radio/radio';
 import { SOUNDS, renderSound, warmList } from './sfx';
 import { renderCrickets, type SoundId } from './sfx-render';
@@ -58,6 +59,7 @@ class AudioSystem implements AudioApi, System {
   readonly radio: AudioApi['radio'];
 
   private mixer = new Mixer();
+  private live = new LiveStream();
   private tuner: Radio;
   private engine: VehicleAudio;
   private sirens: Sirens;
@@ -94,7 +96,7 @@ class AudioSystem implements AudioApi, System {
   private falling = false;
 
   constructor(private ctx: GameContext) {
-    this.tuner = new Radio(this.mixer, (id, name) => ctx.events.emit('radioChanged', { stationId: id, name }));
+    this.tuner = new Radio(this.mixer, (id, name) => ctx.events.emit('radioChanged', { stationId: id, name }), this.live);
     // Absent from old settings files: live radio is on unless it has been switched off.
     this.tuner.setLive(ctx.settings.data.liveRadio !== false);
     this.engine = new VehicleAudio(this.mixer, (v, delay) => this.emit('backfire', v.position.x, v.position.y, v.position.z, 1, 1, delay));
@@ -309,11 +311,15 @@ class AudioSystem implements AudioApi, System {
 
   // ───────────── AudioApi ─────────────
 
-  /** Called from the Start button's click. Never throws: if WebAudio will not start, the game is simply silent. */
+  /**
+   * Called from the Start button's click, and again from every touch on a touch screen (src/touch), because iOS
+   * only starts sound inside a gesture. Never throws: if WebAudio will not start, the game is simply silent.
+   */
   unlock(): void {
     this.guard(() => {
       const { data } = this.ctx.settings;
       if (this.mixer.unlock(data.masterVolume, data.musicVolume, data.sfxVolume)) this.mixer.setPaused(this.ctx.clock.paused);
+      if (data.liveRadio !== false) this.live.prime();
     });
   }
 

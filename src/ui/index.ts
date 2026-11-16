@@ -6,14 +6,14 @@ import { bilingual, locationLines } from './format';
 import { Hud } from './hud';
 import { iconForTags } from './icons';
 import { MapData } from './mapdata';
-import { MapRaster, SIGN_PALETTE } from './maprender';
+import { MapRaster, STREET_PALETTE } from './maprender';
 import { Banner, Fader, Subtitles, Toasts } from './messages';
 import { Minimap, MINIMAP_EM, type StaticMarker } from './minimap';
 import { MenuNav } from './nav';
 import { PauseMenu } from './pause';
 
 /** Border of the minimap plate in em, taken off its edge to get the canvas size (see .nw-mini). */
-const MINIMAP_BORDER_EM = 0.36;
+const MINIMAP_BORDER_EM = 0.6;
 /** Milliseconds per frame spent surveying land use for the maps: a trickle in play, more while paused. */
 const SURVEY_MS_PLAY = 0.8;
 const SURVEY_MS_PAUSED = 6;
@@ -107,7 +107,7 @@ class Ui implements UiApi, System {
     try {
       const data = (this.mapData = new MapData(ctx.world));
       data.buildNetwork();
-      const raster = new MapRaster(data, SIGN_PALETTE);
+      const raster = new MapRaster(data, STREET_PALETTE);
       this.minimap = new Minimap(this.hud.root, data, raster);
       for (const place of ctx.world.places) {
         const icon = iconForTags(place.tags);

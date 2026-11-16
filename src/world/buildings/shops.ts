@@ -98,6 +98,26 @@ export function clutter(s: Site, items: readonly StreetItem[], boards: readonly 
 
 // ───────────────────────────── One shop ─────────────────────────────
 
+/** What a trade puts in its window (see the shop pane in render/glazing.ts): 1 drapery, 2 paper, 3 food; anything else general goods. */
+const DISPLAY: Record<string, number> = {
+  opshop: 1,
+  drapery: 1,
+  wool: 1,
+  shoes: 1,
+  post: 2,
+  tab: 2,
+  books: 2,
+  realty: 2,
+  travel: 2,
+  stock: 2,
+  chippy: 3,
+  takeaways: 3,
+  bakery: 3,
+  butcher: 3,
+  tearooms: 3,
+  fruit: 3,
+};
+
 interface UnitPlace {
   x0: number;
   x1: number;
@@ -136,6 +156,7 @@ function shopUnit(s: Site, t: Trade, c: UnitPlace) {
     recessed: w > 3.6 && s.rng.chance(original ? 0.7 : 0.25),
     toplights: original && s.rng.chance(0.5),
     lit: s.rng.chance(0.75),
+    display: DISPLAY[t.id] ?? 0,
   });
   board(s, name, cx, c.signY, c.z + 0.07, Math.min(w - 0.7, c.signH * 3), 3, looks);
   if (c.fz !== null && c.vy !== null && w > 3.3) board(s, tag, cx, c.vy - 0.02, c.fz + 0.03, Math.min(w - 0.5, 2.9), 8, looks);
@@ -271,6 +292,13 @@ export function terrace(s: Site, o: TerraceStyle) {
   }
 
   // Decoration.
+  // Chimneys from the days of a fire in every upstairs room, standing clear of the parapet on a side wall.
+  if (rows > 0 && !o.plain && o.roof !== 'gable') {
+    const stack = mat(s, 'brick', shade(0xe6d6cc, 0.9));
+    for (const side of [-1, 1]) {
+      if (s.fx.chance(0.55) && s.spare(4)) chimney(s, side * (w / 2 - 0.5), cz + s.fx.range(-0.25, 0.2) * d, top, ph + s.fx.range(1, 1.7), stack, s.fx.chance(0.6));
+    }
+  }
   if (o.title && rows > 0 && s.spare()) {
     const th = o.parapet === 'ornate' ? 0.7 : ph * 0.55;
     const aspect = o.title.length > 8 ? 5 : 3;

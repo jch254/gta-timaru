@@ -175,6 +175,12 @@ export const TRAFFIC = {
   clearParked: 7.5,
   /** Stay this far from junctions when spawning. */
   nodeClearance: 14,
+  /**
+   * Parked cars keep further back: a car turning in sweeps from the junction box to the lane centre over
+   * the first fifteen-odd metres, and a bay inside that sweep gets clipped. (It is also the law: no parking
+   * within six metres of an intersection, measured from the corner.)
+   */
+  parkClearance: 22,
   /** Relative chance of an ambient car appearing on each road class (sparse on gravel). */
   classWeight: { highway: 1, arterial: 1, street: 0.75, lane: 0.2, gravel: 0.1, pedestrian: 0 } as Record<RoadClass, number>,
   /** Moving-traffic multiplier by the district the player is in. */

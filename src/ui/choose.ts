@@ -34,10 +34,14 @@ export class ChooseDialog {
     this.body = new TextCache(body);
     this.hasBody = new Flag(body, 'on');
     this.list = el('div', 'nw-choose-list', card);
-    const foot = el('div', 'nw-choose-foot', card);
+    const foot = el('div', 'nw-choose-foot nw-if-keys', card);
     hint(foot, ['↑', '↓'], 'Choose');
     hint(foot, ['Enter'], 'Select');
     hint(foot, ['Esc'], 'Leave it');
+    // The same, said for fingers (the stylesheet shows one foot or the other).
+    const taps = el('div', 'nw-choose-foot nw-if-touch', card);
+    hint(taps, ['Tap'], 'Choose');
+    hint(taps, ['‹ Back'], 'Leave it');
   }
 
   show(title: string, body: string, options: string[]): Promise<number> {

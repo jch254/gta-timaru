@@ -530,6 +530,163 @@ export function waterNormalTexture(anisotropy = 4): THREE.DataTexture {
   return dataTexture(data, size, anisotropy);
 }
 
+/** A cell of the road-marking atlas: [u0, v0, u1, v1], v up (v1 is the top of the picture). */
+export type AtlasCell = readonly [number, number, number, number];
+
+export interface RoadAtlas {
+  texture: THREE.Texture;
+  cells: Record<'stop' | 'give' | 'way' | 'bus' | 'school' | 'manhole' | 'sump' | 'toby' | 'pit', AtlasCell>;
+}
+
+const ATLAS_W = 1024;
+const ATLAS_H = 512;
+/** Pixel rectangles [x, y, w, h] of the atlas cells (y down), shared by the drawing code and the UVs. */
+const ATLAS_RECTS = {
+  stop: [4, 4, 300, 150],
+  give: [312, 4, 300, 150],
+  way: [620, 4, 240, 150],
+  bus: [4, 162, 240, 150],
+  school: [252, 162, 460, 150],
+  manhole: [4, 320, 184, 184],
+  sump: [196, 320, 124, 184],
+  toby: [328, 320, 72, 72],
+  pit: [408, 320, 200, 136],
+} as const;
+
+/** UV rectangles of the road-marking atlas (no canvas needed, so the road mesher can be tested headless). */
+export function roadAtlasCells(): RoadAtlas['cells'] {
+  const cells = {} as Record<keyof typeof ATLAS_RECTS, AtlasCell>;
+  for (const [name, [x, y, w, h]] of Object.entries(ATLAS_RECTS) as [keyof typeof ATLAS_RECTS, readonly [number, number, number, number]][]) {
+    // Half a texel in from the edge, so a neighbouring cell never bleeds in.
+    cells[name] = [(x + 1) / ATLAS_W, 1 - (y + h - 1) / ATLAS_H, (x + w - 1) / ATLAS_W, 1 - (y + 1) / ATLAS_H];
+  }
+  return cells;
+}
+
+/**
+ * What is painted on, or let into, a road: the stretched block capitals of road lettering (white in the
+ * alpha channel, coloured by the mesh), and the cast iron in the carriageway: manhole lid, sump grating,
+ * a water toby, a telephone pit lid (true colour).
+ */
+export function roadMarkingAtlas(anisotropy = 8): RoadAtlas {
+  const texture = canvasTexture(ATLAS_W, ATLAS_H, (g) => {
+    g.clearRect(0, 0, ATLAS_W, ATLAS_H);
+    const word = (text: string, rect: readonly [number, number, number, number]) => {
+      const [x, y, w, h] = rect;
+      g.save();
+      g.fillStyle = '#fff';
+      g.textAlign = 'center';
+      g.textBaseline = 'alphabetic';
+      g.font = '900 100px "Arial Narrow", "Helvetica Neue", Arial, sans-serif';
+      const m = g.measureText(text);
+      const tw = m.width;
+      const th = m.actualBoundingBoxAscent || 72;
+      // Letters fill the cell: road lettering is drawn tall so it reads from a driver's low angle.
+      g.translate(x + w / 2, y + h - 6);
+      g.scale((w - 14) / tw, (h - 12) / th);
+      g.fillText(text, 0, 0);
+      g.restore();
+    };
+    word('STOP', ATLAS_RECTS.stop);
+    word('GIVE', ATLAS_RECTS.give);
+    word('WAY', ATLAS_RECTS.way);
+    word('BUS', ATLAS_RECTS.bus);
+    word('SCHOOL', ATLAS_RECTS.school);
+
+    // Cast iron: dark, a little rusty, polished on the raised pattern where tyres run over it.
+    const iron = (x: number, y: number, w: number, h: number, seed: number) => {
+      const img = g.getImageData(x, y, w, h);
+      for (let j = 0; j < h; j++) {
+        for (let i = 0; i < w; i++) {
+          const k = (j * w + i) * 4;
+          if (img.data[k + 3] === 0) continue;
+          const n = tnoise(i / w, j / h, 6, seed) * 0.6 + hash(i, j, seed) * 0.4;
+          const rust = sstep(0.45, 0.75, tnoise(i / w, j / h, 3, seed + 5));
+          const l = img.data[k] / 255;
+          img.data[k] = 255 * l * (0.8 + n * 0.3) * (1 + rust * 0.22);
+          img.data[k + 1] = 255 * l * (0.8 + n * 0.3) * (1 - rust * 0.04);
+          img.data[k + 2] = 255 * l * (0.8 + n * 0.3) * (1 - rust * 0.2);
+        }
+      }
+      g.putImageData(img, x, y);
+    };
+    {
+      // Manhole: frame, lid, a ring of raised lozenges, two lifting slots.
+      const [x, y, w] = ATLAS_RECTS.manhole;
+      const cx = x + w / 2;
+      const cy = y + w / 2;
+      const r = w / 2 - 2;
+      g.fillStyle = '#4a4744';
+      g.beginPath();
+      g.arc(cx, cy, r, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = '#1c1a19';
+      g.lineWidth = 3;
+      g.beginPath();
+      g.arc(cx, cy, r * 0.84, 0, Math.PI * 2);
+      g.stroke();
+      g.fillStyle = '#5c5955';
+      for (let ring = 1; ring <= 3; ring++) {
+        const rr = r * 0.22 * ring;
+        const count = ring * 8;
+        for (let i = 0; i < count; i++) {
+          const a = (i / count) * Math.PI * 2 + ring * 0.3;
+          g.save();
+          g.translate(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+          g.rotate(a);
+          g.fillRect(-r * 0.045, -r * 0.075, r * 0.09, r * 0.15);
+          g.restore();
+        }
+      }
+      g.fillStyle = '#141312';
+      g.fillRect(cx - r * 0.72, cy - 4, r * 0.16, 8);
+      g.fillRect(cx + r * 0.56, cy - 4, r * 0.16, 8);
+      iron(x, y, w, w, 411);
+    }
+    {
+      // Sump grating in the channel: a frame and bars across the flow, black between them.
+      const [x, y, w, h] = ATLAS_RECTS.sump;
+      g.fillStyle = '#44413e';
+      g.fillRect(x, y, w, h);
+      g.fillStyle = '#0c0b0a';
+      const bars = 9;
+      const pitch = (h - 16) / bars;
+      for (let i = 0; i < bars; i++) g.fillRect(x + 10, y + 8 + i * pitch + pitch * 0.22, w - 20, pitch * 0.56);
+      g.fillStyle = '#44413e';
+      g.fillRect(x + w / 2 - 4, y + 6, 8, h - 12);
+      iron(x, y, w, h, 421);
+    }
+    {
+      // Water toby: a small square lid.
+      const [x, y, w, h] = ATLAS_RECTS.toby;
+      g.fillStyle = '#4c4a47';
+      g.fillRect(x, y, w, h);
+      g.strokeStyle = '#1a1918';
+      g.lineWidth = 4;
+      g.strokeRect(x + 8, y + 8, w - 16, h - 16);
+      g.fillStyle = '#625f5a';
+      g.fillRect(x + 24, y + 30, w - 48, 12);
+      iron(x, y, w, h, 431);
+    }
+    {
+      // Telephone pit: two concrete lids in a steel frame.
+      const [x, y, w, h] = ATLAS_RECTS.pit;
+      g.fillStyle = '#5a5651';
+      g.fillRect(x, y, w, h);
+      g.fillStyle = '#a39e94';
+      g.fillRect(x + 7, y + 7, w / 2 - 10, h - 14);
+      g.fillRect(x + w / 2 + 3, y + 7, w / 2 - 10, h - 14);
+      g.fillStyle = '#2a2826';
+      for (const px of [x + w * 0.25, x + w * 0.75]) g.fillRect(px - 9, y + h / 2 - 3, 18, 6);
+      iron(x, y, w, h, 441);
+    }
+  });
+  texture.anisotropy = anisotropy;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  return { texture, cells: roadAtlasCells() };
+}
+
 /** Small canvas helper for bespoke textures (windows, signs, decals). */
 export function canvasTexture(width: number, height: number, draw: (g: CanvasRenderingContext2D) => void, srgb = true): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');

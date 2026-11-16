@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { MaterialLibrary, MaterialOptions, SignOptions, SurfaceKind } from '../core/types';
+import { AIR } from './air';
 import { createGlazingMaterial, glazingData, glazingKey, type GlazingOptions, type GlazingStyle, patchGlazing } from './glazing';
 import { SURFACES, surfaceMaps } from './textures';
 
@@ -41,13 +42,25 @@ export class Materials implements MaterialLibrary {
   private cache = new Map<string, THREE.MeshStandardMaterial>();
   private all = new Set<THREE.Material>();
   private nightEmitters: { material: THREE.MeshStandardMaterial; base: number }[] = [];
-  private wetSurfaces: { material: THREE.MeshStandardMaterial; roughness: number; color: THREE.Color }[] = [];
+  private wetSurfaces: { material: THREE.MeshStandardMaterial; roughness: number; color: THREE.Color; env: number }[] = [];
   private setup: Setup = () => undefined;
   private teardown: Setup = () => undefined;
   private night = 0;
+  private wetness = -1;
+  private wetCount = 0;
   private patches = new Map<THREE.Material, { key: string; patch: (shader: THREE.WebGLProgramParametersWithUniforms) => void }>();
+  /** Which parts of the air (see air.ts) this quality level pays for. */
+  private air = { sun: true, clouds: true };
 
   constructor(private anisotropy: number) {}
+
+  /**
+   * Choose how much of the air effect materials compile in: `sun` lights the haze up towards the sun,
+   * `clouds` lets cloud shadows cross the ground. Takes effect at the next `setShadowSetup`.
+   */
+  setAir(sun: boolean, clouds: boolean) {
+    this.air = { sun, clouds };
+  }
 
   /** Called by the renderer whenever the shadow system is (re)built. */
   setShadowSetup(setup: Setup) {
@@ -60,15 +73,23 @@ export class Materials implements MaterialLibrary {
 
   private apply(material: THREE.Material) {
     this.setup(material);
+    // Every library material takes part in the haze and the cloud shadows (air.ts), and can read the
+    // shared atmosphere uniforms.
+    const defines = (material.defines ??= {});
+    defines.USE_AIR = '';
+    if (this.air.sun) defines.AIR_SUN = '';
+    else delete defines.AIR_SUN;
+    if (this.air.clouds) defines.AIR_CLOUDS = '';
+    else delete defines.AIR_CLOUDS;
     const extra = this.patches.get(material);
-    if (!extra) return;
-    // Chain an extra shader patch after the shadow system's own.
+    // Chain the shared uniforms, then any extra shader patch, after the shadow system's own.
     const base = material.onBeforeCompile;
     material.onBeforeCompile = (shader, renderer) => {
       base.call(material, shader, renderer);
-      extra.patch(shader);
+      Object.assign(shader.uniforms, AIR);
+      extra?.patch(shader);
     };
-    material.customProgramCacheKey = () => extra.key;
+    if (extra) material.customProgramCacheKey = () => extra.key;
   }
 
   register<T extends THREE.Material>(material: T): T {
@@ -131,7 +152,7 @@ export class Materials implements MaterialLibrary {
     const special = Object.keys(options).some((k) => k !== 'color' && k !== 'roughness' && k !== 'metalness');
     if (!special) hints.set(m, { base: this.batchBase(surface, m.roughness, m.metalness), color: m.color.clone() });
     if (surface === 'asphalt' || surface === 'footpath' || surface === 'concrete') {
-      this.wetSurfaces.push({ material: m, roughness: m.roughness, color: m.color.clone() });
+      this.wetSurfaces.push({ material: m, roughness: m.roughness, color: m.color.clone(), env: m.envMapIntensity });
     }
     this.cache.set(key, m);
     return this.register(m);
@@ -145,7 +166,7 @@ export class Materials implements MaterialLibrary {
     const maps = surfaceMaps(surface, this.anisotropy);
     m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness, metalness, map: maps?.map ?? null, normalMap: maps?.normalMap ?? null, roughnessMap: maps?.roughnessMap ?? null, vertexColors: true });
     if (surface === 'glass') m.envMapIntensity = 1.4;
-    if (surface === 'asphalt' || surface === 'footpath' || surface === 'concrete') this.wetSurfaces.push({ material: m, roughness: m.roughness, color: m.color.clone() });
+    if (surface === 'asphalt' || surface === 'footpath' || surface === 'concrete') this.wetSurfaces.push({ material: m, roughness: m.roughness, color: m.color.clone(), env: m.envMapIntensity });
     this.cache.set(key, m);
     return this.register(m);
   }
@@ -165,7 +186,7 @@ export class Materials implements MaterialLibrary {
     if (m) return m;
     let base = this.cache.get('glazing');
     if (!base) {
-      base = this.registerPatched(createGlazingMaterial(), 'glazing-1', patchGlazing);
+      base = this.registerPatched(createGlazingMaterial(), 'glazing-2', patchGlazing);
       this.nightEmitters.push({ material: base, base: 1 });
       this.cache.set('glazing', base);
     }
@@ -309,15 +330,67 @@ export class Materials implements MaterialLibrary {
     return cell;
   }
 
+  /**
+   * Make a material built elsewhere (a clone of a library surface, say) darken and shine in the rain the
+   * way the library's own asphalt, footpath and concrete do. Call once, after its colour and roughness are set.
+   */
+  wettable<T extends THREE.MeshStandardMaterial>(material: T): T {
+    if (!this.wetSurfaces.some((w) => w.material === material)) {
+      this.wetSurfaces.push({ material, roughness: material.roughness, color: material.color.clone(), env: material.envMapIntensity });
+    }
+    return material;
+  }
+
+  private signalLamps = new Map<string, THREE.MeshStandardMaterial>();
+
+  /** Lamp of a traffic signal (see the contract). The lamps come to life once `update` runs each frame. */
+  signalLamp(axis: 'a' | 'b', aspect: 'red' | 'amber' | 'green'): THREE.MeshStandardMaterial {
+    const key = axis + aspect;
+    let m = this.signalLamps.get(key);
+    if (!m) {
+      const color = aspect === 'red' ? 0xe23424 : aspect === 'amber' ? 0xe8991c : 0x37c35c;
+      m = new THREE.MeshStandardMaterial({ color: 0x15161a, emissive: color, emissiveIntensity: 0, roughness: 0.35 });
+      this.signalLamps.set(key, m);
+      this.register(m);
+    }
+    return m;
+  }
+
   /** Per-frame: night glow and wet-road sheen. */
   update(night: number, wetness: number) {
+    // Traffic signals run one town-wide cycle: axis a green while axis b holds red, amber between, and a
+    // moment of all-red at each change, the way the real controllers are set.
+    if (this.signalLamps.size) {
+      const t = (performance.now() / 1000) % 26;
+      const aGreen = t < 9;
+      const aAmber = t >= 9 && t < 12;
+      const bGreen = t >= 13 && t < 22;
+      const bAmber = t >= 22 && t < 25;
+      const set = (key: string, on: boolean) => {
+        const lamp = this.signalLamps.get(key);
+        if (lamp) lamp.emissiveIntensity = on ? 2.6 : 0;
+      };
+      set('agreen', aGreen);
+      set('aamber', aAmber);
+      set('ared', !aGreen && !aAmber);
+      set('bgreen', bGreen);
+      set('bamber', bAmber);
+      set('bred', !bGreen && !bAmber);
+    }
     if (Math.abs(night - this.night) > 0.01 || night === 0 || night === 1) {
       this.night = night;
       for (const e of this.nightEmitters) e.material.emissiveIntensity = e.base * night;
     }
-    for (const w of this.wetSurfaces) {
-      w.material.roughness = w.roughness * (1 - wetness * 0.72);
-      w.material.color.copy(w.color).multiplyScalar(1 - wetness * 0.38);
+    // Only when the weather has moved, or a new surface has joined since.
+    if (Math.abs(wetness - this.wetness) > 0.004 || ((wetness === 0 || wetness === 1) && wetness !== this.wetness) || this.wetSurfaces.length !== this.wetCount) {
+      this.wetness = wetness;
+      this.wetCount = this.wetSurfaces.length;
+      for (const w of this.wetSurfaces) {
+        // Wet stone is darker, smoother, and mirrors more of the sky.
+        w.material.roughness = w.roughness * (1 - wetness * 0.72);
+        w.material.color.copy(w.color).multiplyScalar(1 - wetness * 0.38);
+        w.material.envMapIntensity = w.env * (1 + wetness * 0.5);
+      }
     }
   }
 }

@@ -28,7 +28,7 @@ export const marae: LandmarkBuilder = (p, out) => {
   // The marae ātea: mown lawn between the gateway and the house. Nothing stands on it.
   const lawn = new Geo();
   s.drape(lawn, 0, 19.5, 30, 29, 0.04, 0, 6);
-  lawn.flush(out, s.ground('grass', 0x6f9f48, -1), f);
+  lawn.flush(out, s.ground('grass', 0x8a9150, -1), f);
 
   // ── Wharenui ──
   {

@@ -1,21 +1,25 @@
 import type { Blip, GameContext } from '../core/types';
-import { el, hint, TextCache } from './dom';
+import { el, hint, TextCache, touchOn } from './dom';
 import { bilingual, cityName, cityTeReo, featureTeReo } from './format';
 import { IconSheet, paintArrow, paintIcon, type IconKind } from './icons';
-import { ROAD_ORDER, type MapData } from './mapdata';
+import { ROAD_ORDER, T_INDUSTRY, T_PARK, T_SUBURB, T_TOWN, T_WATER, type MapData } from './mapdata';
 import { clampView, northUpAngle, scaleBar, zoomAbout, type MapView } from './mapmath';
 import { ATLAS_PALETTE, buildNetworkPaths, MapRaster, type NetworkPaths } from './maprender';
 import type { StaticMarker } from './minimap';
 import type { MenuNav } from './nav';
+import { DISPLAY_FONT, REO_FONT, TEXT_FONT } from './type';
 
 export type MapResult = 'stay' | 'back' | 'resume';
 
-const DATA_FONT = `'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif`;
-const SERIF_FONT = `Superclarendon, Rockwell, 'Bookman Old Style', Georgia, 'Times New Roman', serif`;
-/** Faces chosen for full macron coverage, so te reo Māori names never fall back letter by letter. */
-const REO_FONT = `'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, 'Times New Roman', serif`;
+const DATA_FONT = TEXT_FONT;
+const SERIF_FONT = DISPLAY_FONT;
 const INK = '#1d232c';
 const HALO = 'rgba(244, 238, 221, 0.92)';
+/** The sheet's own paper (its margin and the page border), and the blank of the page around the map plate. */
+const PAPER = '#efe7d3';
+const PAGE = '#e3d9bf';
+/** Width of the page border that carries the grid letters and numbers, in em. */
+const BORDER_EM = 1.5;
 const MAX_BOXES = 160;
 /** Vertical offsets (in label heights) tried in turn when a town's name would collide with something. */
 const CITY_SHIFTS = [0, -1.8, 2.4, -3.4, 4.2];
@@ -52,6 +56,15 @@ const ROAD_LEGEND: [string, string][] = [
   ['rail', 'Railway'],
 ];
 
+/** Land-use tints, swatched straight from the palette so the key can never drift from the map. */
+const LAND_LEGEND: [number, string][] = [
+  [T_TOWN, 'Town centre'],
+  [T_SUBURB, 'Suburb'],
+  [T_INDUSTRY, 'Works and port'],
+  [T_PARK, 'Park'],
+  [T_WATER, 'Water'],
+];
+
 /**
  * The island map on the pause screen: a north-up road-atlas page. Land use comes from the surveyed raster,
  * roads are stroked as vectors (one Path2D per road class, built once) so they stay crisp at any zoom, and
@@ -81,6 +94,9 @@ export class FullMap {
   private dragging = false;
   private lastX = 0;
   private lastY = 0;
+  /** Pointers down on the map (one drags, two pinch), and the last distance between the first two. */
+  private pointers = new Map<number, { x: number; y: number }>();
+  private pinch = 0;
   private boxes = new Float32Array(MAX_BOXES * 4);
   private boxCount = 0;
   private jobs: StaticMarker[] = [];
@@ -89,7 +105,10 @@ export class FullMap {
   private surveyText: TextCache;
   private surveyShown = -1;
   private foot: HTMLDivElement;
-  private footPad: boolean | null = null;
+  private footMode = '';
+  /** The printed panels that sit over the map (title, key), and where they are in CSS pixels: lettering keeps clear of them. */
+  private panels: HTMLElement[] = [];
+  private panelBoxes = new Float32Array(8);
 
   constructor(
     parent: HTMLElement,
@@ -102,15 +121,20 @@ export class FullMap {
     this.canvas = el('canvas', 'nw-map-canvas', this.root);
     this.g = this.canvas.getContext('2d', { alpha: false });
 
-    const head = el('div', 'nw-map-head nw-signplate', this.root);
+    // The title cartouche, as printed in the corner of the sheet.
+    const head = el('div', 'nw-map-head nw-cartouche', this.root);
+    el('div', 'nw-map-kicker', head, 'Road map · 1995');
     el('div', 'nw-map-title', head, 'Canterbury');
     el('div', 'nw-map-reo', head, 'Waitaha');
     this.whereText = new TextCache(el('div', 'nw-map-where', head));
 
-    const legend = el('div', 'nw-map-legend nw-ledger', this.root);
+    const legend = el('div', 'nw-map-legend nw-cartouche', this.root);
     el('div', 'nw-legend-title', legend, 'Key');
+    const columns = el('div', 'nw-legend-cols', legend);
+    const places = el('div', 'nw-legend-col', columns);
+    const lines = el('div', 'nw-legend-col', columns);
     for (const [kind, label] of LEGEND) {
-      const row = el('div', 'nw-legend-row', legend);
+      const row = el('div', 'nw-legend-row', places);
       const swatch = el('canvas', 'nw-legend-icon', row);
       swatch.width = swatch.height = 44;
       const g = swatch.getContext('2d');
@@ -121,33 +145,85 @@ export class FullMap {
       el('span', 'nw-legend-label', row, label);
     }
     for (const [cls, label] of ROAD_LEGEND) {
-      const row = el('div', 'nw-legend-row', legend);
+      const row = el('div', 'nw-legend-row', lines);
       el('i', `nw-legend-road ${cls}`, row);
       el('span', 'nw-legend-label', row, label);
     }
+    for (const [kind, label] of LAND_LEGEND) {
+      const row = el('div', 'nw-legend-row', lines);
+      const [r, g, b] = ATLAS_PALETTE.terrain[kind];
+      el('i', 'nw-legend-land', row).style.background = `rgb(${r}, ${g}, ${b})`;
+      el('span', 'nw-legend-label', row, label);
+    }
+    el('div', 'nw-legend-note', legend, 'Grid squares are one kilometre');
+    this.panels.push(head, legend);
     this.surveyText = new TextCache(el('div', 'nw-legend-note', legend));
 
     this.foot = el('div', 'nw-map-foot', this.root);
 
+    // Plus and minus for fingers (pinching works too). The stylesheet shows them only while the touch controller is up.
+    const zoomBox = el('div', 'nw-map-zoom nw-if-touch', this.root);
+    const step = (label: string, factor: number) => {
+      el('div', 'nw-map-zoom-btn', zoomBox, label).addEventListener('click', () => {
+        this.anchor();
+        this.zoom(factor, 0, 0);
+      });
+    };
+    step('+', 1.6);
+    step('−', 1 / 1.6);
+
     const canvas = this.canvas;
+    // One pointer drags the map; two pinch it (and carry it with them). Mouse, pen and fingers alike.
     canvas.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 && e.pointerType !== 'touch') return;
       this.anchor();
+      this.pointers.set(e.pointerId ?? 0, { x: e.clientX, y: e.clientY });
       this.dragging = true;
       this.lastX = e.clientX;
       this.lastY = e.clientY;
+      this.pinch = 0;
       canvas.setPointerCapture?.(e.pointerId);
       this.root.classList.add('dragging');
     });
     canvas.addEventListener('pointermove', (e) => {
       if (!this.dragging || this.view.scale <= 0) return;
-      this.view.x -= ((e.clientX - this.lastX) * this.ratio) / this.view.scale;
-      this.view.z -= ((e.clientY - this.lastY) * this.ratio) / this.view.scale;
-      this.lastX = e.clientX;
-      this.lastY = e.clientY;
+      const held = this.pointers.get(e.pointerId ?? 0);
+      if (held) {
+        held.x = e.clientX;
+        held.y = e.clientY;
+      }
+      let x = e.clientX;
+      let y = e.clientY;
+      if (this.pointers.size >= 2) {
+        // The mid-point of the first two fingers pans; the distance between them zooms about that point.
+        const [p, q] = [...this.pointers.values()];
+        x = (p.x + q.x) / 2;
+        y = (p.y + q.y) / 2;
+        const spread = Math.hypot(p.x - q.x, p.y - q.y);
+        if (this.pinch > 0 && spread > 0) this.zoom(spread / this.pinch, (x - this.cssW / 2) * this.ratio, (y - this.cssH / 2) * this.ratio);
+        else {
+          this.lastX = x;
+          this.lastY = y;
+        }
+        this.pinch = spread;
+      }
+      this.view.x -= ((x - this.lastX) * this.ratio) / this.view.scale;
+      this.view.z -= ((y - this.lastY) * this.ratio) / this.view.scale;
+      this.lastX = x;
+      this.lastY = y;
       this.dirty = true;
     });
-    const stop = () => {
+    const stop = (e?: PointerEvent) => {
+      if (e) this.pointers.delete(e.pointerId ?? 0);
+      else this.pointers.clear();
+      this.pinch = 0;
+      const rest = this.pointers.values().next().value;
+      if (rest) {
+        // A finger is still down: carry on dragging from where it is, without a jump.
+        this.lastX = rest.x;
+        this.lastY = rest.y;
+        return;
+      }
       this.dragging = false;
       this.root.classList.remove('dragging');
     };
@@ -171,7 +247,11 @@ export class FullMap {
 
   private get minScale() {
     const d = this.data;
-    return Math.min(this.canvas.width / (d.maxX - d.minX), this.canvas.height / (d.maxZ - d.minZ)) * 0.9;
+    // The whole plate, with its margin, inside the page border.
+    const edge = this.fontPx * this.ratio * (BORDER_EM + 1.6) * 2;
+    const w = Math.max(64, this.canvas.width - edge);
+    const h = Math.max(64, this.canvas.height - edge);
+    return Math.min(w / (d.maxX - d.minX), h / (d.maxZ - d.minZ));
   }
 
   private get maxScale() {
@@ -224,6 +304,14 @@ export class FullMap {
     }
     this.ratio = ratio;
     this.icons.resize(Math.round(fontPx * ratio * 1.55));
+    // Measured once per open or resize, never per frame.
+    for (let i = 0; i < this.panels.length; i++) {
+      const box = this.panels[i].getBoundingClientRect();
+      this.panelBoxes[i * 4] = box.left;
+      this.panelBoxes[i * 4 + 1] = box.top;
+      this.panelBoxes[i * 4 + 2] = box.left + box.width;
+      this.panelBoxes[i * 4 + 3] = box.top + box.height;
+    }
     this.dirty = true;
   }
 
@@ -264,14 +352,21 @@ export class FullMap {
   close() {
     this.isOpen = false;
     this.dragging = false;
+    this.pointers.clear();
+    this.pinch = 0;
     this.root.classList.remove('dragging');
   }
 
   private hints(pad: boolean) {
-    if (pad === this.footPad) return;
-    this.footPad = pad;
+    const mode = touchOn() ? 'touch' : pad ? 'pad' : 'keys';
+    if (mode === this.footMode) return;
+    this.footMode = mode;
     this.foot.textContent = '';
-    if (pad) {
+    if (mode === 'touch') {
+      hint(this.foot, ['Drag'], 'Pan');
+      hint(this.foot, ['Pinch', '+', '−'], 'Zoom');
+      hint(this.foot, ['‹ Back'], 'Close');
+    } else if (pad) {
       hint(this.foot, ['Left stick'], 'Pan');
       hint(this.foot, ['LB', 'RB'], 'Zoom');
       hint(this.foot, ['A'], 'Find me');
@@ -351,11 +446,17 @@ export class FullMap {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = 1;
     g.setLineDash([]);
-    g.fillStyle = '#cfc4a6';
+    g.fillStyle = PAGE;
     g.fillRect(0, 0, W, H);
 
     g.setTransform(s, 0, 0, s, ox, oz);
     g.imageSmoothingEnabled = true;
+    // The map plate on its page: a paper margin, then the land.
+    const sheetW = data.maxX - data.minX;
+    const sheetH = data.maxZ - data.minZ;
+    const margin = 16 * pxM * ratio;
+    g.fillStyle = PAPER;
+    g.fillRect(data.minX - margin, data.minZ - margin, sheetW + margin * 2, sheetH + margin * 2);
     raster.draw(g, x0, z0, x1, z1);
 
     // Kilometre grid, like the squares of a road atlas.
@@ -373,11 +474,14 @@ export class FullMap {
       g.lineTo(gx1, z);
     }
     g.lineWidth = pxM * ratio;
-    g.strokeStyle = 'rgba(52, 84, 120, 0.16)';
+    g.strokeStyle = 'rgba(52, 84, 120, 0.2)';
     g.stroke();
-    g.lineWidth = 2 * pxM * ratio;
-    g.strokeStyle = 'rgba(29, 35, 44, 0.55)';
-    g.strokeRect(data.minX, data.minZ, data.maxX - data.minX, data.maxZ - data.minZ);
+    // The sheet's neatline: a fine rule at the edge of the map, a heavy one at the edge of the paper margin.
+    g.strokeStyle = INK;
+    g.lineWidth = 1.2 * pxM * ratio;
+    g.strokeRect(data.minX, data.minZ, sheetW, sheetH);
+    g.lineWidth = 3 * pxM * ratio;
+    g.strokeRect(data.minX - margin * 0.62, data.minZ - margin * 0.62, sheetW + margin * 1.24, sheetH + margin * 1.24);
 
     // Railways under the roads.
     const palette = ATLAS_PALETTE;
@@ -453,6 +557,18 @@ export class FullMap {
     const px = player.position.x * s + ox;
     const py = player.position.z * s + oz;
     this.reserve(px - icon * 0.6, py - icon * 0.6, px + icon * 0.6, py + icon * 0.6);
+    // Nothing is lettered under the title, the key, the compass or the scale.
+    const pb = this.panelBoxes;
+    for (let o = 0; o < pb.length; o += 4) if (pb[o + 2] > pb[o]) this.reserve(pb[o] * ratio, pb[o + 1] * ratio, pb[o + 2] * ratio, pb[o + 3] * ratio);
+    const edge = f * BORDER_EM;
+    // (The touch controller's "Back" pill has the top-right 120 × 60: the compass steps down and nothing is lettered there.)
+    const back = this.cssH <= 480 || touchOn() ? 52 * ratio : 0;
+    // The plus and minus buttons, half way down the left edge.
+    if (touchOn()) this.reserve(edge, H / 2 - 56 * ratio, edge + f * 1.2 + 56 * ratio, H / 2 + 56 * ratio);
+    this.reserve(W - Math.max(edge + f * 5.6, back > 0 ? 132 * ratio : 0), 0, W, edge + f * 6.4 + back);
+    this.reserve(edge, H - edge - f * 4.4, edge + f * 14, H - edge);
+    // …nor under the key hints that sit above the scale (not shown on a phone).
+    if (this.cssH > 480) this.reserve(edge, H - edge - f * 9.4, edge + W * 0.34, H - edge - f * 4.4);
 
     // Fixed places, jobs on offer and live blips.
     const markers = this.markers;
@@ -534,26 +650,79 @@ export class FullMap {
 
     paintArrow(g, px, py, icon * 1.05, northUpAngle(player.heading), '#c2462b', '#fffaf0');
 
-    // Scale bar, bottom-left.
-    const bar = scaleBar(s, f * 9);
-    const bw = bar.metres * s;
-    const bx = f * 1.4;
-    const by = H - f * 1.6;
-    g.fillStyle = HALO;
-    g.fillRect(bx - f * 0.4, by - f * 1.35, bw + f * 0.8, f * 1.9);
+    // The page itself: border and grid references, the compass, the scale.
+    const border = this.pageBorder(g, W, H, s, ox, oz, f);
+    // On a phone the top-right corner belongs to the touch controller's "Back" pill: the compass sits under it.
+    const compassDrop = this.cssH <= 480 || touchOn() ? 52 * ratio : 0;
+    paintCompass(g, W - border - f * 3.3, border + f * 4 + compassDrop, f * 1.9, f);
+    paintScale(g, s, f, border + f * 1.4, H - border - f * 1.4);
+  }
+
+  /**
+   * The atlas page's border, drawn round the screen: a paper strip with a neatline, ticked at every grid line
+   * and lettered A, B, C… across and 1, 2, 3… down, so a place can be given as "C4". Returns its width in pixels.
+   */
+  private pageBorder(g: CanvasRenderingContext2D, W: number, H: number, s: number, ox: number, oz: number, f: number): number {
+    const data = this.data;
+    const m = Math.round(f * BORDER_EM);
+    const inner = m * 0.2;
+    g.fillStyle = PAPER;
+    g.fillRect(0, 0, W, m);
+    g.fillRect(0, H - m, W, m);
+    g.fillRect(0, m, m, H - m * 2);
+    g.fillRect(W - m, m, m, H - m * 2);
+    g.setLineDash([]);
     g.strokeStyle = INK;
-    g.lineWidth = Math.max(1.5, f * 0.1);
-    g.lineCap = 'butt';
-    g.beginPath();
-    g.moveTo(bx, by - f * 0.3);
-    g.lineTo(bx, by);
-    g.lineTo(bx + bw, by);
-    g.lineTo(bx + bw, by - f * 0.3);
-    g.stroke();
-    g.font = small.font;
-    g.textAlign = 'center';
+    g.lineWidth = Math.max(1.5, f * 0.12);
+    g.strokeRect(m, m, W - m * 2, H - m * 2);
+    g.lineWidth = Math.max(1, f * 0.05);
+    g.strokeRect(inner, inner, W - inner * 2, H - inner * 2);
+
+    const letters = face('700', f * 0.84, DATA_FONT);
+    g.font = letters.font;
     g.fillStyle = INK;
-    g.fillText(bar.label, bx + bw / 2, by - f * 0.7);
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    const km = 1000 * s;
+    // A reference in every square while they are wide enough to hold one, then every second, every fifth.
+    const every = km >= f * 1.7 ? 1 : km >= f * 0.85 ? 2 : 5;
+    const col0 = Math.floor(data.minX / 1000);
+    const row0 = Math.floor(data.minZ / 1000);
+    const mid = m * 0.6;
+    g.beginPath();
+    for (let c = Math.max(col0, Math.floor((m - ox) / km)); c * 1000 <= data.maxX; c++) {
+      const x = c * km + ox;
+      if (x > W - m) break;
+      if (x > m) {
+        g.moveTo(x, inner);
+        g.lineTo(x, m);
+        g.moveTo(x, H - m);
+        g.lineTo(x, H - inner);
+      }
+      const at = x + km / 2;
+      if ((c - col0) % every !== 0 || at < m + f || at > W - m - f || (c + 0.5) * 1000 > data.maxX) continue;
+      const name = columnName(c - col0);
+      g.fillText(name, at, mid);
+      g.fillText(name, at, H - mid);
+    }
+    for (let r = Math.max(row0, Math.floor((m - oz) / km)); r * 1000 <= data.maxZ; r++) {
+      const y = r * km + oz;
+      if (y > H - m) break;
+      if (y > m) {
+        g.moveTo(inner, y);
+        g.lineTo(m, y);
+        g.moveTo(W - m, y);
+        g.lineTo(W - inner, y);
+      }
+      const at = y + km / 2;
+      if ((r - row0) % every !== 0 || at < m + f || at > H - m - f || (r + 0.5) * 1000 > data.maxZ) continue;
+      const name = String(r - row0 + 1);
+      g.fillText(name, mid, at);
+      g.fillText(name, W - mid, at);
+    }
+    g.lineWidth = Math.max(1, f * 0.06);
+    g.stroke();
+    return m;
   }
 
   /** True if a live blip already marks this spot (so a job is not drawn twice). */
@@ -629,4 +798,90 @@ export class FullMap {
     g.globalAlpha = 1;
     return true;
   }
+}
+
+/** Grid column names: A … Z, then AA, AB … */
+function columnName(index: number): string {
+  const letter = String.fromCharCode(65 + (index % 26));
+  return index < 26 ? letter : String.fromCharCode(64 + Math.floor(index / 26)) + letter;
+}
+
+/** A plain surveyor's compass: a ring, a four-point star with its north limb inked, and an N. */
+function paintCompass(g: CanvasRenderingContext2D, cx: number, cy: number, r: number, f: number) {
+  g.setLineDash([]);
+  g.lineJoin = 'miter';
+  g.beginPath();
+  g.arc(cx, cy, r, 0, Math.PI * 2);
+  g.fillStyle = 'rgba(239, 231, 211, 0.9)';
+  g.fill();
+  g.lineWidth = Math.max(1, f * 0.07);
+  g.strokeStyle = INK;
+  g.stroke();
+  g.beginPath();
+  g.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
+  g.lineWidth = Math.max(0.75, f * 0.035);
+  g.stroke();
+  const limb = (dx: number, dy: number, length: number, inked: boolean) => {
+    // One point of the star, split down its spine: one half inked, the other left as paper.
+    const w = r * 0.17;
+    const tx = cx + dx * length;
+    const ty = cy + dy * length;
+    for (let side = -1; side <= 1; side += 2) {
+      g.beginPath();
+      g.moveTo(cx, cy);
+      g.lineTo(cx - dy * w * side + dx * w, cy + dx * w * side + dy * w);
+      g.lineTo(tx, ty);
+      g.closePath();
+      g.fillStyle = (side < 0) === inked ? INK : PAPER;
+      g.fill();
+      g.stroke();
+    }
+  };
+  g.lineWidth = Math.max(0.75, f * 0.045);
+  limb(1, 0, r * 0.66, false);
+  limb(-1, 0, r * 0.66, true);
+  limb(0, 1, r * 0.74, false);
+  limb(0, -1, r * 0.98, true);
+  const n = face('700', f * 1.05, DISPLAY_FONT);
+  g.font = n.font;
+  g.textAlign = 'center';
+  g.textBaseline = 'alphabetic';
+  g.lineJoin = 'round';
+  g.lineWidth = Math.max(2, f * 0.3);
+  g.strokeStyle = HALO;
+  g.strokeText('N', cx, cy - r - f * 0.35);
+  g.fillStyle = INK;
+  g.fillText('N', cx, cy - r - f * 0.35);
+}
+
+/** The scale: four blocks, ink and paper by turns, figured at nought, half way and the end. (x, y) is its bottom-left. */
+function paintScale(g: CanvasRenderingContext2D, pxPerMetre: number, f: number, x: number, y: number) {
+  const bar = scaleBar(pxPerMetre, f * 10);
+  const width = bar.metres * pxPerMetre;
+  const height = f * 0.42;
+  const pad = f * 1.25;
+  const top = y - (f * 1.55 + height + f * 0.6);
+  g.setLineDash([]);
+  g.fillStyle = 'rgba(239, 231, 211, 0.94)';
+  g.fillRect(x, top, width + pad * 2, y - top);
+  g.strokeStyle = INK;
+  g.lineWidth = Math.max(1, f * 0.06);
+  g.strokeRect(x, top, width + pad * 2, y - top);
+  const bx = x + pad;
+  const by = y - f * 0.6 - height;
+  for (let i = 0; i < 4; i++) {
+    g.fillStyle = i % 2 === 0 ? INK : '#fffaf0';
+    g.fillRect(bx + (width * i) / 4, by, width / 4, height);
+  }
+  g.strokeRect(bx, by, width, height);
+  const figures = face('700', f * 0.84, TEXT_FONT);
+  g.font = figures.font;
+  g.fillStyle = INK;
+  g.textBaseline = 'alphabetic';
+  g.textAlign = 'center';
+  const km = bar.metres >= 1000;
+  const half = km ? bar.metres / 2000 : bar.metres / 2;
+  g.fillText('0', bx, by - f * 0.32);
+  g.fillText(String(half), bx + width / 2, by - f * 0.32);
+  g.fillText(bar.label, bx + width, by - f * 0.32);
 }

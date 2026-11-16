@@ -31,7 +31,7 @@ export function stoneSet(m: MaterialLibrary): StoneSet {
 export const bronze = (m: MaterialLibrary) => m.get('metal', { color: 0x56604a });
 export const asphalt = (m: MaterialLibrary) => m.get('asphalt');
 export const whiteLine = (m: MaterialLibrary) => m.get('plain', { color: 0xe4e1d6 });
-export const lawn = (m: MaterialLibrary) => m.get('grass', { color: 0x6f9a4a });
+export const lawn = (m: MaterialLibrary) => m.get('grass', { color: 0x8a9150 });
 
 export interface RangeOptions {
   /** Run the range along local z instead of x. Positions then run towards +z and the range's "front" faces −x. */

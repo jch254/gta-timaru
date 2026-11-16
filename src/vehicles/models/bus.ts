@@ -1,8 +1,7 @@
 import type { MaterialLibrary, VehicleModel, VehicleSpec } from '../../core/types';
 import type { PaneKind } from './body';
-import { cornerLens } from './cars';
 import { AMBER, BLACK, CHROME, curve, DARK, dice, GREY, PLASTIC, RUBBER, SMOKED, tint, WINDOW, type V3 } from './kit';
-import { assemble, Face, wipers, type CarPlan } from './parts';
+import { assemble, cornerLens, Face, wipers, type CarPlan } from './parts';
 
 /** Invented routes for the destination blind. */
 const BLINDS = ['5  CITY', '12  HOSPITAL', '23  RAILWAY STN', '31  PORT'];
@@ -106,9 +105,10 @@ export function buildBus(spec: VehicleSpec, color: number, m: MaterialLibrary): 
     rearTrack: 2 * (W - spec.wheelWidth / 2 - 0.06),
     rim: 0xd4d4cc,
     belly: 0.26,
+    ageing: { dirt: [0.25, 0.6], fade: 0.25 },
     dress(k, shell, cab) {
-      const F = new Face(k, h, 1);
-      const R = new Face(k, -h, -1);
+      const F = new Face(k, shell, 'front');
+      const R = new Face(k, shell, 'rear');
       const band = light ? tint(0x8a2a22, 'gloss') : tint(0xe9e2cc, 'gloss');
       // Waistband and a pinstripe under it.
       shell.band(k, band, 1.2, 1.34, -h + 0.16, h - 0.95, [1, -1], 0.004, 1);
@@ -134,9 +134,8 @@ export function buildBus(spec: VehicleSpec, color: number, m: MaterialLibrary): 
 
       // Front: lamps, indicators, bumper, the blind in its box, a divided screen, wipers, mirrors.
       F.headlamps(0.86, 0.9, 0.32, 0.16, { twin: true, bezel: PLASTIC });
-      cornerLens(k, shell, AMBER, h - 0.06, 0.9, 0.11, 0.14);
-      F.box(DARK, 0.9, 0.12, 0, 0.9, 0.02, 0.003);
-      for (const dy of [-0.03, 0.03]) F.box(GREY, 0.9, 0.012, 0, 0.9 + dy, 0.012, 0.01);
+      cornerLens(k, shell, 'front', AMBER, 0.9, 0.14, 0.13);
+      F.grille(0, 0.9, 0.9, 0.12, { bars: 3, surface: GREY, depth: 0.05 });
       const bumper = tint(0x2a2c2f, 'satin');
       for (const dir of [1, -1]) k.pad(bumper, 2 * W - 0.02, 0.2, 0.16, 0, 0.56, dir * (h + 0.02), 0.03, undefined, true);
       const hood = cab.screen(0, 1.0, 0);
@@ -153,8 +152,7 @@ export function buildBus(spec: VehicleSpec, color: number, m: MaterialLibrary): 
       }
 
       // Rear: engine cover with louvres, tall lamp clusters.
-      R.box(DARK, 1.5, 0.5, 0, 1.04, 0.02, 0.004);
-      for (const dy of [-0.15, -0.05, 0.05, 0.15]) R.box(GREY, 1.5, 0.03, 0, 1.04 + dy, 0.02, 0.012);
+      R.grille(0, 1.04, 1.5, 0.5, { bars: 7, surface: GREY, depth: 0.06, barDepth: 0.04 });
       R.taillamps(W - 0.24, 1.08, 0.16, 0.5, { upright: true });
 
       // Roof hatches.

@@ -36,7 +36,9 @@ export type GlazingStyle =
   | 'louvre' // plant-room louvres
   | 'fret' // cut-out timber fretwork. variant 0 = spindle frieze, 1 / 2 = bracket (post left / right), 3 = valance
   | 'picket' // cut-out railings. variant 0 = balusters, 1 = pickets, 2 = lattice, 3 = cross-braced iron
-  | 'leaded'; // pointed-arch leadlight window in a `color` surround
+  | 'leaded' // pointed-arch leadlight window in a `color` surround
+  | 'fitting' // things bolted to a back wall, in `color`. variant 0 = meter box, 1 = vent grille, 2 = extractor fan, 3 = enamel plate gone rusty
+  | 'aerial'; // cut-out television aerial on its mast. variant 0 = seen along the elements (boom and mast), 1 = seen along the boom (elements)
 
 export interface GlazingOptions {
   /** Size of one cell (one window, one door, one bay × storey) in metres. */
@@ -71,6 +73,8 @@ const STYLE_ID: Record<GlazingStyle, number> = {
   fret: 12,
   picket: 13,
   leaded: 14,
+  fitting: 15,
+  aerial: 16,
 };
 
 const bits = (v: number | undefined, max: number) => Math.max(0, Math.min(max, Math.round(v ?? 0)));
@@ -156,6 +160,68 @@ float gFresnel(float f0, float c) {
   float m = 1.0 - c;
   float m2 = m * m;
   return f0 + (1.0 - f0) * m2 * m2 * m;
+}
+
+// A row of goods standing on a shelf, seen face on. p: metres along the window and above the shelf.
+// kind: 0 cartons, tins and bottles; 1 garments on stands; 2 cards and magazines; 3 trays. Returns coverage;
+// col comes back shaded as a solid thing lit from the street.
+float gGoods(vec2 p, float pitch, float seed, float kind, float tall, out vec3 col) {
+  float ci = floor(p.x / pitch);
+  vec3 r = gH3(vec2(ci * 1.7 + 0.3, seed));
+  vec3 c = gH3(vec2(ci * 2.3 + 5.1, seed + 3.7));
+  float x = (p.x / pitch - ci - 0.5) * pitch;
+  float hw = pitch * (0.22 + 0.22 * r.y);
+  float hh = tall * (0.35 + 0.65 * r.z);
+  float shape = 1.0;
+  float gap = 0.0;
+  if (kind < 0.5) {
+    gap = step(r.x, 0.1);
+    if (r.x > 0.66) {
+      // Bottles shoulder to shoulder, each with a neck and a cap.
+      hw = 0.042 + 0.018 * r.y;
+      float bp = hw * 2.5;
+      x = (fract(p.x / bp) - 0.5) * bp;
+      hh = tall * (0.5 + 0.3 * r.z);
+      shape = 1.0 - 0.62 * smoothstep(0.6, 0.76, p.y / hh);
+    }
+  } else if (kind < 1.5) {
+    // A frock or a jacket on a stand: a pole, a waist, shoulders, a neck.
+    gap = step(r.x, 0.18);
+    hh = tall * (0.8 + 0.2 * r.z);
+    hw = pitch * 0.33;
+    float t1 = p.y / hh;
+    shape = t1 < 0.28 ? 0.07 : (0.6 + 0.4 * smoothstep(0.3, 0.86, t1)) * (1.0 - 0.72 * smoothstep(0.88, 0.97, t1));
+  } else if (kind < 2.5) {
+    hw = pitch * 0.43;
+    hh = tall * (0.6 + 0.4 * r.z);
+  } else {
+    gap = step(r.x, 0.15);
+    hw = pitch * 0.45;
+    hh = tall * (0.25 + 0.5 * r.z);
+  }
+  float t = p.y / hh;
+  float e = abs(x) / max(hw * shape, 1e-3);
+  float cov = step(e, 1.0) * step(0.0, p.y) * step(p.y, hh) * (1.0 - gap);
+  vec3 body = mix(0.16 + 0.62 * c, vec3(dot(c, vec3(0.3333))) * 0.75 + 0.12, 0.42);
+  if (kind < 0.5) {
+    // A paper label round the middle, a lid or a cap on top.
+    float label = step(abs(t - 0.42), 0.17) * step(e, 0.86);
+    body = mix(body, mix(vec3(0.84, 0.8, 0.68), body * 0.45, step(0.55, c.z)), label * 0.85);
+    body = mix(body, vec3(0.12 + 0.5 * c.y), step(0.9, t) * step(0.66, r.x));
+  } else if (kind < 1.5) {
+    body = mix(body, vec3(0.2, 0.17, 0.14), step(t, 0.28));
+    body *= 0.9 + 0.1 * sin(x * 120.0);
+  } else if (kind < 2.5) {
+    // Pale paper: a block of colour at the head, lines of print below.
+    body = mix(vec3(0.84, 0.82, 0.74), body, 0.18);
+    body = mix(body, 0.25 + 0.5 * c, step(0.62, t) * step(t, 0.92) * step(e, 0.82));
+    body *= 1.0 - 0.3 * step(fract(p.y / 0.03), 0.42) * step(e, 0.74) * step(t, 0.55) * step(0.08, t);
+  } else {
+    body = mix(vec3(0.7, 0.55, 0.32), body, 0.35) * (0.8 + 0.2 * step(0.5, fract(p.x / 0.07)));
+  }
+  // Daylight comes from the street and above: the top catches it, one side falls away.
+  col = body * (0.74 + 0.34 * smoothstep(0.55, 1.0, t) - 0.2 * smoothstep(0.2, 1.0, x / max(hw * shape, 1e-3)));
+  return cov;
 }
 
 // A box room behind an opening (interior mapping). q: where the ray crosses the glass, in metres from the
@@ -437,40 +503,89 @@ if (gStyle > 0.5 && gStyle < 5.5) {
       cTrans = 0.5;
     }
   } else {
-    // A display stand just inside the glass with goods and price tickets on it, and a poster stuck to the glass.
-    vec2 qd = q + gSl * 0.45;
-    float ci = floor(qd.x / 0.62);
-    vec3 ir = gH3(vec2(ci, seed));
-    float stage = 0.12 + 0.3 * step(0.5, gH1(vec2(seed, 5.5)));
-    float ih = stage + (0.16 + 0.6 * ir.x * ir.x) * step(0.3, ir.y);
-    float item = step(abs(fract(qd.x / 0.62) - 0.5), 0.2 + 0.22 * ir.z) * step(qd.y, ih) * step(0.0, qd.y);
-    float plinth = step(qd.y, stage);
-    vec3 goods = mix(0.25 + 0.6 * gH3(vec2(ci, seed + 4.0)), vec3(0.45), 0.45);
-    float ticket = step(abs(fract(qd.x / 0.62) - 0.5), 0.07) * step(abs(qd.y - stage - 0.06), 0.045) * step(0.3, ir.y);
-    cov = max(item, plinth);
-    cAlb = mix(mix(goods, vec3(0.9, 0.88, 0.8), ticket), vec3(0.3, 0.26, 0.22), plinth * (1.0 - ticket));
-    cTrans = 1.0;
+    // A shop window: goods in two rows on a window bed, a back board behind them, the shop beyond that. What
+    // is on show follows the trade (the pane's 'wall' bits): 0 general goods, 1 drapery, 2 paper, 3 food.
+    float disp = gWall;
+    vec3 shopR = gH3(vec2(seed, 5.5));
+    float bed = 0.8;
+    float stepD = 0.42;
+    float stepH = disp > 2.5 ? 0.05 : 0.16;
+    float boardH = disp > 2.5 ? 0.3 : (disp > 1.5 ? 1.15 + 0.3 * shopR.x : 0.6 + 0.6 * shopR.x);
+    vec3 cloth = shopR.y < 0.3 ? vec3(0.2, 0.3, 0.2) : (shopR.y < 0.55 ? vec3(0.62, 0.58, 0.48) : (shopR.y < 0.8 ? vec3(0.42, 0.18, 0.15) : vec3(0.3, 0.27, 0.24)));
+    cloth = mix(cloth, vec3(dot(cloth, vec3(0.3333))) + 0.06, 0.35);
+    vec3 dc = vec3(0.0);
+    float down = max(-gSl.y, 1e-3);
+    // Front row, on the bed.
+    vec2 pf = q + gSl * 0.18;
+    cov = gGoods(pf, disp > 1.5 && disp < 2.5 ? 0.3 : 0.44, seed, disp, disp < 0.5 ? 0.4 : (disp < 1.5 ? 0.55 : (disp < 2.5 ? 0.38 : 0.3)), dc);
+    // A price ticket in front of each lot.
+    float tk = step(abs(fract(pf.x / 0.44) - 0.5), 0.09) * step(abs(pf.y - 0.045), 0.04) * step(disp, 0.5) * step(0.25, gH1(vec2(floor(pf.x / 0.44), seed)));
+    dc = mix(dc, vec3(0.88, 0.85, 0.74), tk);
+    cov = max(cov, tk);
+    cAlb = dc;
+    if (cov < 0.5) {
+      // Back row, on the step.
+      vec2 pb = q + gSl * 0.6 - vec2(0.19, stepH);
+      float cb = gGoods(pb, disp > 1.5 && disp < 2.5 ? 0.34 : 0.6, seed + 9.0, disp, disp < 0.5 ? 0.62 : (disp < 1.5 ? 1.3 : (disp < 2.5 ? 0.42 : 0.34)), dc);
+      vec2 pr = q + gSl * stepD;
+      float tBed = q.y / down;
+      float tStep = (q.y - stepH) / down;
+      vec2 pk = q + gSl * bed;
+      if (cb > 0.5) {
+        cov = 1.0;
+        cAlb = dc * 0.88;
+      } else if (gSl.y < 0.0 && tBed >= 0.0 && tBed < stepD) {
+        // The bed itself: cloth or paper, sun-faded nearest the glass.
+        cov = 1.0;
+        cAlb = mix(cloth * 1.25 + 0.05, cloth, tBed / stepD) * (0.8 + 0.2 * gH1(floor((q.xy + gSl * tBed) * 40.0)));
+      } else if (pr.y >= 0.0 && pr.y < stepH) {
+        cov = 1.0;
+        cAlb = cloth * 0.55;
+      } else if (gSl.y < 0.0 && tStep >= stepD && tStep < bed) {
+        cov = 1.0;
+        cAlb = cloth * mix(0.95, 0.7, (tStep - stepD) / (bed - stepD));
+      } else if (pk.y >= 0.0 && pk.y < boardH) {
+        // The back board: painted panelling, with cards pinned to it (a wall of them in a paper shop).
+        cov = 1.0;
+        vec3 panel = mix(vec3(0.6, 0.56, 0.46), vec3(0.42, 0.47, 0.44), step(0.5, shopR.z)) * (0.9 + 0.1 * step(0.06, fract(pk.x / 0.3)));
+        vec2 cs = disp > 1.5 && disp < 2.5 ? vec2(0.3, 0.26) : vec2(0.62, 0.44);
+        vec2 cc = floor(pk / cs);
+        vec2 cf = fract(pk / cs) - 0.5;
+        vec3 cr = gH3(cc + seed);
+        float card = step(abs(cf.x), 0.38) * step(abs(cf.y), 0.36) * step(disp > 1.5 && disp < 2.5 ? 0.12 : 0.6, cr.x) * step(0.1, pk.y);
+        vec3 cardC = mix(vec3(0.86, 0.84, 0.76), 0.3 + 0.5 * cr, step(0.12, cf.y) * step(abs(cf.x), 0.3));
+        cardC *= 1.0 - 0.3 * step(fract(cf.y * cs.y / 0.028), 0.4) * step(cf.y, 0.05) * step(abs(cf.x), 0.3);
+        cAlb = mix(panel, cardC, card) * (0.62 + 0.1 * smoothstep(boardH - 0.04, boardH, pk.y));
+      }
+    }
+    cTrans = 0.72;
+    // A sun blind pulled part way down inside the glass, and a poster stuck to it.
+    float blind = step(osz.y - (0.18 + 0.5 * shopR.x * shopR.x), q.y) * step(shopR.z, 0.45);
+    vec3 blindC = mix(vec3(0.74, 0.68, 0.5), vec3(0.5, 0.56, 0.5), step(0.5, shopR.y)) * (0.82 + 0.18 * step(0.5, fract(q.x / 0.16)));
+    cov = max(cov, blind);
+    cAlb = mix(cAlb, blindC * 1.1, blind);
     vec2 pc = vec2(0.3 + gR2.x * max(osz.x - 0.6, 0.0), 0.95 + gR2.y * max(osz.y - 1.5, 0.0));
     vec2 pd = abs(q - pc);
-    float poster = step(pd.x, 0.21) * step(pd.y, 0.3) * step(gR2.z, 0.55);
-    vec3 pcol = gR2.z < 0.2 ? vec3(0.9, 0.8, 0.15) : (gR2.z < 0.4 ? vec3(0.85, 0.2, 0.15) : vec3(0.9));
-    pcol *= 1.0 - 0.6 * step(fract((q.y - pc.y) / 0.12), 0.35) * step(pd.x, 0.15);
+    float poster = step(pd.x, 0.21) * step(pd.y, 0.3) * step(gR2.z, 0.45);
+    vec3 pcol = gR2.z < 0.15 ? vec3(0.82, 0.72, 0.2) : (gR2.z < 0.3 ? vec3(0.72, 0.22, 0.17) : vec3(0.84, 0.82, 0.74));
+    pcol *= 1.0 - 0.55 * step(fract((q.y - pc.y) / 0.12), 0.35) * step(pd.x, 0.15);
     cov = max(cov, poster);
-    cAlb = mix(cAlb, pcol, poster);
+    cAlb = mix(cAlb, pcol * 1.15, poster);
   }
 
   // By day a room is a small fraction of the brightness of the wall around it; only what hangs in the window catches the light.
   float dayIn = kind < 0.5 ? 0.13 : (kind < 1.5 ? 0.26 : 0.17);
-  vec3 inside = mix(room * dayIn, cAlb * (kind > 0.5 && kind < 1.5 ? 0.42 : 0.6), cov);
+  vec3 inside = mix(room * dayIn, cAlb * (kind > 0.5 && kind < 1.5 ? 0.5 : 0.6), cov);
   vec3 lightCol;
   if (kind < 0.5) {
     lightCol = gR.z > 0.84
       ? vec3(0.35, 0.5, 1.0) * (0.8 + 0.3 * sin(uGlzTime * 9.0 + seed) * sin(uGlzTime * 5.3 + seed * 2.0))
-      : vec3(1.0, 0.74, 0.44) * 1.5;
+      : mix(vec3(1.0, 0.74, 0.44), vec3(1.0, 0.84, 0.62), gR2.y) * (0.9 + 1.0 * gR2.x);
   } else if (kind < 1.5) {
     lightCol = mix(vec3(1.0, 0.9, 0.72), vec3(0.85, 0.95, 1.0), step(0.5, gR2.z)) * 1.25;
   } else {
-    lightCol = vec3(0.92, 0.97, 1.0) * 1.5;
+    // Mostly cool tubes, the odd floor of older warm ones, and no two zones equally bright.
+    lightCol = mix(vec3(0.92, 0.97, 1.0), vec3(1.0, 0.86, 0.66), step(0.72, gH1(vec2(floor(gCell.y), gSeedV.x + 3.0)))) * (0.9 + 0.9 * litSeed);
   }
   vec3 em = lit * lightCol * mix(room * (0.7 + 3.0 * glow), cAlb * cTrans, cov);
   // Shops and offices have their lights on in the daytime too: the fittings show against the dim ceiling.
@@ -702,7 +817,7 @@ if (gStyle > 0.5 && gStyle < 5.5) {
   }
   if (a < 0.5) discard;
   gRough = 0.5;
-} else {
+} else if (gStyle < 14.5) {
   // ───── Pointed-arch leadlight ─────
   float sy = max(0.0, gh - gw * 0.87);
   float d1 = length(gP - vec2(0.0, sy));
@@ -724,6 +839,64 @@ if (gStyle > 0.5 && gStyle < 5.5) {
   gEm = inside * (1.0 - fr) * (1.0 - lead) * lit * (0.25 + gl * 4.0) * vec3(1.0, 0.8, 0.5) * 0.8;
   gRough = mix(0.85, mix(0.15, 0.7, max(fr, lead)), inside);
   gF0 = vec3(mix(0.04, 0.06, inside * (1.0 - fr)));
+} else if (gStyle < 15.5) {
+  // ───── Wall fittings ─────
+  vec2 full = vec2(gw, gh);
+  float edge = gRing(gP, full, 0.012, gPx);
+  vec3 c = gPaint * (0.86 + 0.14 * gR.x);
+  if (gVar < 0.5) {
+    // Meter box: a door with a seam round it, a glazed window on the dials, a hasp.
+    vec2 wc = abs(gP - vec2(gw * 0.5, gh * 0.66));
+    float glassy = step(wc.x, gw * 0.24) * step(wc.y, gh * 0.13);
+    float seam = gRing(gP - 0.03, full - 0.06, 0.006, gPx) * gRect(gP - 0.03, full - 0.06, gPx);
+    c *= 1.0 - 0.45 * seam;
+    c = mix(c, vec3(0.05, 0.06, 0.06) + 0.25 * step(length((gP - vec2(gw * 0.5, gh * 0.66)) / vec2(0.035)), 1.0), glassy);
+    c = mix(c, vec3(0.2), step(abs(gP.x - gw * 0.86), 0.012) * step(abs(gP.y - gh * 0.4), 0.04));
+    gRough = mix(0.55, 0.12, glassy);
+  } else if (gVar < 1.5) {
+    // Vent grille: louvre blades in a frame.
+    float blade = fract(gP.y / 0.034);
+    c = mix(mix(vec3(0.03), c * 0.8, smoothstep(0.35, 0.9, blade)), c, gRing(gP, full, 0.03, gPx));
+    gRough = 0.7;
+  } else if (gVar < 2.5) {
+    // Extractor fan: a round hole in a plate, blades and a hub behind a guard.
+    vec2 fc = gP - full * 0.5;
+    float rr = length(fc) / (min(gw, gh) * 0.42);
+    float ang = atan(fc.y, fc.x);
+    vec3 hole = mix(vec3(0.03), vec3(0.16, 0.16, 0.15), step(0.5, fract(ang * 0.955 + rr * 0.6)));
+    hole = mix(hole, vec3(0.22), step(rr, 0.2));
+    hole = mix(hole, vec3(0.3), step(abs(fract(rr * 4.0) - 0.5), 0.08));
+    c = mix(c, hole, step(rr, 1.0));
+    gRough = 0.6;
+  } else {
+    // Enamel plate: chipped at the fixings, rust creeping in from the edge.
+    float chip = smoothstep(0.55, 0.75, gH1(floor(gP * 60.0) + gSeedV)) * (1.0 - smoothstep(0.0, 0.07, min(min(gP.x, gw - gP.x), min(gP.y, gh - gP.y))));
+    c = mix(c, vec3(0.2, 0.09, 0.04), chip);
+    c *= 1.0 - 0.3 * step(fract(gP.y / (gh * 0.3)), 0.3) * step(abs(gP.x - gw * 0.5), gw * 0.36);
+    gRough = 0.35;
+  }
+  // Rain has run off the bottom of it for years.
+  c *= 0.82 + 0.18 * smoothstep(0.0, gh * 0.5, gP.y);
+  gAlb = c * (1.0 - 0.5 * edge);
+} else {
+  // ───── Television aerial (cut out) ─────
+  float lw = max(0.011, 0.6 * gPx);
+  float by = gh - 0.22;
+  float a = step(abs(gP.x - gw * 0.5), lw * 1.3) * step(gP.y, by + 0.1);
+  if (gVar < 0.5) {
+    // Boom, with the ends of the elements along it and the feeder sagging back to the mast.
+    a = max(a, step(abs(gP.y - by), lw) * step(0.04, gP.x) * step(gP.x, gw - 0.04));
+    a = max(a, step(abs(fract(gP.x / 0.17) - 0.5) * 0.17, lw) * step(abs(gP.y - by), 0.05));
+    a = max(a, step(abs(gP.y - (by - 0.55 + 1.6 * (gP.x - gw * 0.5) * (gP.x - gw * 0.5))), lw * 0.8) * step(abs(gP.x - gw * 0.36), gw * 0.14));
+  } else {
+    // The elements end to end, the folded dipole below them.
+    a = max(a, step(abs(gP.y - by), lw) * step(0.02, gP.x) * step(gP.x, gw - 0.02));
+    vec2 dp = abs(gP - vec2(gw * 0.5, by - 0.09));
+    a = max(a, step(dp.x, gw * 0.3) * step(dp.y, 0.03 + lw) * (1.0 - step(dp.x, gw * 0.3 - lw * 2.0) * step(dp.y, 0.03 - lw)));
+  }
+  if (a < 0.5) discard;
+  gAlb = gPaint * 0.8;
+  gRough = 0.4;
 }
 diffuseColor.rgb = gAlb;
 `;

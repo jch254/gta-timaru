@@ -8,16 +8,25 @@ import { buildLot } from './buildings';
 import { ChunkBuilderImpl, type ChunkLight, type ColliderBox } from './chunkbuilder';
 import { Ground, GroundAttributes } from './ground';
 import { SEA_LEVEL, WORLD_BOUNDS, type TerrainModel } from './height';
-import { LANDMARKS } from './landmarks';
+import { LANDMARKS, runLandmark } from './landmarks';
 import { CHUNK, chunkKey, chunkOf, generateLots } from './lots';
 import { compileMap, type CompiledMap, type RailPath } from './map';
 import { buildMap } from './mapdata';
 import { getProp } from './props';
 import './props/extra';
 import { PROP_PHYSICS } from './props/physics';
-import { foliageWind } from './props/vegetation';
+import { foliageWind, plantModel } from './props/vegetation';
 import { buildChunkLines, buildChunkRoads, createRoadMaterials, type RoadMaterials } from './roadmesh';
 import { SCATTERERS } from './scatter';
+
+// Scratch for the per-frame wet-road glints.
+const UP_Y = new THREE.Vector3(0, 1, 0);
+const _p = new THREE.Vector3();
+const _pv = new THREE.Vector3();
+const _s2 = new THREE.Vector3();
+const _q = new THREE.Quaternion();
+const _m = new THREE.Matrix4();
+const _c2 = new THREE.Color();
 
 const N = 64; // cells per chunk side (4 m)
 const CELL = CHUNK / N;
@@ -37,7 +46,19 @@ interface Chunk {
   disposables: { dispose(): void }[];
   /** Full-resolution and half-resolution ground (shared vertex buffers). */
   ground: [THREE.Mesh, THREE.Mesh] | null;
+  /** Small props and how far from the chunk they are worth a draw call (see `PROP_REACH`). */
+  props: { mesh: THREE.InstancedMesh; reach: number }[];
 }
+
+/**
+ * Street furniture is one instanced mesh per kind per chunk, and with forty chunks loaded a town centre was
+ * spending a fifth of its frame submitting meters, signal poles and sandwich boards hundreds of metres away,
+ * each a few pixels high. A kind is drawn only in chunks within `reach` metres of the player: this many
+ * metres for every metre of the prop's size (it goes when it is under about nine pixels high at 1080p), and
+ * never less than the floor. Lamp posts, power poles and anything else five metres or more are left alone,
+ * as are plants (the plant field has its own distances).
+ */
+const PROP_REACH = { perMetre: 110, floor: 160 };
 
 /** The streamed world: terrain, roads, buildings, water. Implements the WorldApi queries. */
 export class World implements WorldApi, System {
@@ -56,7 +77,9 @@ export class World implements WorldApi, System {
   private railsByChunk = new Map<number, RailPath[]>();
   private landmarksByChunk = new Map<number, LandmarkPlacement[]>();
   private chunks = new Map<number, Chunk>();
-  private queue: { chunk: Chunk; job: Generator<void> }[] = [];
+  private queue: { chunk: Chunk; job: Generator<string | void>; steps: number }[] = [];
+  /** The slowest single build step since the game began (dev tools; hitch hunts). */
+  readonly slowJob = { ms: 0, step: '', cx: 0, cz: 0 };
   private foci: { x: number; z: number; radius: number }[] = [];
   private focus = { x: 0, z: 0 };
   private roadMats: RoadMaterials;
@@ -182,7 +205,9 @@ export class World implements WorldApi, System {
 
     // Skyline landmarks stay loaded at any distance.
     const out = new ChunkBuilderImpl(this.gfx.materials, this, 0);
-    for (const l of this.landmarks) if (l.skyline) LANDMARKS[l.kind]?.(l, out);
+    for (const l of this.landmarks) {
+      if (l.skyline && LANDMARKS[l.kind]) runLandmark(LANDMARKS[l.kind], l, out);
+    }
     for (const mesh of out.finish()) this.root.add(mesh);
     this.addColliders(out.colliders);
     this.addInstances(out, this.root, []);
@@ -385,10 +410,10 @@ export class World implements WorldApi, System {
       if (this.chunks.has(key)) continue;
       const cz = (key % 1024) - 512;
       const cx = Math.floor(key / 1024) - 512;
-      const chunk: Chunk = { key, cx, cz, heights: null, group: new THREE.Group(), colliders: [], lights: [], ready: false, disposables: [], ground: null };
+      const chunk: Chunk = { key, cx, cz, heights: null, group: new THREE.Group(), colliders: [], lights: [], ready: false, disposables: [], ground: null, props: [] };
       chunk.group.matrixAutoUpdate = false;
       this.chunks.set(key, chunk);
-      this.queue.push({ chunk, job: this.build(chunk) });
+      this.queue.push({ chunk, job: this.build(chunk), steps: 0 });
     }
     this.queue.sort((a, b) => (want.get(a.chunk.key) ?? 1e9) - (want.get(b.chunk.key) ?? 1e9));
   }
@@ -404,15 +429,29 @@ export class World implements WorldApi, System {
 
   private runJobs(budgetMs: number) {
     const start = performance.now();
-    while (this.queue.length && performance.now() - start < budgetMs) {
+    let before = start;
+    while (this.queue.length && before - start < budgetMs) {
       const item = this.queue[0];
-      if (item.job.next().done) this.queue.shift();
+      const r = item.job.next();
+      const now = performance.now();
+      if (now - before > this.slowJob.ms) {
+        this.slowJob.ms = now - before;
+        this.slowJob.step = r.done ? 'colliders' : (r.value ?? String(item.steps));
+        this.slowJob.cx = item.chunk.cx;
+        this.slowJob.cz = item.chunk.cz;
+      }
+      item.steps++;
+      before = now;
+      if (r.done) this.queue.shift();
     }
   }
 
   private scheduleTimer = 0;
   private lamps: THREE.PointLight[] = [];
   private lampTimer = 0;
+  /** The lit lights nearest the player, as `updateLamps` last sorted them (the wet-road glints reuse it). */
+  private litNear: ChunkLight[] = [];
+  private glints: THREE.InstancedMesh | null = null;
 
   /** A fixed pool of point lights hops between the nearest authored light positions after dark. */
   private updateLamps(dt: number, night: number, count: number) {
@@ -428,6 +467,7 @@ export class World implements WorldApi, System {
     const fx = this.focus.x;
     const fz = this.focus.z;
     const near = night > 0.25 ? this.lightsNear(fx, fz, 70).sort((a, b) => Math.hypot(a.x - fx, a.z - fz) - Math.hypot(b.x - fx, b.z - fz)) : [];
+    this.litNear = near;
     this.lamps.forEach((lamp, i) => {
       const source = i < count ? near[i] : undefined;
       if (!source) {
@@ -439,6 +479,78 @@ export class World implements WorldApi, System {
       lamp.distance = source.range;
       lamp.intensity = source.intensity * night;
     });
+  }
+
+  /**
+   * Reflections of the street lights in a wet road: under each of the nearest lit lamps, a soft streak of
+   * the lamp's colour laid on the seal, stretched from the lamp's foot towards the viewer the way light
+   * smears on wet asphalt. One instanced mesh, additive, no depth write; gone when the road is dry or the
+   * sun is up.
+   */
+  private updateGlints(night: number, wetness: number) {
+    const show = Math.min(night * 1.6, 1) * Math.max(0, wetness - 0.12) * 1.5;
+    const COUNT = 14;
+    if (!this.glints) {
+      if (show <= 0.01) return;
+      const geometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+      const canvas = document.createElement('canvas');
+      canvas.width = 32;
+      canvas.height = 64;
+      const g = canvas.getContext('2d')!;
+      const image = g.createImageData(32, 64);
+      for (let y = 0; y < 64; y++) {
+        for (let x = 0; x < 32; x++) {
+          const across = Math.sin((x / 31) * Math.PI);
+          const along = (1 - y / 63) ** 1.9;
+          const o = (y * 32 + x) * 4;
+          image.data[o] = image.data[o + 1] = image.data[o + 2] = 255;
+          image.data[o + 3] = Math.round(165 * across * across * along);
+        }
+      }
+      g.putImageData(image, 0, 0);
+      const texture = new THREE.CanvasTexture(canvas);
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+      this.glints = new THREE.InstancedMesh(geometry, material, COUNT);
+      this.glints.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(COUNT * 3), 3);
+      this.glints.frustumCulled = false;
+      this.glints.matrixAutoUpdate = false;
+      this.glints.renderOrder = 2;
+      this.root.add(this.glints);
+    }
+    const mesh = this.glints;
+    if (show <= 0.01 || !this.ctx) {
+      mesh.visible = false;
+      return;
+    }
+    mesh.visible = true;
+    (mesh.material as THREE.MeshBasicMaterial).opacity = Math.min(1, show);
+    const eye = this.ctx.camera.getWorldPosition(_p);
+    const colors = mesh.instanceColor!.array as Float32Array;
+    let n = 0;
+    for (const source of this.litNear) {
+      if (n >= COUNT) break;
+      const dx = eye.x - source.x;
+      const dz = eye.z - source.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 1.5 || d > 80) continue;
+      const ground = this.heightAt(source.x, source.z);
+      const drop = source.y - ground;
+      if (drop < 1.2) continue; // a window at footpath height has no length to smear
+      const length = Math.min(11, drop * 2.1) * (0.7 + 0.5 * wetness);
+      const width = 0.55 + drop * 0.1;
+      const yaw = Math.atan2(dx / d, dz / d);
+      _q.setFromAxisAngle(UP_Y, yaw);
+      _m.compose(_pv.set(source.x + (dx / d) * (length / 2 + 0.6), ground + 0.06, source.z + (dz / d) * (length / 2 + 0.6)), _q, _s2.set(width, 1, length));
+      _m.toArray(mesh.instanceMatrix.array, n * 16);
+      _c2.set(source.color).multiplyScalar(Math.min(1.2, 0.35 + source.intensity * 0.3));
+      colors[n * 3] = _c2.r;
+      colors[n * 3 + 1] = _c2.g;
+      colors[n * 3 + 2] = _c2.b;
+      n++;
+    }
+    mesh.count = n;
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.instanceColor!.needsUpdate = true;
   }
 
   /** Hand over the game context once every system exists (the world itself is built before them). */
@@ -478,8 +590,17 @@ export class World implements WorldApi, System {
       chunk.ground[0].visible = near;
       chunk.ground[1].visible = !near;
     }
+    // Small props by distance from the chunk's nearest edge.
+    for (const chunk of this.chunks.values()) {
+      if (!chunk.props.length) continue;
+      const dx = Math.max(chunk.cx * CHUNK - this.focus.x, 0, this.focus.x - (chunk.cx + 1) * CHUNK);
+      const dz = Math.max(chunk.cz * CHUNK - this.focus.z, 0, this.focus.z - (chunk.cz + 1) * CHUNK);
+      const away = Math.hypot(dx, dz);
+      for (const prop of chunk.props) prop.mesh.visible = away < prop.reach;
+    }
 
     this.updateLamps(dt, this.gfx.night, this.gfx.lampCount);
+    this.updateGlints(this.gfx.night, this.gfx.wetness);
     this.breakables.update(dt);
     // Leaves move with the weather: barely in fog, hard in a nor'wester.
     if (this.ctx) {
@@ -494,7 +615,7 @@ export class World implements WorldApi, System {
 
   // ───────────── Chunk generation ─────────────
 
-  private *build(chunk: Chunk): Generator<void> {
+  private *build(chunk: Chunk): Generator<string | void> {
     const { cx, cz } = chunk;
     const x0 = cx * CHUNK;
     const z0 = cz * CHUNK;
@@ -502,7 +623,7 @@ export class World implements WorldApi, System {
     const grid = new Float32Array(M * M);
     for (let j = 0; j < M; j++) {
       for (let i = 0; i < M; i++) grid[j * M + i] = this.terrain.height(x0 + (i - 1) * CELL, z0 + (j - 1) * CELL);
-      if (j % 6 === 5) yield;
+      if (j % 6 === 5) yield 'grid';
     }
     const heights = new Float32Array((N + 1) * (N + 1));
     const V = (N + 1) * (N + 1);
@@ -526,10 +647,10 @@ export class World implements WorldApi, System {
         this.ground.shade(x, z, h, dx / (2 * CELL), dz / (2 * CELL), true, shade, k);
         uv.set([x, z], k * 2);
       }
-      if (j % 4 === 3) yield;
+      if (j % 4 === 3) yield 'shade';
     }
     chunk.heights = heights;
-    yield;
+    yield 'heights';
 
     const index: number[] = [];
     for (let j = 0; j < N; j++) {
@@ -605,7 +726,7 @@ export class World implements WorldApi, System {
       return ground;
     });
     chunk.ground = [grounds[0], grounds[1]];
-    yield;
+    yield 'ground';
 
     // Sea and river surface over this chunk: each level of detail rides with the matching ground mesh.
     const water = this.ground.buildWater(x0, z0, heights, N, CELL);
@@ -617,32 +738,35 @@ export class World implements WorldApi, System {
     // Roads, rails, rivers.
     const lod: 0 | 1 = 0;
     const out = new ChunkBuilderImpl(this.gfx.materials, this, lod);
-    buildChunkRoads(cx, cz, this.map, this.edgesByChunk.get(chunk.key) ?? [], out, this.roadMats);
-    buildChunkLines(cx, cz, this.map, this.railsByChunk.get(chunk.key) ?? [], (x, z) => this.terrain.height(x, z), out, this.roadMats);
+    const roadwork = buildChunkRoads(cx, cz, this.map, this.edgesByChunk.get(chunk.key) ?? [], out, this.roadMats);
+    while (!roadwork.next().done) yield 'roads';
+    const linework = buildChunkLines(cx, cz, this.map, this.railsByChunk.get(chunk.key) ?? [], (x, z) => this.terrain.height(x, z), out, this.roadMats);
+    while (!linework.next().done) yield 'lines';
     for (const mesh of out.finish(false)) {
       chunk.group.add(mesh);
       chunk.disposables.push(mesh.geometry);
     }
     const flat = out.colliders;
-    yield;
+    yield 'road-mesh';
 
     // Buildings, landmarks, props.
     const built = new ChunkBuilderImpl(this.gfx.materials, this, lod);
     const lots = this.lots.get(chunk.key) ?? [];
     for (let i = 0; i < lots.length; i++) {
       buildLot(lots[i], built);
-      if (i % 6 === 5) yield;
+      if (i % 6 === 5) yield 'lots';
     }
     for (const l of this.landmarksByChunk.get(chunk.key) ?? []) {
-      LANDMARKS[l.kind]?.(l, built);
-      yield;
+      const slices = LANDMARKS[l.kind]?.(l, built);
+      if (slices) while (!slices.next().done) yield l.kind;
+      yield l.kind;
     }
     this.scatter(chunk, built);
-    yield;
+    yield 'scatter';
     const area = { minX: x0, minZ: z0, size: CHUNK, seed: chunk.key };
     for (const scatterer of SCATTERERS) {
       scatterer(area, built);
-      yield;
+      yield 'scatterer';
     }
     for (const mesh of built.finish()) {
       chunk.group.add(mesh);
@@ -650,7 +774,7 @@ export class World implements WorldApi, System {
     }
     this.addInstances(built, chunk.group, chunk.disposables, chunk);
     chunk.lights = built.lights;
-    yield;
+    yield 'finish';
 
     // Physics.
     const R = this.physics.rapier;
@@ -708,8 +832,20 @@ export class World implements WorldApi, System {
         if (!list.length) continue;
       }
       const meshes: THREE.InstancedMesh[] = [];
+      // How far out this kind is worth drawing (Infinity: always).
+      let size = 0;
+      for (const part of def.parts) {
+        if (!part.geometry.boundingSphere) part.geometry.computeBoundingSphere();
+        const sphere = part.geometry.boundingSphere!;
+        size = Math.max(size, sphere.radius + sphere.center.length());
+      }
+      const most = list.reduce((m, inst) => Math.max(m, inst.scale), 0);
+      const reach = Math.max(PROP_REACH.floor, size * most * PROP_REACH.perMetre);
+      // Under five metres only: lamp posts and power poles carry the lights that make a distant street at night.
+      const limited = chunk !== undefined && size * most < 5 && reach < this.radius() * CHUNK && !plantModel(kind, this.gfx.materials);
       for (const part of def.parts) {
         const mesh = new THREE.InstancedMesh(part.geometry, part.material, list.length);
+        mesh.name = kind; // for the profiling scripts: what a mesh is
         list.forEach((inst, i) => {
           dummy.position.set(inst.x, inst.y, inst.z);
           dummy.rotation.set(0, inst.heading, 0);
@@ -724,6 +860,7 @@ export class World implements WorldApi, System {
         parent.add(mesh);
         disposables.push(mesh);
         meshes.push(mesh);
+        if (limited) chunk.props.push({ mesh, reach });
       }
       // Collision: the def's own post / trunk, or the physics overlay for this kind (fences, furniture).
       const rule = PROP_PHYSICS[kind];

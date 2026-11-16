@@ -6,11 +6,13 @@ import {
   bigDoor,
   box,
   cyl,
+  downpipe,
   fence,
   footing,
   glass,
   ground,
   mat,
+  pane,
   patches,
   prop,
   quad,
@@ -27,6 +29,7 @@ import {
   winRow,
 } from './kit';
 import { FARMS, WALL_PAINT, board } from './names';
+import { shedWalls } from './service';
 import { stateHouse } from './statehouse';
 import { type HouseCore, bayVilla, bungalow, cottage } from './villa';
 
@@ -97,9 +100,12 @@ const farmhouse: LotBuilder = (lot, out, rng) => {
   const shedZ = Math.max(-s.hd + 8.5, p.back - 4);
   track(s, driveX, shedZ + 3);
   const g = raised(s, ground(s, driveX, shedZ));
-  const skin = mat(g, 'corrugated', rng.pick([0x9aa0a4, 0x8b3027, 0xb9b4a8]));
+  const shedColor = rng.pick([0x9aa0a4, 0x8b3027, 0xb9b4a8]);
+  const skin = mat(g, 'corrugated', shedColor);
   walls(g, driveX, shedZ - 0.4, 6.4, 6, 2.6, skin);
   solid(g, driveX, shedZ - 0.4, 6.4, 6, 2.6);
+  shedWalls(g, driveX, shedZ - 0.4, 6.4, 6, 2.6, skin, false);
+  patches(g, driveX + 0.2, driveX + 3, shedZ + 2.6, 0, 2.5, shedColor, 2);
   slope(g, driveX, 3.3, shedZ + 2.8, driveX, 2.65, shedZ - 3.6, 6.8, 0.08, mat(g, 'corrugated', 0xa9a79d));
   bigDoor(g, driveX - 1.5, -0.3, shedZ + 2.62, 2.6, 2.6, 0x55606a, rng.chance(0.5));
   waterTank(s, side > 0 ? p.x1 + 2.4 : p.x0 - 2.4, p.back + 1.6, 2.6);
@@ -204,6 +210,13 @@ const woolshed: LotBuilder = (lot, out, rng) => {
   }
   if (b.spare()) box(b, cx + side * 1.6, -0.5, front + 0.03, w - 6.5, fl + 0.3, 0.05, dark);
   patches(b, cx - w / 2 + 0.5, cx + w / 2 - 0.5, front, fl + 0.4, H - 0.9, cladding, 5);
+  // The gable ends: a pair of high windows over the board, a vent in the peak, odd sheets, a pipe to the tank.
+  for (const e of SIDES) {
+    winRow(b, cx + (e * w) / 2, cz + d / 2 - 2.2, cx + (e * w) / 2, cz - d / 2 + 2.2, H - 0.9, 2, 1.2, 0.8, (e * Math.PI) / 2, 0.05);
+    if (b.spare()) pane(b, 'louvre', cx + e * (w / 2 + 0.03), H + d * 0.13, cz, 0.8, 0.6, (e * Math.PI) / 2, { color: 0x8a8d90 });
+    patches(b, cz - d / 2 + 0.5, cz + d / 2 - 0.5, cx + (e * w) / 2, 0.2, H - 1.5, cladding, 3, (e * Math.PI) / 2);
+    if (b.spare()) downpipe(b, cx + (e * w) / 2, cz - d / 2 + 0.3, Math.min(0, ground(b, cx + (e * w) / 2, cz - d / 2)) - 0.3, H - 0.1, (e * Math.PI) / 2, 0x8f959a);
+  }
   const driveX = -side * Math.min(s.hw - 5, Math.abs(bx) + 2);
   track(s, driveX, front + 3);
   roadFence(s, driveX);
@@ -223,7 +236,8 @@ const hayBarn: LotBuilder = (lot, out, rng) => {
   const { h: b } = seat(s, cx - w / 2, cx + w / 2, front);
   const H = 5.2;
   const pole = mat(b, 'timber', 0x6f5a44);
-  const sheet = mat(b, 'corrugated', rng.pick([0xa9a79d, 0x8b3027, 0x9aa0a4]));
+  const sheetColor = rng.pick([0xa9a79d, 0x8b3027, 0x9aa0a4]);
+  const sheet = mat(b, 'corrugated', sheetColor);
   const hay = mat(b, 'weatherboard', 0xcdb768);
 
   // Pole barn: two rows of posts under a low gable, clad on the weather side and one end.
@@ -235,6 +249,8 @@ const hayBarn: LotBuilder = (lot, out, rng) => {
   roof(b, cx, H, cz, w, d, d * 0.16, sheet, { eave: 0.3 });
   box(b, cx, 0.9, cz - d / 2 + 0.05, w, H - 0.9, 0.08, sheet);
   box(b, cx + side * (w / 2 - 0.05), 0.9, cz, 0.08, H - 0.9, d, sheet);
+  patches(b, cx - w / 2 + 0.5, cx + w / 2 - 0.5, cz - d / 2 + 0.01, 0.95, H - 0.1, sheetColor, 4, Math.PI);
+  patches(b, cz - d / 2 + 0.5, cz + d / 2 - 0.5, cx + side * (w / 2 - 0.01), 0.95, H - 0.1, sheetColor, 3, (side * Math.PI) / 2);
 
   // The stack: most of the barn full to the rafters, stepping down where they have been feeding out.
   const sw = w * rng.range(0.5, 0.68);
@@ -298,7 +314,8 @@ const implementShed: LotBuilder = (lot, out, rng) => {
   const front = s.hd - rng.range(11, 14.5);
   const cz = front - d / 2;
   const { h: b } = seat(s, cx - w / 2, cx + w / 2, front);
-  const skin = mat(b, 'corrugated', rng.pick([0x9aa0a4, 0xb9b4a8, 0x8b3027, 0x7d8a78]));
+  const skinColor = rng.pick([0x9aa0a4, 0xb9b4a8, 0x8b3027, 0x7d8a78]);
+  const skin = mat(b, 'corrugated', skinColor);
   const sheet = mat(b, 'corrugated', 0xa9a79d);
   const pole = mat(b, 'timber', 0x6f5a44);
 
@@ -308,6 +325,8 @@ const implementShed: LotBuilder = (lot, out, rng) => {
   for (const e of SIDES) box(b, cx + e * (w / 2 - 0.06), base, cz, 0.12, 3.8 - base, d, skin);
   slope(b, cx, 4.55, front + 0.5, cx, 3.45, front - d - 0.2, w + 0.4, 0.08, sheet);
   for (let i = 0; i <= bays; i++) box(b, cx - w / 2 + 0.1 + ((w - 0.2) * i) / bays, base, front - 0.1, 0.2, 4.4 - base, 0.2, pole);
+  patches(b, cx - w / 2 + 0.5, cx + w / 2 - 0.5, front - d, 0.1, 3.3, skinColor, 4, Math.PI);
+  for (const e of SIDES) patches(b, cz - d / 2 + 0.5, cz + d / 2 - 0.5, cx + (e * w) / 2, 0.1, 3.5, skinColor, 2, (e * Math.PI) / 2);
   box(b, cx, 4.15, front - 0.1, w, 0.25, 0.14, pole);
   b.out.collider(b.f, cx, 1.9, cz, w, 4.4, d);
 

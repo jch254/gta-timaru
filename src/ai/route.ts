@@ -36,7 +36,11 @@ export function exitDir(edge: RoadEdge, node: number): 1 | -1 | 0 {
 
 function exitWeight(fromEdge: RoadEdge, fromDir: 1 | -1, edge: RoadEdge, dir: 1 | -1): number {
   let w = EXIT_CLASS_WEIGHT[edge.cls];
-  if (Math.abs(turnAngle(fromEdge, fromDir, edge, dir)) < 0.5) w *= 3;
+  const turn = Math.abs(turnAngle(fromEdge, fromDir, edge, dir));
+  if (turn < 0.5) w *= 3;
+  // Nobody wanders into a hairpin: tighter than most cars can track, and the overshoot ends up on the
+  // footpath (the mall corners in town). Kept barely possible for nodes where it is the only way on.
+  if (turn > 2.1) w *= 0.02;
   if (edge.name === fromEdge.name) w *= 1.5;
   return w;
 }
@@ -270,6 +274,18 @@ export class RouteFollower {
       mx += _in.tx * Math.max(4, this.chord);
       mz += _in.tz * Math.max(4, this.chord);
     }
+    // The curve must stay on the seal: a sharp angle can put the tangents' meeting point (and a U-turn's
+    // swing) far outside the junction, and the car would faithfully drive across the mall, plaza or
+    // riverbank it points at. Pull a control point that leaves the junction box back to its edge.
+    const node = graph.nodes[this.node];
+    const outX = mx - node.x;
+    const outZ = mz - node.z;
+    const far = Math.hypot(outX, outZ);
+    const maxOut = junctionRadius(graph, this.node) + DRIVE.junctionPad + 1.5;
+    if (far > maxOut) {
+      mx = node.x + (outX / far) * maxOut;
+      mz = node.z + (outZ / far) * maxOut;
+    }
     this.midX = mx;
     this.midZ = mz;
     const polygon = Math.hypot(mx - _in.x, mz - _in.z) + Math.hypot(_out.x - mx, _out.z - mz);
@@ -294,9 +310,12 @@ export class RouteFollower {
       return false;
     }
     // Inside the junction box progress is measured across it, from the entry point towards the exit point
-    // (projecting on to the road we came in on would stall half-way round a turn).
+    // (projecting on to the road we came in on would stall half-way round a turn). A straight-through
+    // continuation has no box: its in and out points land on nearly the same spot, and the tiny chord
+    // between them can even point backwards (the lane offsets turn with the kink), which would pin t at 0
+    // for good — so any chord that small steps immediately instead.
     let t = 1;
-    if (this.chord > 1e-3) {
+    if (this.chord > 1.5) {
       t = ((x - this.inX) * (this.outX - this.inX) + (z - this.inZ) * (this.outZ - this.inZ)) / (this.chord * this.chord);
       t = t < 0 ? 0 : t > 1 ? 1 : t;
     }

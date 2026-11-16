@@ -348,7 +348,7 @@ export const raceway: LandmarkBuilder = (p, out) => {
   // Course proper and the training track.
   const turf = new Geo();
   s.ribbon(turf, oval(55), 16, 0.05, true, 6);
-  turf.flush(out, s.ground('grass', 0x7fae52, -1), f);
+  turf.flush(out, s.ground('grass', 0x6a8244, -1), f);
   const sand = new Geo();
   s.ribbon(sand, oval(41), 6, 0.05, true, 6);
   sand.flush(out, s.ground('sand', 0xc2b08a, -1), f);

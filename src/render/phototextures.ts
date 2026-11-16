@@ -32,14 +32,14 @@ export function registerTexturePreload(load: (anisotropy: number) => Promise<unk
 }
 
 /** Loads whatever photo surfaces exist. Must finish before any surface material is created. */
-export async function loadPhotoSurfaces(anisotropy: number, onProgress?: (fraction: number) => void): Promise<number> {
+export async function loadPhotoSurfaces(anisotropy: number, onProgress?: (fraction: number) => void, maxSize?: number): Promise<number> {
   const extras = preloads.map((load) => load(anisotropy).catch((err) => console.warn('A texture preload failed.', err)));
-  const installed = await loadSurfaces(anisotropy, onProgress);
+  const installed = await loadSurfaces(anisotropy, onProgress, maxSize);
   await Promise.all(extras);
   return installed;
 }
 
-async function loadSurfaces(anisotropy: number, onProgress?: (fraction: number) => void): Promise<number> {
+async function loadSurfaces(anisotropy: number, onProgress?: (fraction: number) => void, maxSize?: number): Promise<number> {
   const loadManifest = Object.values(manifests)[0];
   if (!loadManifest) return 0;
   let manifest: { surfaces?: Record<string, ManifestEntry> };
@@ -57,6 +57,15 @@ async function loadSurfaces(anisotropy: number, onProgress?: (fraction: number) 
     const resolve = files[`../assets/textures/${file}`];
     if (!resolve) return null;
     const tex = await loader.loadAsync((await resolve()) as string);
+    const picture = tex.image as HTMLImageElement;
+    if (maxSize && picture.width > maxSize && typeof document !== 'undefined') {
+      // Phones (see `Gfx.loadTextures`): hold the picture at `maxSize` across.
+      const canvas = document.createElement('canvas');
+      canvas.width = maxSize;
+      canvas.height = Math.round((picture.height * maxSize) / picture.width);
+      canvas.getContext('2d')!.drawImage(picture, 0, 0, canvas.width, canvas.height);
+      (tex as THREE.Texture<unknown>).image = canvas;
+    }
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set(1 / tile[0], 1 / tile[1]);
     tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;

@@ -376,7 +376,7 @@ export const rugbyField: LandmarkBuilder = (p, out) => {
   // Mown pitch and its lines.
   const turf = new Geo();
   s.drape(turf, 0, CZ, 110, 66, 0.04, 0, 6);
-  turf.flush(out, s.ground('grass', 0x6f9f48, -1), f);
+  turf.flush(out, s.ground('grass', 0x8a9150, -1), f);
   const paint = new Geo();
   const line = (x0: number, z0: number, x1: number, z1: number) => s.line(paint, x0, z0, x1, z1, 0.12, 0.08);
   for (const z of [CZ - 31, CZ + 31]) line(-53, z, 53, z);

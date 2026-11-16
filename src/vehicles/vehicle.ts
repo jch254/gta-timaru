@@ -312,7 +312,7 @@ export class VehicleImpl implements Vehicle {
       const show = actor !== null && actor.alive && !own && !this.destroyed;
       let mesh = this.occupants[seat];
       if (show && !mesh) {
-        mesh = this.occupants[seat] = createOccupant(this.ctx.gfx.materials, this.id * 7 + seat * 3, seat === 0, this.spec.cls === 'police');
+        mesh = this.occupants[seat] = createOccupant(this.ctx.gfx.materials, this.id * 7 + seat * 3, seat === 0, this.spec.cls === 'police', this.spec.cls === 'bus' || this.spec.cls === 'truck' ? 0.45 : 0.22);
         mesh.position.copy(this.seatLocal(seat));
         this.mount.add(mesh);
       }

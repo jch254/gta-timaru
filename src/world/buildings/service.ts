@@ -209,6 +209,19 @@ export function serviceWall(s: Site, o: ServiceWall) {
     }
     if (piped && r.chance(0.12) && s.spare(2)) ws.out.cylinder(ws.f, -side * (usable / 2 - 1.1), (2.7 + o.top + 1.3) / 2, 0.24, 0.16, 0.16, Math.round((o.top + 1.3 - 2.7) * 10) / 10, trim(s, 0x9a9d9f), 5);
   }
+  // The meter box by the back door with its conduit, a kitchen extractor, an enamel plate nobody took down.
+  if (!street) {
+    const di = use.indexOf('door');
+    const t = di >= 0 ? at(di) - bayW / 2 + 0.3 : -usable / 2 + 0.2;
+    const gy = Math.max(earth(t), -0.2);
+    if (r.chance(back ? 0.75 : 0.3) && s.spare() && gy < 0.9) {
+      pane(ws, 'fitting', t, gy + 1.5, 0.03, 0.42, 0.6, 0, { color: r.pick([0xb9b4a8, 0x8a8d90, 0xd8d2c4, 0x6f7a72]), variant: 0 });
+      const run = o.top - 0.4 - gy - 1.8;
+      if (run > 0.2) quad(ws, t + 0.12, gy + 1.8 + run / 2, 0.018, 0.035, run, pipe);
+    }
+    if (back && r.chance(0.4) && s.spare()) pane(ws, 'fitting', at(r.int(0, n - 1)) + bayW / 2 - 0.55, Math.min(o.top - 0.6, Math.max(earth(0), -0.2) + r.range(2.7, 3.3)), 0.03, 0.46, 0.46, 0, { color: 0x9a9d9f, variant: 2 });
+    if (r.chance(0.25) && s.spare()) pane(ws, 'fitting', at(r.int(0, n - 1)) - bayW / 2 + 0.75, Math.max(earth(0), -0.2) + r.range(1.5, 2.2), 0.025, 0.5, 0.34, 0, { color: r.pick([0xe8e2d0, 0x23405a, 0x8a2f2a, 0xd8b23a]), variant: 3 });
+  }
   if (!street && r.chance(0.6) && s.spare()) {
     const lo = Math.min(earth(-o.len / 2 + 0.5), earth(o.len / 2 - 0.5), 0) - 0.4;
     const hi = Math.max(earth(-o.len / 2 + 0.5), earth(o.len / 2 - 0.5), 0) + r.pick([0.6, 0.9, 1.1]);

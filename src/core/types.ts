@@ -285,6 +285,11 @@ export interface MaterialLibrary {
    * names the patch for the program cache. Optional so test doubles need not provide it: feature-detect.
    */
   registerPatched?<T extends THREE.Material>(material: T, key: string, patch: (shader: THREE.WebGLProgramParametersWithUniforms) => void): T;
+  /**
+   * Lamp of a traffic signal: an aspect on one of the two crossing axes, lit and dimmed by the library on a
+   * town-wide cycle. Optional so test doubles need not provide it: feature-detect.
+   */
+  signalLamp?(axis: 'a' | 'b', aspect: 'red' | 'amber' | 'green'): THREE.MeshStandardMaterial;
   /** Forget and dispose a per-object material made with `register` (e.g. a vehicle's paint) when its owner is removed. */
   release(material: THREE.Material): void;
 }
@@ -313,6 +318,8 @@ export interface GfxApi {
   backdropVariant<T extends THREE.MeshStandardMaterial>(material: T, haze: number): T;
   /** Darkness 0..1 (mirrors `ctx.env.night`) and how many pooled point lights this quality level allows. */
   night: number;
+  /** How wet the roads are, 0 dry … 1 streaming. */
+  wetness: number;
   lampCount: number;
   /** Screen-space effects other systems may trigger. */
   flash(color: number, strength: number, seconds: number): void;
@@ -597,6 +604,7 @@ export type HumanoidPose =
   | 'cower'
   | 'handsUp'
   | 'point' // one arm up, pointing at the sky
+  | 'orate' // one hand raised to the crowd, palm out: holding forth
   | 'drive'
   | 'ride' // motorbike
   | 'sit'
@@ -1138,4 +1146,8 @@ export type LotBuilder = (lot: Lot, out: ChunkBuilder, rng: { next(): number; ra
 export type Scatterer = (area: { minX: number; minZ: number; size: number; seed: number }, out: ChunkBuilder) => void;
 
 /** Builds a bespoke landmark. Called once per placement when its chunk loads (or at start for skyline landmarks). */
-export type LandmarkBuilder = (placement: LandmarkPlacement, out: ChunkBuilder) => void;
+/**
+ * Builds one landmark into a chunk. A heavy builder may be a generator function instead: the world runs it
+ * a slice per frame so a cathedral-sized build does not land in one frame (`runLandmark` exhausts either).
+ */
+export type LandmarkBuilder = (placement: LandmarkPlacement, out: ChunkBuilder) => void | Generator<void>;

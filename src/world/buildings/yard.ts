@@ -1,4 +1,4 @@
-import { CREAM, type Mat, type Site, bigDoor, box, fence, ground, mat, prop, raised, roof, run, slope, solid, stretches, trim, walls, win } from './kit';
+import { CREAM, type Mat, type Site, bigDoor, box, fence, ground, mat, prop, raised, roof, run, slope, solid, stretches, trim, walls, win, worldX, worldZ } from './kit';
 
 /**
  * The quarter-acre around a house: front fence and gate, letterbox, path, driveway, garage or carport,
@@ -90,6 +90,17 @@ export function yard(s: Site, p: Plot, o: YardStyle) {
     } else {
       slope(s, driveX, ya, s.hd, driveX, yb, end, 2.6, 0.12, surface);
     }
+    // The vehicle crossing: the drive carries on over the berm and footpath to the kerb in one slab.
+    const wx = worldX(s, driveX, s.hd);
+    const wz = worldZ(s, driveX, s.hd);
+    const hit = s.out.world.graph?.nearest(wx, wz, 24); // (test doubles have no road graph)
+    if (hit) {
+      const reach = hit.distance - hit.edge.width / 2 - 0.15;
+      if (reach > 0.4 && reach < 6) {
+        const yk = ground(s, driveX, s.hd + reach);
+        slope(s, driveX, ya + 0.1, s.hd - 0.05, driveX, yk + 0.09, s.hd + reach, 2.8, 0.05, mat(s, 'concrete', 0xc4c0b4));
+      }
+    }
   }
 
   // Front path to the steps.
@@ -154,6 +165,25 @@ export function yard(s: Site, p: Plot, o: YardStyle) {
   const away = o.drive === 0 ? fx.pick([-1, 1]) : -o.drive;
 
   if (o.washing && p.back - 2.5 > -s.hd + 2) prop(s, 'washing-line', away * s.hw * fx.range(0.25, 0.5), (p.back + -s.hd) / 2 - fx.range(0, 1), fx.range(0, 1.5));
+
+  // The lived-in back yard: a trampoline or a veggie patch on the lawn, a kennel or the incinerator drum
+  // and the woodpile along the back fence. Only where the lot is deep enough that they sit behind the house.
+  const backRoom = p.back - (-s.hd);
+  if (backRoom > 7) {
+    const bz = -s.hd + fx.range(2.5, Math.min(5.5, backRoom - 3.5));
+    const bx = -away * s.hw * fx.range(0.2, 0.55);
+    const toy = fx.int(0, 5);
+    if (toy === 0) prop(s, 'trampoline', bx, bz, fx.range(0, 3));
+    else if (toy <= 2) {
+      // Veggie garden: a dug bed with rows of greens, fenced off from the dog.
+      const vy = ground(s, bx, bz);
+      box(s, bx, vy - 0.04, bz, 3.2, 0.16, 2.0, mat(s, 'plain', 0x3d3226));
+      for (const dz of [-0.6, 0, 0.6]) run(s, 'grass-long', bx - 1.3, bz + dz, bx + 1.3, bz + dz, 2.1, 0x7fae56, 0.55);
+    }
+    if (fx.chance(0.22) && Math.abs(bx) < s.hw - 3) prop(s, 'kennel', away * (s.hw - 1.2), -s.hd + fx.range(1, 2.5), -away * (Math.PI / 2) + fx.range(-0.3, 0.3));
+    if (fx.chance(0.25)) prop(s, 'drum', -away * (s.hw - 1), -s.hd + fx.range(0.8, 1.6), fx.range(0, 3), 1, 0x5a5146);
+    if (fx.chance(0.28) && !hasShed) prop(s, 'woodpile', away * (s.hw - 1.6), -s.hd + fx.range(0.9, 1.8), fx.range(-0.2, 0.2), 0.8);
+  }
 
   // Planting: shrubs along the front of the house, a specimen on the lawn, a fruit tree out the back.
   const shrubs = Math.round(o.planting * 3 + fx.range(-0.5, 0.5));

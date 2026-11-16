@@ -22,10 +22,24 @@ const REAL_NAMES = [
 ];
 
 /**
- * Meshes per vehicle, wheels included. Ten is the rule: paint, glass, trim, head lamps, tail lamps,
- * number plates and four wheels. Signwriting, beacons, the truck's timber and the bus's blind are extra.
+ * Meshes per vehicle up close, wheels included. Ten is the rule: paint, glass, trim, head lamps, tail
+ * lamps, number plates and four wheels. Signwriting, beacons, the truck's timber and the bus's blind are
+ * extra.
  */
 const MESH_BUDGET: Record<string, number> = { police: 13, van: 11, farmtruck: 11, bus: 12 };
+/**
+ * And beyond `LOD_RANGE`, where the wheels are part of the body: paint, glass, trim, head lamps, tail
+ * lamps. The patrol car keeps its two beacons, the van its signwriting, the truck its timber, the bus its
+ * blind and name.
+ */
+const FAR_MESH_BUDGET: Record<string, number> = { police: 7, van: 6, farmtruck: 6, bus: 7 };
+
+/** A model's meshes as drawn up close, or from beyond the level-of-detail range. */
+const drawn = (model: VehicleModel, distant: boolean) =>
+  meshes(model).filter((mesh) => {
+    for (let o: THREE.Object3D | null = mesh; o; o = o.parent) if (distant ? o.userData.near : o.userData.far) return false;
+    return true;
+  });
 
 /** Material library stand-in: caches like the real one so merged batches (draw calls) are realistic. */
 function stubMaterials(): MaterialLibrary {
@@ -65,10 +79,14 @@ describe('vehicle roster', () => {
   // `VEHICLE_COUNTS=1 pnpm exec vitest run src/vehicles/models/roster.test.ts` prints the table.
   it('reports mesh and triangle counts on request', () => {
     const rows = VEHICLE_SPECS.map((spec) => {
-      const lists = builds(spec, 12).map(meshes);
-      const most = (count: (list: THREE.Mesh[]) => number) => Math.max(...lists.map(count));
-      const tris = most((list) => list.reduce((sum, mesh) => sum + triangles(mesh), 0));
-      return `${spec.id.padEnd(10)} meshes ${String(most((list) => list.length)).padStart(2)}  shadow casters ${most((list) => list.filter((mesh) => mesh.castShadow).length)}  triangles ${tris}`;
+      const models = builds(spec, 12);
+      const column = (distant: boolean) => {
+        const lists = models.map((model) => drawn(model, distant));
+        const most = (count: (list: THREE.Mesh[]) => number) => Math.max(...lists.map(count));
+        const tris = most((list) => list.reduce((sum, mesh) => sum + triangles(mesh), 0));
+        return `meshes ${String(most((list) => list.length)).padStart(2)}  shadow casters ${most((list) => list.filter((mesh) => mesh.castShadow).length)}  triangles ${String(tris).padStart(5)}`;
+      };
+      return `${spec.id.padEnd(10)} near: ${column(false)}   far: ${column(true)}`;
     });
     expect(rows.length).toBe(VEHICLE_SPECS.length);
     if ((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.VEHICLE_COUNTS) console.log('\n' + rows.join('\n'));
@@ -171,13 +189,26 @@ describe('vehicle roster', () => {
       });
 
       it('stays inside the render budget', () => {
+        const heavy = spec.id === 'bus' || spec.id === 'farmtruck';
         for (const model of models) {
-          const list = meshes(model);
+          const near = drawn(model, false);
+          const far = drawn(model, true);
+          const count = (list: THREE.Mesh[]) => list.reduce((sum, mesh) => sum + triangles(mesh), 0);
           // Draw calls matter more than triangles: every mesh is drawn again in each shadow pass.
-          expect(list.length, 'meshes').toBeLessThanOrEqual(MESH_BUDGET[spec.id] ?? 10);
-          expect(list.reduce((sum, mesh) => sum + triangles(mesh), 0), 'triangles').toBeLessThanOrEqual(spec.id === 'bus' || spec.id === 'farmtruck' ? 12000 : 8000);
-          expect(list.some((mesh) => mesh.castShadow), 'something casts a shadow').toBe(true);
-          expect(list.filter((mesh) => mesh.castShadow).length, 'shadow casters').toBeLessThanOrEqual(7);
+          expect(near.length, 'meshes up close').toBeLessThanOrEqual(MESH_BUDGET[spec.id] ?? 10);
+          expect(count(near), 'triangles up close').toBeLessThanOrEqual(heavy ? 18000 : 15000);
+          // The distant version is what a street of traffic is made of: half the draw calls of the
+          // round-2 models and under a third of their triangles.
+          expect(far.length, 'meshes from a distance').toBeLessThanOrEqual(FAR_MESH_BUDGET[spec.id] ?? 5);
+          expect(count(far), 'triangles from a distance').toBeLessThanOrEqual(heavy ? 2600 : 2200);
+          expect(far.length, 'a distant version').toBeLessThan(near.length);
+          for (const list of [near, far]) {
+            expect(list.some((mesh) => mesh.castShadow), 'something casts a shadow').toBe(true);
+            expect(list.filter((mesh) => mesh.castShadow).length, 'shadow casters').toBeLessThanOrEqual(7);
+          }
+          // Only the detailed version shows until the renderer has asked the switch which to draw.
+          const list = meshes(model);
+          for (const mesh of list) expect(mesh.visible, 'distant meshes start hidden').toBe(!mesh.userData.far);
           for (const mesh of list) if ((mesh.material as THREE.Material).transparent) expect(mesh.castShadow, 'glass casts no shadow').toBe(false);
           for (const mesh of list) {
             const position = mesh.geometry.getAttribute('position');

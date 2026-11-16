@@ -1,5 +1,5 @@
 import type { Action, Blip, GameContext, MissionSummary, QualityLevel, SettingsData } from '../core/types';
-import { el, Flag, hint, TextCache } from './dom';
+import { el, Flag, hint, TextCache, touchOn } from './dom';
 import { bilingual, cityName, cityTeReo, formatClock, formatMoney, weekdayName } from './format';
 import { FullMap } from './fullmap';
 import type { MapData } from './mapdata';
@@ -75,6 +75,37 @@ const CONTROLS: { title: string; rows: ControlRow[] }[] = [
       { label: 'Island map', actions: ['map'] },
       { label: 'Skip a line of talk', actions: ['skip'] },
       { label: 'Pause', actions: ['pause'] },
+    ],
+  },
+];
+
+/** The on-screen controller (src/touch), in the words printed on its buttons. */
+const TOUCH_CONTROLS: { title: string; rows: [string[], string][] }[] = [
+  {
+    title: 'On the screen: on foot',
+    rows: [
+      [['Left thumb'], 'Walk, anywhere on the left; push to the rim to run'],
+      [['Drag'], 'Look around, anywhere on the right'],
+      [['Punch', 'Swing', 'Fire'], 'Hit or shoot; hold to keep going'],
+      [['Jump'], 'Jump'],
+      [['Use'], 'Get in, talk, pick up: shows when there is something to use'],
+      [['Aim', 'Reload', 'Weapon'], 'With a firearm: aim (tap on, tap off), reload, change weapon'],
+    ],
+  },
+  {
+    title: 'On the screen: behind the wheel',
+    rows: [
+      [['Left thumb'], 'Steer'],
+      [['Go', 'Brake'], 'Pedals; slide a thumb between them'],
+      [['Hand brake', 'Out'], 'Handbrake; get out'],
+      [['Horn', 'Radio', 'Behind'], 'Horn, next station, look behind'],
+    ],
+  },
+  {
+    title: 'On the screen: any time',
+    rows: [
+      [['II', 'Map', 'View'], 'Top-left: pause, island map, camera distance'],
+      [['Skip'], 'Skip a line of talk'],
     ],
   },
 ];
@@ -339,7 +370,7 @@ export class PauseMenu {
       case 'map':
         this.fillText(pane, [
           'The whole of the island, Christchurch to Timaru, as it stood in 1995.',
-          `Press ${this.host.ctx.input.label('map')} at any time to unfold it without stopping here first.`,
+          touchOn() ? 'Tap MAP, top-left, at any time to unfold it without stopping here first.' : `Press ${this.host.ctx.input.label('map')} at any time to unfold it without stopping here first.`,
         ]);
         break;
       case 'jobs':
@@ -467,6 +498,18 @@ export class PauseMenu {
   }
 
   private buildControls(pane: HTMLElement) {
+    // The on-screen controller first, shown only while it is in use (see .nw-if-touch in ui.css).
+    const touch = el('div', 'nw-ctl-touch nw-if-touch', pane);
+    for (const group of TOUCH_CONTROLS) {
+      el('div', 'nw-ctl-group', touch, group.title);
+      for (const [buttons, what] of group.rows) {
+        const row = el('div', 'nw-touch-row', touch);
+        const keys = el('span', 'nw-ctl-keys', row);
+        for (const button of buttons) el('kbd', 'nw-cap pad', keys, button);
+        el('span', 'nw-ctl-label', row, what);
+      }
+    }
+    el('p', 'nw-para nw-note', touch, 'In menus: tap to choose; Back, top-right, goes back. A keyboard or a gamepad still works:');
     const header = el('div', 'nw-ctl-row nw-ctl-head', pane);
     el('span', 'nw-ctl-label', header, '');
     el('span', 'nw-ctl-keys', header, 'Keyboard & mouse');
@@ -484,7 +527,7 @@ export class PauseMenu {
         for (const button of buttons) el('kbd', 'nw-cap pad', pad, button);
       }
     }
-    el('p', 'nw-para nw-note', pane, 'In menus: arrows or the left stick to move, Enter or A to choose, Esc or B to go back.');
+    el('p', 'nw-para nw-note nw-if-keys', pane, 'In menus: arrows or the left stick to move, Enter or A to choose, Esc or B to go back.');
   }
 
   // ───────────── Settings ─────────────
@@ -541,14 +584,20 @@ export class PauseMenu {
       this.settings.push(row);
     };
 
+    // Headed groups, so the eye can jump straight to picture, sound or controls. (The rows keep their order.)
+    const group = (title: string) => el('div', 'nw-set-group', pane, title);
+    group('Picture');
     choice('quality', 'Picture quality', QUALITY, ['Low', 'Medium', 'High', 'Ultra']);
     choice('dynamicResolution', 'Dynamic resolution', [false, true], ['Off', 'On'], 'Eases the render scale to hold 60 frames a second');
+    group('Sound');
     slider('masterVolume', 'Master volume', 0, 1, 0.05, percent);
     slider('musicVolume', 'Radio and music', 0, 1, 0.05, percent);
     slider('sfxVolume', 'Effects', 0, 1, 0.05, percent);
     choice('liveRadio', 'Live radio stations', [false, true], ['Off', 'On'], 'Real stations in cars, streamed from their own servers. Off keeps the game offline');
+    group('Controls');
     slider('mouseSensitivity', 'Mouse sensitivity', 0.2, 3, 0.1, (v) => `${v.toFixed(1)}×`);
     choice('invertY', 'Invert look up / down', [false, true], ['Off', 'On']);
+    group('Extras');
     choice('showFps', 'Show frame rate', [false, true], ['Off', 'On'], 'Frames, frame time, draw calls, triangles, render scale');
   }
 

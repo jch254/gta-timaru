@@ -3,7 +3,7 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import type { Humanoid, HumanoidLook, HumanoidPose, MaterialLibrary } from '../../core/types';
 import type { BodyTemplate, ClipPair } from './assets';
 import { hatGeometry } from './hats';
-import { bodyVariant, hairOf, lookMaterials, sleevesOf } from './looks';
+import { bodyVariant, hairOf, lookMaterials, shadowVariant, sleevesOf, type LookMaterials } from './looks';
 
 /**
  * One rigged figure. Legs and torso are animated as two channels, each cross-fading between clips, so a
@@ -30,6 +30,17 @@ const PALM = new THREE.Vector3(-0.03, 0.088, 0.016);
 /** Where the sprint clip's stride sits relative to the walk and jog cycles. */
 const SPRINT_PHASE = 0.92;
 
+/** Least time between animation updates at each level of detail (seconds): distant figures tick at 30 and 15 Hz. */
+const TICK = [0, 0, 1 / 30, 1 / 15];
+/** Index start that puts a draw range past the end of any index list: nothing is drawn. */
+const NOTHING = 1e9;
+
+/** Every rigged figure alive, for the crowd manager (crowd.ts) that sets their level of detail. */
+export const figures = new Set<GltfHumanoid>();
+
+/** The shadow stand-in is never seen in the colour pass, so its material only has to exist. */
+let shadowMaterial: THREE.MeshBasicMaterial | null = null;
+
 const LOWER = 0;
 const UPPER = 1;
 const enum Kind {
@@ -49,6 +60,7 @@ interface Slot {
 }
 
 const X = new THREE.Vector3(1, 0, 0);
+const Y = new THREE.Vector3(0, 1, 0);
 const _qa = new THREE.Quaternion();
 const _qb = new THREE.Quaternion();
 const _qc = new THREE.Quaternion();
@@ -77,6 +89,8 @@ export class GltfHumanoid implements Humanoid {
   private aimPitch = 0;
   private clock = Math.random() * 20;
   private gaitPhase = Math.random();
+  /** Each figure idles at its own pace, so a crowd standing about does not sway in step. */
+  private idleRate = 0.78 + Math.random() * 0.44;
   private trigger = 0;
   private punches = 0;
   private aimWeight = 0;
@@ -85,11 +99,28 @@ export class GltfHumanoid implements Humanoid {
   private spineBase = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
   private spineOut = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
   private spineBent = false;
+  /** The glance layer: an occasional head turn, with the same held-pose bookkeeping as the spine. */
+  private head: THREE.Object3D;
+  private headBase = new THREE.Quaternion();
+  private headOut = new THREE.Quaternion();
+  private headTurned = false;
+  private glance = 0;
+  private glanceTarget = 0;
+  private glanceTimer = 1 + Math.random() * 4;
   private rootY: number;
   private standY: number;
   private size: number;
   private snap = true;
-  private releaseLook: () => void;
+  private mats: LookMaterials;
+  /** Stands in for the body in the shadow pass only: a tenth of the triangles in one draw call. */
+  private shadow: THREE.SkinnedMesh;
+  private hat: THREE.Mesh | null = null;
+  private variant: (level: number) => THREE.BufferGeometry;
+  /** Level of detail drawn (0 full … 3 far), and whether anybody can see the figure at all. */
+  private level = 0;
+  private awake = true;
+  /** Animation time not yet applied (figures out of sight or far away are not posed every frame). */
+  private pending = Math.random() * 0.05;
 
   constructor(
     look: HumanoidLook,
@@ -114,23 +145,45 @@ export class GltfHumanoid implements Humanoid {
     this.standY = this.rootY = body.lift * this.size;
     this.model.position.y = this.rootY;
     const head = bone('Head');
-    head.scale.set(HEAD_SIZE / build, HEAD_SIZE, HEAD_SIZE / build);
+    this.head = head;
 
     // Body parts and materials for this look.
     const style = look.topStyle ?? 'tee';
     const hat = look.hat && look.hat !== 'none' ? look.hat : null;
-    const mats = lookMaterials(look, body, materials);
-    this.mesh.geometry = bodyVariant(body, sleevesOf(style), !!look.shorts, hairOf(look, body), hat !== null);
+    const mats = (this.mats = lookMaterials(look, body, materials));
+    // No two heads quite the same shape: a little wider or narrower, longer or shorter.
+    head.scale.set((HEAD_SIZE / build) * mats.traits.wide, HEAD_SIZE * mats.traits.long, HEAD_SIZE / build);
+    const sleeves = sleevesOf(style);
+    const hair = hairOf(look, body);
+    this.variant = (level) => bodyVariant(body, level, sleeves, !!look.shorts, hair, hat !== null, look.hat);
+    this.mesh.geometry = this.variant(0);
     this.mesh.material = mats.list;
-    this.releaseLook = mats.release;
-    this.mesh.castShadow = true;
+    this.mesh.castShadow = false;
     this.mesh.receiveShadow = true;
     this.mesh.frustumCulled = true;
     this.mesh.boundingSphere = this.mesh.geometry.boundingSphere!.clone();
     this.mesh.boundingBox = this.mesh.geometry.boundingBox!.clone();
+    this.mesh.userData.figure = true;
+    // The shadow comes from a second mesh on the same skeleton. Its draw range is emptied just before the
+    // colour pass would draw it and restored just before the shadow pass does, so it only ever casts.
+    shadowMaterial ??= new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
+    const cast = shadowVariant(body, sleeves, !!look.shorts, hair, hat !== null);
+    this.shadow = new THREE.SkinnedMesh(cast, shadowMaterial);
+    this.shadow.position.copy(this.mesh.position);
+    this.shadow.quaternion.copy(this.mesh.quaternion);
+    this.shadow.scale.copy(this.mesh.scale);
+    this.shadow.bind(this.mesh.skeleton, this.mesh.bindMatrix);
+    this.shadow.castShadow = true;
+    this.shadow.boundingSphere = this.mesh.boundingSphere.clone();
+    this.shadow.boundingBox = this.mesh.boundingBox.clone();
+    this.shadow.userData.figure = true;
+    this.shadow.onBeforeRender = () => cast.setDrawRange(NOTHING, 0);
+    this.shadow.onBeforeShadow = () => cast.setDrawRange(0, Infinity);
+    this.mesh.parent!.add(this.shadow);
     if (hat) {
-      const mesh = new THREE.Mesh(hatGeometry(hat, look.hatColor ?? 0x25304a, body.head, female ? 'f' : 'm'), mats.hat);
+      const mesh = (this.hat = new THREE.Mesh(hatGeometry(hat, look.hatColor ?? 0x25304a, body.head, female ? 'f' : 'm'), mats.hat));
       mesh.castShadow = true;
+      mesh.userData.figure = true;
       mesh.matrixAutoUpdate = false;
       mesh.matrix.copy(body.headRest).invert();
       head.add(mesh);
@@ -138,7 +191,38 @@ export class GltfHumanoid implements Humanoid {
 
     this.mixer = new THREE.AnimationMixer(this.model);
     this.group.add(this.model, this.hold);
-    this.update(0);
+    this.pose0(0);
+    figures.add(this);
+  }
+
+  /**
+   * Set by the crowd manager every frame: which level of detail to draw, whether the figure casts a shadow,
+   * and whether it is anywhere it could be seen (figures that are not are not animated until they are).
+   */
+  setDetail(level: number, shadow: boolean, awake: boolean, legacy = false) {
+    if (level !== this.level) {
+      this.level = level;
+      this.mesh.geometry = this.variant(level);
+      this.mesh.material = level >= 3 ? this.mats.far() : this.mats.list;
+      if (this.hat) this.hat.visible = level < 3;
+    }
+    this.shadow.visible = shadow && !legacy;
+    this.mesh.castShadow = shadow && legacy;
+    if (this.hat) this.hat.castShadow = shadow && (level < 2 || legacy);
+    if (awake && !this.awake && this.pending > 0) {
+      // Back in view: catch up in one step, without a visible blend from wherever it was left.
+      this.snap = true;
+      this.pose0(this.pending);
+      this.pending = 0;
+    }
+    this.awake = awake;
+  }
+
+  /** Whether the figure is in a scene (pooled figures are kept but detached). */
+  get attached(): boolean {
+    let o: THREE.Object3D | null = this.group;
+    while (o.parent) o = o.parent;
+    return (o as THREE.Scene).isScene === true;
   }
 
   setPose(pose: HumanoidPose, options: { speed?: number; aimPitch?: number } = {}) {
@@ -166,6 +250,15 @@ export class GltfHumanoid implements Humanoid {
   }
 
   update(dt: number) {
+    this.pending = Math.min(this.pending + dt, 8);
+    if (!this.awake || this.pending < TICK[this.level] * 0.9) return;
+    const step = this.pending;
+    this.pending = 0;
+    this.pose0(step);
+  }
+
+  /** Advance the animation by `dt` and pose the skeleton. */
+  private pose0(dt: number) {
     this.clock += dt;
     const pose = this.pose;
     const k = this.snap ? 1 : 1 - Math.exp(-dt * (pose === 'punch' ? 30 : FADE));
@@ -224,6 +317,11 @@ export class GltfHumanoid implements Humanoid {
         if (moving) this.locomotion(this.speed, dt, false);
         else this.loop(LOWER, 'Point_Up');
         break;
+      case 'orate':
+        this.loop(UPPER, 'Orate');
+        if (moving) this.locomotion(this.speed, dt, false);
+        else this.loop(LOWER, 'Orate');
+        break;
       case 'drive':
       case 'sit':
       case 'ride': {
@@ -272,6 +370,7 @@ export class GltfHumanoid implements Humanoid {
       this.applyAim(pose === 'aimRifle' ? 'Rifle_Aim' : 'Pistol_Aim_Neutral');
       for (let i = 0; i < this.spine.length; i++) this.spineOut[i].copy(this.spine[i].quaternion);
     }
+    this.applyGlance(dt, pose);
     if (this.held) this.syncHold();
   }
 
@@ -281,9 +380,10 @@ export class GltfHumanoid implements Humanoid {
     this.mixer.uncacheRoot(this.model);
     this.channels[0].length = this.channels[1].length = 0;
     this.group.removeFromParent();
+    figures.delete(this);
     // Geometry, materials and textures are shared; only the bone texture belongs to this figure.
     this.mesh.skeleton.dispose();
-    this.releaseLook();
+    this.mats.release();
   }
 
   // ───────────── animation channels ─────────────
@@ -307,7 +407,7 @@ export class GltfHumanoid implements Humanoid {
     if (slot.tag < 0) {
       slot.tag = 0;
       slot.action.setLoop(THREE.LoopRepeat, Infinity);
-      slot.action.setEffectiveTimeScale(1);
+      slot.action.setEffectiveTimeScale(name === 'Stand' ? this.idleRate : 1);
       slot.action.time = slot.pair.duration > 0 ? this.clock % slot.pair.duration : 0;
     }
     slot.target = weight;
@@ -389,6 +489,31 @@ export class GltfHumanoid implements Humanoid {
   }
 
   // ───────────── procedural layers ─────────────
+
+  /**
+   * Now and then the head turns to look at something for a moment and comes back: figures stop reading as
+   * mannequins staring dead ahead. Poses that own the head (aiming, a punch, cowering, holding forth) hold
+   * it still. The mixer only writes a bone when its value changes, so the same base/out bookkeeping as the
+   * spine keeps a held pose's glance from compounding.
+   */
+  private applyGlance(dt: number, pose: HumanoidPose) {
+    const q = this.head.quaternion;
+    if (this.headTurned && q.equals(this.headOut)) q.copy(this.headBase);
+    else this.headBase.copy(q);
+    this.glanceTimer -= dt;
+    if (this.glanceTimer <= 0) {
+      this.glanceTimer = 2.5 + Math.random() * 6.5;
+      this.glanceTarget = Math.random() < 0.45 ? 0 : (Math.random() - 0.5) * 1.05;
+    }
+    const busy = this.aimWeight > 0.05 || pose === 'punch' || pose === 'cower' || pose === 'dead' || pose === 'handsUp' || pose === 'orate' || pose === 'point' || pose === 'jump' || pose === 'fall';
+    const want = busy ? 0 : this.glanceTarget;
+    this.glance += (want - this.glance) * Math.min(1, dt * 3.2);
+    this.headTurned = Math.abs(this.glance) > 0.012;
+    if (this.headTurned) {
+      q.multiply(_rx.setFromAxisAngle(Y, this.glance));
+      this.headOut.copy(q);
+    }
+  }
 
   /** Tilt the torso (and with it the arms and head) to the aim pitch; keep it square while the legs walk. */
   private applyAim(clip: string) {

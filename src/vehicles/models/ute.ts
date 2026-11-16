@@ -1,7 +1,6 @@
 import type { MaterialLibrary, VehicleModel, VehicleSpec } from '../../core/types';
-import { cornerLens, scuttle } from './cars';
-import { AMBER, CHROME, curve, DARK, dice, Kit, PAINT, PLASTIC, RUBBER, STEEL, tint, type Pt, type V3 } from './kit';
-import { aerial, assemble, bumper, exhaust, Face, fuelFlap, handles, mirrors, mudflaps, wipers, type CarPlan } from './parts';
+import { AMBER, CHROME, curve, DARK, dice, Kit, PAINT, PLASTIC, RUBBER, STEEL, tint, type Pt, type V3, type WheelStyle } from './kit';
+import { aerial, assemble, bumper, cornerLens, exhaust, Face, FARM, fuelFlap, handles, mirrors, mudflaps, scuttle, shadeBand, wipers, type CarPlan } from './parts';
 
 /**
  * One-tonne single-cab ute with a wellside tray and a tow bar. What rides in the tray varies: nothing, a
@@ -12,6 +11,9 @@ export function buildUte(spec: VehicleSpec, color: number, m: MaterialLibrary): 
   const bull = dice.chance(0.35);
   const roll = dice.next();
   const cargo = roll <= 0.28 ? 0 : roll <= 0.55 ? 1 : roll <= 0.8 ? 2 : 3;
+  // White steel wheels mostly; some in grey primer, a few with the dealer's chrome caps and trim rings.
+  const wheels: [WheelStyle, number][] = [['steel', 0xe4e4dc], ['steel', 0xe4e4dc], ['steel', 0x6f7376], ['dish', 0xd8d8d0]];
+  const wheel = wheels[dice.int(0, wheels.length - 1)];
 
   const W = spec.width / 2;
   const r = spec.wheelRadius;
@@ -70,12 +72,13 @@ export function buildUte(spec: VehicleSpec, color: number, m: MaterialLibrary): 
       frame: RUBBER,
     },
     interior: { floor: 0.42, z0: cabRear + 0.07, z1: 1.0, seats, dash: { z: 0.52, y: 0.95 }, cloth: tint(0x565a5e, 'cloth'), back: 0.52 },
-    wheel: 'steel',
-    rim: 0xe4e4dc,
+    wheel: wheel[0],
+    rim: wheel[1],
     belly: 0.22,
+    ageing: FARM,
     dress(k, shell, cab) {
-      const F = new Face(k, zf, 1);
-      const R = new Face(k, zr, -1);
+      const F = new Face(k, shell, 'front');
+      const R = new Face(k, shell, 'rear');
       const mid = (zr + cabRear) / 2;
 
       // Tray: capping, inner skins, floor, headboard, tailgate, wheel boxes.
@@ -131,15 +134,14 @@ export function buildUte(spec: VehicleSpec, color: number, m: MaterialLibrary): 
       // Nose: square lamps, slatted grille, chrome blade bumper.
       const blade: Pt[] = [[-0.03, -0.06], [0.05, -0.06], [0.074, -0.03], [0.074, 0.03], [0.05, 0.06], [-0.03, 0.06]];
       bumper(k, shell, 'front', CHROME, blade, { zStart: ax + ar + 0.04, y: 0.5 });
-      F.headlamps(0.55, 0.745, 0.24, 0.16, { bezel: CHROME });
-      F.box(DARK, 0.84, 0.16, 0, 0.745, 0.02, 0.003);
-      for (const dy of [-0.045, 0, 0.045]) F.box(CHROME, 0.84, 0.014, 0, 0.745 + dy, 0.012, 0.012);
-      F.box(CHROME, 0.1, 0.05, 0, 0.745, 0.01, 0.02);
-      cornerLens(k, shell, AMBER, zf - 0.055, 0.745, 0.09, 0.14);
+      F.headlamps(0.53, 0.735, 0.24, 0.15, { bezel: CHROME });
+      F.grille(0, 0.735, 0.76, 0.15, { bars: 4, upright: 2, badge: [0.1, 0.05], frame: CHROME });
+      cornerLens(k, shell, 'front', AMBER, 0.735, 0.13, 0.13);
 
       // Bonnet, doors, mirrors, wipers and the rest.
       shell.deckLine(k, DARK, (z) => shell.sx(z) - 0.05, 1.03, zf - 0.02);
       scuttle(k, cab);
+      shadeBand(k, cab, 0.14);
       shell.vline(k, DARK, 0.95, 0.44, 0.975);
       shell.vline(k, DARK, cabRear + 0.13, 0.44, 0.99);
       shell.hline(k, DARK, 0.435, cabRear + 0.13, 0.95);

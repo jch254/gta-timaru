@@ -4,5 +4,6 @@ import './urban';
 import './streets';
 import './country';
 import './setpieces';
+import './shopstreets';
 
 export { SCATTERERS } from './registry';

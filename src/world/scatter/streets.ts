@@ -4,7 +4,7 @@ import type { DistrictType, RoadClass, RoadEdge, RoadGraph, Scatterer, WorldApi 
 import '../landmarks/christchurch/props';
 import { Geo } from '../landmarks/rural/kit';
 import { SCATTERERS } from './registry';
-import { DRESSING_OFF, edgesIn, hashName, Keep, nodesIn } from './util';
+import { approachControl, DRESSING_OFF, edgesIn, hashName, junctionRadius, Keep, nodesIn, ROUND3_OFF, unshadowed } from './util';
 
 /**
  * The public strip of every town street, between the kerb and the front fences: street trees on the avenues and
@@ -37,7 +37,31 @@ const SPECIMEN: Record<string, string> = {
 };
 
 /** Park roads planted with something other than oaks or poplars. */
-const AVENUE: Record<string, string> = { 'Virtue Avenue': 'tree-norfolk-pine' };
+const AVENUE: Record<string, string> = {
+  'Virtue Avenue': 'tree-norfolk-pine',
+  'Riccarton Avenue': 'tree-plane',
+  'Hagley Avenue': 'tree-plane',
+  'Deans Avenue': 'tree-plane',
+  'Rolleston Avenue': 'tree-lime',
+  'Park Terrace': 'tree-lime',
+};
+
+/** Christchurch's avenues, each planted with one kind of tree from end to end (kerbside, wherever the kerb strip is open). */
+const PLANTED: Record<string, string> = {
+  'Bealey Avenue': 'tree-lime',
+  'Fitzgerald Avenue': 'tree-plane',
+  'Moorhouse Avenue': 'tree-plane',
+  'Deans Avenue': 'tree-plane',
+  'Rolleston Avenue': 'tree-lime',
+  'Park Terrace': 'tree-lime',
+  'Memorial Avenue': 'tree-lime',
+  'Linwood Avenue': 'tree-lime',
+  'Fendalton Road': 'tree-plane',
+  'Papanui Road': 'tree-plane',
+  'Cambridge Terrace': 'tree-lime',
+  'Oxford Terrace': 'tree-lime',
+  'Worcester Boulevard': 'tree-plane',
+};
 
 const POLE_STEP = 44;
 const POLE_START = 40;
@@ -55,7 +79,7 @@ export function junctionReach(graph: RoadGraph, edge: RoadEdge, node: number): n
   return r;
 }
 
-interface Spot {
+export interface Spot {
   x: number;
   y: number;
   z: number;
@@ -65,7 +89,7 @@ interface Spot {
 }
 
 /** Point `lateral` metres left (side 1) or right (-1) of the centreline at `s`, with the district that side fronts. */
-function beside(world: WorldApi, edge: RoadEdge, s: number, side: number, lateral: number): Spot {
+export function beside(world: WorldApi, edge: RoadEdge, s: number, side: number, lateral: number): Spot {
   const p = world.graph.pointAt(edge, s);
   const probe = edge.width / 2 + 13;
   return {
@@ -85,6 +109,7 @@ export const streetScatter: Scatterer = (area, out) => {
   if (!edges.length || DRESSING_OFF) return;
   const keep = new Keep(world, area, 30);
   const wires = new Geo();
+  const cans = new Geo();
 
   /** Clear of every landmark and marker in the world (not just this area's), so both chunks at a boundary agree. */
   const freeAnywhere = (x: number, z: number): boolean => {
@@ -108,7 +133,7 @@ export const streetScatter: Scatterer = (area, out) => {
 
     // ── Avenue beside a park: big trees on the grass, whatever the road ──
     if (e.cls !== 'lane' && e.cls !== 'gravel') {
-      const kind = AVENUE[e.name] ?? (name % 6 === 0 ? 'tree-poplar' : 'tree-oak');
+      const kind = AVENUE[e.name] ?? PLANTED[e.name] ?? (name % 6 === 0 ? 'tree-poplar' : 'tree-oak');
       const lateral = kerb + (e.footpaths ? 4.7 : 3.8);
       for (const side of [1, -1]) {
         for (let k = 0, s = 5; s < to; k++, s += 22) {
@@ -133,11 +158,11 @@ export const streetScatter: Scatterer = (area, out) => {
         const q = beside(world, e, s, side, kerb + 0.55);
         if (!keep.inArea(q.x, q.z) || !OPEN.has(q.type) || q.type === 'park') continue;
         const main = e.cls === 'arterial' || e.cls === 'highway';
-        const lined = specimen ? true : main ? q.type !== 'port' && (q.type !== 'industrial' || name % 2 === 0) : q.type === 'villa' ? name % 100 < 34 : q.type === 'statehouse' ? name % 100 < 10 : false;
+        const lined = specimen || PLANTED[e.name] ? true : main ? q.type !== 'port' && (q.type !== 'industrial' || name % 2 === 0) : q.type === 'villa' ? name % 100 < 34 : q.type === 'statehouse' ? name % 100 < 10 : false;
         const h = hashInts(e.index, k, side + 3);
         // Side streets are planted more thinly than the avenues.
         if (!lined || h % (main || specimen ? 5 : 2) === 0 || keep.inLandmark(q.x, q.z, 1.5) || keep.nearPlace(q.x, q.z, 4) || !kerbClear(q.x, q.z)) continue;
-        out.instance(specimen ?? 'tree-oak', q.x, q.y, q.z, (h % 628) / 100, specimen ? 0.7 + ((h >>> 9) % 100) / 500 : 0.62 + ((h >>> 9) % 100) / 450);
+        out.instance(specimen ?? PLANTED[e.name] ?? 'tree-oak', q.x, q.y, q.z, (h % 628) / 100, specimen ? 0.7 + ((h >>> 9) % 100) / 500 : 0.62 + ((h >>> 9) % 100) / 450);
       }
     }
 
@@ -162,6 +187,27 @@ export const streetScatter: Scatterer = (area, out) => {
         const a = poleAt(k);
         if (!a || !keep.inArea(a.x, a.z)) continue;
         out.instance('power-pole', a.x, a.y, a.z, Math.atan2(a.tx, a.tz));
+        // Every fourth pole or so carries a transformer: the can on a bracket under the lower arm, fuses above it.
+        // (Merged into the chunk like the wires, and like them it stays up if a car fells the pole.)
+        if (hashInts(e.index, k, 5) % 4 === 1 && !ROUND3_OFF) {
+          cans.at(a.x, a.y, a.z, Math.atan2(a.tx, a.tz), () => {
+            cans.tube([0, 6.66, 0.5], [0, 7.54, 0.5], 0.3, 0.3, 9).box(0, 6.6, 0.3, 0.5, 0.08, 0.6).box(0, 7.6, 0.5, 0.66, 0.05, 0.66).box(0, 8.05, 0.12, 1.1, 0.08, 0.08);
+            for (const x of [-0.42, 0, 0.42]) cans.box(x, 7.7, 0.2, 0.04, 0.34, 0.04);
+          });
+        }
+        // A service line from this pole to each house nearer to it than to the next pole: across the street too.
+        for (const lot of ROUND3_OFF ? [] : (world.lotsNear?.(a.x, a.z, 34) ?? [])) {
+          if (lot.edge !== e || !HOMES.has(lot.district.type)) continue;
+          const at = graph.nearest(lot.x, lot.z, 70, (o) => o === e);
+          if (!at || Math.round((at.s - POLE_START) / POLE_STEP) !== k) continue;
+          // Aim under the roof, a little forward of the middle of the section.
+          const hx = lot.x + Math.sin(lot.heading) * lot.depth * 0.14;
+          const hz = lot.z + Math.cos(lot.heading) * lot.depth * 0.14;
+          const top: [number, number, number] = [a.x, a.y + 8.22, a.z];
+          const eave: [number, number, number] = [hx, lot.y + 3.05, hz];
+          const mid: [number, number, number] = [(top[0] + eave[0]) / 2, (top[1] + eave[1]) / 2 - 0.45, (top[2] + eave[2]) / 2];
+          for (const [p0, p1] of [[top, mid], [mid, eave]] as const) wires.poly([[p0[0], p0[1] - 0.014, p0[2]], [p1[0], p1[1] - 0.014, p1[2]], [p1[0], p1[1] + 0.014, p1[2]], [p0[0], p0[1] + 0.014, p0[2]]], true);
+        }
         const b = poleAt(k + 1);
         if (!b) continue;
         for (const [off, height] of CONDUCTORS) {
@@ -207,11 +253,10 @@ export const streetScatter: Scatterer = (area, out) => {
     }
   }
 
-  // ── Junctions: a give-way sign with the street names on each minor arm, and the odd posting box or phone box ──
+  // ── Junctions: a give-way sign, a stop sign or a signal wherever the road painter has drawn that limit line, and the odd posting box ──
   for (const node of nodesIn(graph, area)) {
     const arms = node.edges.map((i) => graph.edges[i]).filter((e) => e.drivable && !e.bridge && !e.tunnel);
-    // The central city's intersections were signal-controlled: no give-way signs there.
-    if (arms.length < 3 || keep.inLandmark(node.x, node.z, 4) || world.districtAt(node.x, node.z).type === 'cbd') continue;
+    if (arms.length < 3 || keep.inLandmark(node.x, node.z, 4)) continue;
     const top = Math.max(...arms.map((e) => RANK[e.cls]));
     const main = arms.filter((e) => RANK[e.cls] === top);
     // The through road: a name carried by two arms of the highest class (else the widest, lowest-numbered arm).
@@ -219,15 +264,19 @@ export const streetScatter: Scatterer = (area, out) => {
     for (const e of main) counts.set(e.name, (counts.get(e.name) ?? 0) + 1);
     const through = main.filter((e) => (counts.get(e.name) ?? 0) >= 2).sort((a, b) => b.width - a.width || hashName(a.name) - hashName(b.name))[0]?.name ?? main.slice().sort((a, b) => b.width - a.width || a.index - b.index)[0].name;
     for (const e of arms) {
-      if (RANK[e.cls] === top && e.name === through) continue;
+      const control = approachControl(graph, e, node.index);
+      if (control === 'none' || (ROUND3_OFF && control !== 'giveway')) continue;
       const atB = e.b === node.index;
-      if (e.oneway && !atB) continue;
-      const reach = junctionReach(graph, e, node.index) + 0.4;
-      if (e.length < reach + 5) continue;
+      // Beside the limit line (0.6 m short of the crossing carriageway), clear of the corner's footpath.
+      const line = junctionRadius(graph, node.index, e) + 0.6;
+      const reach = Math.max(line + 0.3, junctionReach(graph, e, node.index) + 0.4);
+      if (e.length < reach + 5 || line < 3 || line > e.length - 3) continue;
       const dir = atB ? 1 : -1;
       const q = beside(world, e, atB ? e.length - reach : reach, dir, e.width / 2 + (e.footpaths ? 0.5 : 1.3));
       if (!keep.offRoad(q.x, q.z, 0.25)) continue;
-      out.instance('junction-sign', q.x, e.footpaths ? q.y : world.heightAt(q.x, q.z), q.z, Math.atan2(-q.tx * dir, -q.tz * dir));
+      // Signals on crossing roads follow opposite phases of the one cycle: pick by the road's compass axis.
+      const signal = Math.abs(q.tx) >= Math.abs(q.tz) ? 'traffic-signal' : 'traffic-signal-cross';
+      out.instance(control === 'stop' ? 'stop-sign' : control === 'signal' ? signal : 'junction-sign', q.x, e.footpaths ? q.y + 0.08 : world.heightAt(q.x, q.z), q.z, Math.atan2(-q.tx * dir, -q.tz * dir));
     }
     // A posting box on the through road's footpath, a few metres short of the odd corner.
     const h = hashInts(node.index, 4177);
@@ -246,6 +295,7 @@ export const streetScatter: Scatterer = (area, out) => {
   // A material flagged transparent casts no shadow: 2 cm conductors alias into dotted lines in the shadow map,
   // and real ones throw no shadow you would notice. (One extra mesh per chunk that has poles.)
   wires.flush(out, out.materials.get('plain', { color: 0x2b2d2e, transparent: true, opacity: 0.999 }));
+  cans.flush(out, unshadowed(out.materials));
 };
 
 SCATTERERS.push(streetScatter);

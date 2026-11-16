@@ -199,6 +199,14 @@ export function buildDerivedClips(scratch: THREE.Object3D, clips: ClipData[], he
   }
   out.push(poser.bake('Hands_Up', stand));
 
+  // Holding forth: the right hand raised open beside the head, palm to the crowd, the left arm easy.
+  poser.load(stand);
+  poser.relaxFingers(0.78);
+  poser.reach('r', poser.position('upperarm_r').add(v(-0.22, 0.3, 0.18)), v(-1, -0.5, -0.1), { fingers: v(-0.1, 1, 0.15), palm: v(0.2, 0.05, 1) });
+  poser.turn('neck_01', X, -0.05);
+  poser.turn('Head', X, -0.08);
+  out.push(poser.bake('Orate', stand));
+
   // Pointing at the sky: right arm straight up and out, index finger extended, eyes following it.
   poser.load(stand);
   const sky = v(-0.14, 0.8, 0.58).normalize();
@@ -240,9 +248,10 @@ export function buildDerivedClips(scratch: THREE.Object3D, clips: ClipData[], he
   poser.turn('Head', X, -0.16);
   const hips = poser.position('pelvis');
   for (const [side, s] of sides) {
-    poser.aim(`thigh_${side}`, v(s * 0.2, -0.4, 0.9));
-    poser.aim(`calf_${side}`, v(-s * 0.04, -0.9, -0.42));
-    poser.aim(`foot_${side}`, v(0, -0.3, 0.95));
+    // Knees out round the tank, shins dropping nearly straight to the footpegs beside the engine.
+    poser.aim(`thigh_${side}`, v(s * 0.6, -0.5, 0.55));
+    poser.aim(`calf_${side}`, v(-s * 0.06, -1, -0.3));
+    poser.aim(`foot_${side}`, v(0, -0.25, 0.95));
     poser.reach(side, hips.clone().add(v(s * 0.27, 0.36, 0.5)), v(s * 0.8, -0.7, 0), { fingers: v(0, -0.2, 1), palm: v(0, -1, 0) });
   }
   out.push(poser.bake('Ride', drive));

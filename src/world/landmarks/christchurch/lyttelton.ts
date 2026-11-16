@@ -1,4 +1,5 @@
 import type { LandmarkBuilder } from '../../../core/types';
+import { quayFrontage } from '../quay';
 import { asphalt, flagpole } from './common';
 import { Kit, type Pt2, type V3, cone, headingTowardsWater, lancet, plinth, prism, sphere, steps } from './kit';
 
@@ -94,12 +95,21 @@ export const lytteltonPort: LandmarkBuilder = (p, out) => {
   const back = shore - 14;
 
   // Wharf deck on piles, with a timber fender face and bollards.
-  k.solid(0, -1.4, (back + quay) / 2, 200, 1.7, quay - back, conc);
+  k.solid(0, -1.4, (back + quay) / 2, 200, 1.46, quay - back, conc);
   k.box(0, -1.7, quay + 0.2, 200, 1.7, 0.4, m.get('timber', { color: 0x4a3d32 }));
   for (let x = -95; x <= 95; x += 10) {
     k.dbox(x, sea - 4, quay - 1.5, 0.7, 2.6 - sea, 0.7, m.get('timber', { color: 0x3d342c }));
-    k.geo(cone(0.3, 0.5, 8, 0.2), darkMetal, x + 5, 0.3, quay - 0.8);
+    k.geo(cone(0.3, 0.5, 8, 0.2), darkMetal, x + 5, 0.06, quay - 0.8);
   }
+
+  // The quay wall either side of the wharf, wherever the built land runs on past its ends.
+  quayFrontage(p, out, (x, z) => {
+    const dx = x - p.x;
+    const dz = z - p.z;
+    const lx = dx * Math.cos(k.heading) - dz * Math.sin(k.heading);
+    const lz = dx * Math.sin(k.heading) + dz * Math.cos(k.heading);
+    return Math.abs(lx) < 101 && lz > back - 1 && lz < quay + 2;
+  });
 
   // Sealed yard behind the wharf.
   const yardBack = Math.max(back - 46, -62);
@@ -148,10 +158,10 @@ export const lytteltonPort: LandmarkBuilder = (p, out) => {
   // Container gantry crane: portal legs, a boom out over the ship, A-frame and stays.
   const gx = -44;
   const legs: V3[] = [];
-  for (const dx of [-9, 9]) for (const z of [back + 4, quay - 3]) legs.push([gx + dx, 0.3, z]);
+  for (const dx of [-9, 9]) for (const z of [back + 4, quay - 3]) legs.push([gx + dx, 0.06, z]);
   for (const [x, , z] of legs) {
-    k.beam([x, 0.3, z], [x, 27, z], 1.2, steel);
-    k.collide(x, 0.3, z, 1.4, 6, 1.4);
+    k.beam([x, 0.06, z], [x, 27, z], 1.2, steel);
+    k.collide(x, 0.06, z, 1.4, 6, 1.4);
   }
   for (const dx of [-9, 9]) k.beam([gx + dx, 26.4, back + 4], [gx + dx, 26.4, quay - 3], 1.0, steel).beam([gx + dx, 8, back + 4], [gx + dx, 8, quay - 3], 0.7, steel);
   for (const z of [back + 4, quay - 3]) k.beam([gx - 9, 26.4, z], [gx + 9, 26.4, z], 1.0, steel);
@@ -169,8 +179,8 @@ export const lytteltonPort: LandmarkBuilder = (p, out) => {
   // Two level-luffing wharf cranes.
   for (const cx of [-62, 30]) {
     const cz = quay - 5;
-    for (const dx of [-3, 3]) for (const dz of [-3, 3]) k.beam([cx + dx, 0.3, cz + dz], [cx + dx * 0.5, 8, cz + dz * 0.5], 0.5, ochre);
-    k.collide(cx, 0.3, cz, 6, 7.7, 6);
+    for (const dx of [-3, 3]) for (const dz of [-3, 3]) k.beam([cx + dx, 0.06, cz + dz], [cx + dx * 0.5, 8, cz + dz * 0.5], 0.5, ochre);
+    k.collide(cx, 0.06, cz, 6, 7.7, 6);
     k.dbox(cx, 8, cz, 4.2, 3.6, 5.2, ochre);
     k.beam([cx, 10.5, cz + 2], [cx, 29, cz + 21], 0.55, ochre).beam([cx, 11.6, cz - 1.5], [cx, 19, cz - 1], 0.4, ochre).beam([cx, 19, cz - 1], [cx, 29, cz + 21], 0.14, darkMetal);
     k.beam([cx, 29, cz + 21], [cx, 14, cz + 21], 0.07, darkMetal);
@@ -198,7 +208,7 @@ export const lytteltonPort: LandmarkBuilder = (p, out) => {
     k.beam([fx + mx, top + 11.4, fz - 2.4], [fx + mx, top + 11.4, fz + 2.4], 0.4, ochre);
     k.beam([fx + mx, top + 2, fz], [fx + mx - 7, top + 6.5, fz - 1], 0.3, ochre).beam([fx + mx, top + 2, fz], [fx + mx + 6, top + 7, fz + 1], 0.3, ochre);
   }
-  k.beam([fx - 36, top + 1.6, fz - 3], [fx - 30, 0.6, quay - 0.8], 0.07, darkMetal).beam([fx + 38, top, fz - 5], [fx + 33, 0.6, quay - 0.8], 0.07, darkMetal);
+  k.beam([fx - 36, top + 1.6, fz - 3], [fx - 30, 0.4, quay - 0.8], 0.07, darkMetal).beam([fx + 38, top, fz - 5], [fx + 33, 0.4, quay - 0.8], 0.07, darkMetal);
 
   // Ferry-sized passenger ship, bow to the right.
   const sx = 52;
@@ -217,7 +227,7 @@ export const lytteltonPort: LandmarkBuilder = (p, out) => {
   k.dbox(sx + 12.02, main + 5.9, sz, 0.08, 0.9, 9.6, darkMetal);
   k.cyl(sx - 9, main + 5.1, sz, 1.7, 2.0, 5.2, ferryGreen, 12).cyl(sx - 9, main + 8.2, sz, 1.82, 1.86, 0.9, white, 12);
   k.beam([sx + 9, main + 7.5, sz], [sx + 9, main + 14, sz], 0.25, white).beam([sx + 7.6, main + 12, sz], [sx + 10.4, main + 12, sz], 0.12, white);
-  k.beam([sx + 24, main, sz - 2], [sx + 21, 0.6, quay - 0.8], 0.07, darkMetal).beam([sx - 26, main, sz - 3], [sx - 22, 0.6, quay - 0.8], 0.07, darkMetal);
+  k.beam([sx + 24, main, sz - 2], [sx + 21, 0.4, quay - 0.8], 0.07, darkMetal).beam([sx - 26, main, sz - 3], [sx - 22, 0.4, quay - 0.8], 0.07, darkMetal);
 
   for (const [x, z] of [[-30, back - 5], [34, back - 5], [-96, back - 30], [30, back - 34]]) if (z > yardBack + 2 && k.free(x, z, 1)) k.prop('lamp', x, z, 0);
   k.light(gx, 8, quay - 6, 0xfff0d6, 1.6, 34).light(40, 8, back + 2, 0xfff0d6, 1.5, 30);

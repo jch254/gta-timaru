@@ -380,8 +380,7 @@ export class Cameos {
 
   private pose(r: CameoRecord, seconds: number) {
     const ped = r.live!.ped;
-    if (r.def.gesture === 'arms') ped.gesture?.('handsUp', seconds);
-    else if (r.def.gesture === 'point') ped.gesture?.('point', seconds);
+    if (r.def.gesture) ped.gesture?.(r.def.gesture, seconds);
   }
 
   private speak(r: CameoRecord) {

@@ -12,12 +12,14 @@ import { createMissions } from '../missions';
 import { Physics } from '../physics/physics';
 import { Player } from '../player/player';
 import { createPolice } from '../police';
-import { QUALITY } from '../render/quality';
 import { Gfx } from '../render/renderer';
 import { createUi } from '../ui';
 import { Vehicles } from '../vehicles';
+import { Detail } from '../vehicles/models/kit';
 import { createFigureLod } from '../actors/lod';
 import { createTram } from '../rail/tram';
+import { createTouch } from '../touch';
+import { plantField } from '../world/props/foliage';
 import { World } from '../world/world';
 
 const STEP = 1 / 60;
@@ -91,7 +93,7 @@ export class Game {
     await Promise.all([gfx.loadTextures(), preloadCharacters(import.meta.env.BASE_URL)]);
 
     onProgress('Surveying Canterbury', 0.05);
-    const world = (this.world = new World(scene, gfx, physics, () => QUALITY[gfx.quality].chunkRadius));
+    const world = (this.world = new World(scene, gfx, physics, () => gfx.preset.chunkRadius));
 
     // The context is filled in stages; systems only touch each other after init().
     const ctx = (this.ctx = {
@@ -118,8 +120,26 @@ export class Game {
     ctx.police = createPolice(ctx);
     ctx.missions = createMissions(ctx);
     world.attach(ctx);
+    // What the quality level (and, on a phone, its own tier) asks of everything outside the renderer: how
+    // far out the full versions of plants and vehicles are drawn, and how big the ambient crowd is.
+    let crowd = 1;
+    const tune = () => {
+      const preset = gfx.preset;
+      plantField.range = preset.detailRange;
+      Detail.reach = preset.detailRange;
+      // Scaled rather than set: a mission that has thinned the streets keeps its own setting.
+      ctx.peds.density *= preset.crowd / crowd;
+      ctx.traffic.density *= preset.crowd / crowd;
+      crowd = preset.crowd;
+    };
+    tune();
+    settings.onChange((key) => {
+      if (key === 'quality') tune();
+    });
     // Update order: input consumers → AI → vehicles → world → UI last.
     this.systems = [ctx.player, ctx.combat, ctx.peds, ctx.traffic, createTram(ctx), ctx.police, ctx.missions, ctx.vehicles, world, createFigureLod(ctx), ctx.audio, ctx.ui] as unknown as System[];
+    // The on-screen controller for phones: one more input source, drawn over the HUD.
+    this.systems.push(createTouch(ctx, input.touch, canvas));
 
     gfx.atmosphere.onWeather = (weather) => events.emit('weatherChanged', { weather });
     save.register(

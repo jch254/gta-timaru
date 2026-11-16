@@ -1,0 +1,15 @@
+{
+  "name": "Timmaz Hard",
+  "short_name": "Timmaz Hard",
+  "description": "An open-world sandbox set in Canterbury, New Zealand, in 1995.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#14181f",
+  "theme_color": "#14181f",
+  "icons": [
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
