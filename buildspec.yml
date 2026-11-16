@@ -26,6 +26,9 @@ phases:
   pre_build:
     commands:
       - 'test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is required"; exit 1; }'
+      # A red test suite stops the build here, before Terraform or the site are touched.
+      - echo Running the unit tests...
+      - pnpm test
 
   build:
     on-failure: ABORT
