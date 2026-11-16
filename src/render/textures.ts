@@ -428,7 +428,8 @@ export function surfaceMaps(kind: SurfaceKind, anisotropy: number): SurfaceMaps 
   return maps;
 }
 
-function dataTexture(data: Uint8Array<ArrayBuffer>, size: number, anisotropy: number): THREE.DataTexture {
+/** A square RGBA byte DataTexture with the house settings: repeat wrap, trilinear mipmaps, no colour space. */
+export function dataTexture(data: Uint8Array<ArrayBuffer>, size: number, anisotropy = 1): THREE.DataTexture {
   const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.magFilter = THREE.LinearFilter;

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SETTINGS_KEY } from '../../core/storage';
 import type { MaterialLibrary, SurfaceKind } from '../../core/types';
 import { batchHint, setBatchHint } from '../../render/materials';
+import { dataTexture } from '../../render/textures';
 
 /**
  * Weathering for everything the building kit makes.
@@ -112,12 +113,7 @@ function noiseTexture(): THREE.DataTexture {
       data[i + 3] = fbm(x, y, [3, 6, 12, 24], 4) * 255;
     }
   }
-  noise = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
-  noise.wrapS = noise.wrapT = THREE.RepeatWrapping;
-  noise.magFilter = THREE.LinearFilter;
-  noise.minFilter = THREE.LinearMipmapLinearFilter;
-  noise.generateMipmaps = true;
-  noise.needsUpdate = true;
+  noise = dataTexture(data, N);
   return noise;
 }
 
