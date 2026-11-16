@@ -11,9 +11,6 @@ importers:
       '@dimforge/rapier3d':
         specifier: ^0.21.0
         version: 0.21.0
-      '@dimforge/rapier3d-compat':
-        specifier: ^0.21.0
-        version: 0.21.0
       n8ao:
         specifier: ^2.0.2
         version: 2.0.2(postprocessing@6.39.6(three@0.187.0))(three@0.187.0)
@@ -24,6 +21,9 @@ importers:
         specifier: ^0.187.0
         version: 0.187.0
     devDependencies:
+      '@dimforge/rapier3d-compat':
+        specifier: ^0.21.0
+        version: 0.21.0
       '@gltf-transform/core':
         specifier: ^4.5.1
         version: 4.5.1
