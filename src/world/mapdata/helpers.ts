@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { angleDiff } from '../../core/math';
 import type { CityId, DistrictType, RoadClass } from '../../core/types';
-import type { MapBuilder, Pt, RoadOptions } from '../mapsource';
+import { inShape, segSegIntersect, type MapBuilder, type Pt, type RoadOptions } from '../mapsource';
 
 /** Same curve fit `world/map.ts` applies to `smooth` roads, rivers and rails (kept in step by hand). */
 export function smoothPts(pts: Pt[]): Pt[] {
@@ -109,10 +109,9 @@ export class Author {
         for (let j = 0; j < river.pts.length - 1; j++) {
           const [x3, z3] = river.pts[j];
           const [x4, z4] = river.pts[j + 1];
-          const den = (x2 - x1) * (z4 - z3) - (z2 - z1) * (x4 - x3);
-          if (Math.abs(den) < 1e-9) continue;
-          const ua = ((x3 - x1) * (z4 - z3) - (z3 - z1) * (x4 - x3)) / den;
-          const ub = ((x3 - x1) * (z2 - z1) - (z3 - z1) * (x2 - x1)) / den;
+          const hit = segSegIntersect(x1, z1, x2, z2, x3, z3, x4, z4, 1e-9);
+          if (!hit) continue;
+          const { ua, ub, den } = hit;
           if (ua < 0 || ua >= 1 || ub < 0 || ub >= 1) continue;
           const la = lens[i + 1] - lens[i];
           const lb = river.lens[j + 1] - river.lens[j];
@@ -341,10 +340,9 @@ export class Author {
           for (let j = 0; j < track.length - 1; j++) {
             const [x3, z3] = track[j];
             const [x4, z4] = track[j + 1];
-            const den = (x2 - x1) * (z4 - z3) - (z2 - z1) * (x4 - x3);
-            if (Math.abs(den) < 1e-9) continue;
-            const ua = ((x3 - x1) * (z4 - z3) - (z3 - z1) * (x4 - x3)) / den;
-            const ub = ((x3 - x1) * (z2 - z1) - (z3 - z1) * (x2 - x1)) / den;
+            const hit = segSegIntersect(x1, z1, x2, z2, x3, z3, x4, z4, 1e-9);
+            if (!hit) continue;
+            const { ua, ub } = hit;
             if (ua < 0 || ua > 1 || ub < 0 || ub >= 1) continue;
             const len = Math.hypot(x2 - x1, z2 - z1) || 1;
             const tx = (x2 - x1) / len;
@@ -374,17 +372,7 @@ export class Author {
     for (const d of this.b.source.districts) {
       const priority = d.priority ?? 0;
       if (priority <= bestPriority) continue;
-      const sh = d.shape;
-      let inside = false;
-      if (sh.kind === 'rect') inside = x >= sh.minX && x <= sh.maxX && z >= sh.minZ && z <= sh.maxZ;
-      else if (sh.kind === 'circle') inside = Math.hypot(x - sh.x, z - sh.z) <= sh.r;
-      else {
-        const p = sh.pts;
-        for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
-          if (p[i][1] > z !== p[j][1] > z && x < ((p[j][0] - p[i][0]) * (z - p[i][1])) / (p[j][1] - p[i][1]) + p[i][0]) inside = !inside;
-        }
-      }
-      if (inside) {
+      if (inShape(d.shape, x, z)) {
         best = d.type;
         bestPriority = priority;
       }

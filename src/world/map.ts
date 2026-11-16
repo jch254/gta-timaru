@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { clamp, lerp } from '../core/math';
 import type { District, EdgeSample, LandmarkPlacement, Place, RoadClass, RoadEdge, RoadGraph, RoadHit, RoadNode } from '../core/types';
 import { SEA_LEVEL, TerrainModel, type RiverPath } from './height';
-import type { DistrictSource, MapSource, Pt, RailSource, RoadSource, Shape } from './mapsource';
+import { inShape, segSegIntersect, type DistrictSource, type MapSource, type Pt, type RailSource, type RoadSource } from './mapsource';
 
 const CLASS_DEFAULTS: Record<RoadClass, { width: number; lanes: number; speed: number; footpaths: boolean; drivable: boolean; grade: number }> = {
   highway: { width: 9.5, lanes: 1, speed: 100, footpaths: false, drivable: true, grade: 0.06 },
@@ -43,16 +43,6 @@ function resample(pts: Pt[], step: number): { x: number; z: number; s: number }[
   return out;
 }
 
-function inShape(shape: Shape, x: number, z: number): boolean {
-  if (shape.kind === 'rect') return x >= shape.minX && x <= shape.maxX && z >= shape.minZ && z <= shape.maxZ;
-  if (shape.kind === 'circle') return Math.hypot(x - shape.x, z - shape.z) <= shape.r;
-  let inside = false;
-  const p = shape.pts;
-  for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
-    if (p[i][1] > z !== p[j][1] > z && x < ((p[j][0] - p[i][0]) * (z - p[i][1])) / (p[j][1] - p[i][1]) + p[i][0]) inside = !inside;
-  }
-  return inside;
-}
 
 class Graph implements RoadGraph {
   nodes: RoadNode[] = [];
@@ -300,10 +290,9 @@ export function compileMap(src: MapSource): CompiledMap {
         for (let j = 0; j < lb.pts.length - 1; j++) {
           const [x3, z3] = lb.pts[j];
           const [x4, z4] = lb.pts[j + 1];
-          const den = (x2 - x1) * (z4 - z3) - (z2 - z1) * (x4 - x3);
-          if (Math.abs(den) < 1e-6) continue;
-          const ua = ((x3 - x1) * (z4 - z3) - (z3 - z1) * (x4 - x3)) / den;
-          const ub = ((x3 - x1) * (z2 - z1) - (z3 - z1) * (x2 - x1)) / den;
+          const hit = segSegIntersect(x1, z1, x2, z2, x3, z3, x4, z4, 1e-6);
+          if (!hit) continue;
+          const { ua, ub } = hit;
           const lenA = la.lens[i + 1] - la.lens[i];
           const lenB = lb.lens[j + 1] - lb.lens[j];
           // Tolerate near-misses of up to 2.5 m so T-junctions drawn "close enough" still connect.
