@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import { clamp } from '../core/math';
 import { Rng } from '../core/rng';
-import type { Actor, Autopilot, DamageInfo, DistrictType, GameContext, PedHandle, RoadEdge, System, TrafficApi, Vehicle } from '../core/types';
+import { NIGHT_HEADLIGHTS, type Actor, type Autopilot, type DamageInfo, type DistrictType, type GameContext, type PedHandle, type RoadEdge, type System, type TrafficApi, type Vehicle } from '../core/types';
 import { AutopilotImpl, type PilotWorld } from './autopilot';
 import { JunctionBook } from './junction';
 import { lanePointInto, makePoint, sampleEdge } from './lanes';
 import { barkLine } from './looks';
 import { legEnd, legStart, type Leg } from './route';
 import { parkedTimeFactor, pickRingPoint, racerCount, racersOut, spawnAllowed, trafficTimeFactor, type RingPoint } from './spawn';
-import { DRIVE, TRAFFIC } from './tuning';
+import { DRIVE, PEDS, TRAFFIC } from './tuning';
 
 const DRIVABLE = (e: RoadEdge) => e.drivable;
 const _pt = makePoint();
@@ -26,8 +26,8 @@ class Driver implements Actor {
   readonly position = this.group.position;
   readonly velocity = new THREE.Vector3();
   heading = 0;
-  health = 100;
-  maxHealth = 100;
+  health = PEDS.health;
+  maxHealth = PEDS.health;
   armour = 0;
   alive = true;
   vehicle: Vehicle | null;
@@ -269,11 +269,11 @@ export class TrafficSystem implements TrafficApi, System {
       }
     }
     pilot.update(dt);
-    if (car.bailing && Math.abs(v.speed) < 1.5) {
+    if (car.bailing && Math.abs(v.speed) < TRAFFIC.bailSpeed) {
       this.bail(car);
       return;
     }
-    v.headlightsOn = ctx.env.night > 0.35;
+    v.headlightsOn = ctx.env.night > NIGHT_HEADLIGHTS;
     // Leaning on the horn when held up.
     if (pilot.blockedTime <= 0) {
       if (car.honked) {
@@ -300,7 +300,7 @@ export class TrafficSystem implements TrafficApi, System {
     if (v.destroyed) return car.wreckTime > TRAFFIC.wreckSeconds && d2 > TRAFFIC.wreckDistance * TRAFFIC.wreckDistance;
     if (car.state === 'driving' && car.pilot) {
       // Off the edge of the map, or hopelessly stuck: slip away when nobody is near.
-      if (car.pilot.deadEnd && d2 > 90 * 90) return true;
+      if (car.pilot.deadEnd && d2 > TRAFFIC.deadEndDespawn * TRAFFIC.deadEndDespawn) return true;
       if (car.pilot.stuckCount >= TRAFFIC.stuckStrikes && d2 > 60 * 60) return true;
     }
     return false;
@@ -398,7 +398,7 @@ export class TrafficSystem implements TrafficApi, System {
     v.doorPosition(_door, 0);
     const fight = this.rng.chance(TRAFFIC.fightChance);
     const ped = this.putOnFoot(_door.x, _door.z, v.heading + Math.PI / 2, fight ? 'attack' : 'flee');
-    if (ped && this.rng.chance(0.75)) ped.say(barkLine(this.rng, fight ? 'fight' : 'hijacked'));
+    if (ped && this.rng.chance(TRAFFIC.barkChance)) ped.say(barkLine(this.rng, fight ? 'fight' : 'hijacked'));
   }
 
   private driverHurt(driver: Driver, info: DamageInfo) {
@@ -477,7 +477,7 @@ export class TrafficSystem implements TrafficApi, System {
     const pilot = new AutopilotImpl(v, this.pilotWorld);
     pilot.aggression = aggression;
     pilot.lane = lane;
-    pilot.cruiseSpeed = v.spec.topSpeed * 0.8;
+    pilot.cruiseSpeed = v.spec.topSpeed * TRAFFIC.cruiseShare;
     pilot.startOn(edge, dir, s);
     if (rolling > 0) {
       // Already up to speed, so cars do not appear parked in the middle of the open road.

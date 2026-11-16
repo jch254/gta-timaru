@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { laneOffset } from '../core/lanes';
+import { FOOTPATH_OFFSET, laneOffset } from '../core/lanes';
 import { clamp, lerp } from '../core/math';
 import type { District, EdgeSample, LandmarkPlacement, Place, RoadClass, RoadEdge, RoadGraph, RoadHit, RoadNode } from '../core/types';
 import { SEA_LEVEL, TerrainModel, type RiverPath } from './height';
@@ -137,7 +137,7 @@ class Graph implements RoadGraph {
 
   footpathPoint(edge: RoadEdge, s: number, side: 1 | -1) {
     const p = this.pointAt(edge, s);
-    const offset = (edge.width / 2 + 1.7) * side;
+    const offset = (edge.width / 2 + FOOTPATH_OFFSET) * side;
     return { x: p.x + p.tz * offset, y: p.y, z: p.z - p.tx * offset };
   }
 

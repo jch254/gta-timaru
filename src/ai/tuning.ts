@@ -1,3 +1,4 @@
+import { FOOTPATH_OFFSET } from '../core/lanes';
 import type { DistrictType, RoadClass } from '../core/types';
 
 /**
@@ -202,8 +203,15 @@ export const TRAFFIC = {
   fleeSeconds: 20,
   fleeAggression: 1.9,
   bailChance: 0.25,
-  /** Hijacked drivers who put up a fight. */
+  /** A bailing driver waits for the car to slow to this before jumping out. */
+  bailSpeed: 1.5,
+  /** Hijacked drivers who put up a fight, and the chance either kind has a line to shout. */
   fightChance: 0.2,
+  barkChance: 0.75,
+  /** Ambient drivers cruise at this share of the car's top speed. */
+  cruiseShare: 0.8,
+  /** A driver with nowhere left to go slips away once further than this from the player. */
+  deadEndDespawn: 90,
   /** Boy racers. */
   racerAggression: 1.7,
   racerCruise: 34,
@@ -244,7 +252,7 @@ export const PEDS = {
   run: [4.6, 5.8] as const,
   crossSpeed: 1.75,
   /** Footpath centre offset beyond the kerb, as built by the road mesher. */
-  footpathOffset: 1.7,
+  footpathOffset: FOOTPATH_OFFSET,
   /** Sideways wander within the footpath. */
   footpathJitter: 0.75,
   /** Strolling: seconds of walking between pauses, pause lengths. */
@@ -279,8 +287,11 @@ export const PEDS = {
   hitDamageScale: 9,
   downSeconds: [3, 5.5] as const,
   corpseSeconds: 25,
-  /** Fists. */
+  /** Everyone on the street (and every ambient driver) starts with this much health. */
+  health: 100,
+  /** Fists, and what an armed NPC's melee weapon keeps of its listed damage. */
   punchDamage: 9,
+  meleeScale: 0.7,
   punchCooldown: [0.9, 1.5] as const,
   punchReach: 1.5,
   /** Shooting: seconds between shots = clamp((1 / weapon.rate) × fireSlowdown, fireMin, fireMax); aim error in radians. */

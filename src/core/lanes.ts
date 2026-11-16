@@ -12,3 +12,7 @@ export function laneOffset(edge: RoadEdge, lane: number): number {
   if (edge.oneway) return (lanes - 1 - 2 * k) * laneWidth;
   return (lanes - 0.5 - k) * laneWidth;
 }
+
+/** The footpath centreline sits this far beyond the carriageway edge, as the road mesher builds it.
+ *  The graph's footpathPoint, the peds' walk offset and mission verge spots all stand on it. */
+export const FOOTPATH_OFFSET = 1.7;

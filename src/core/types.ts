@@ -72,6 +72,9 @@ export interface GameClock {
 export type WeatherKind = 'clear' | 'norwester' | 'southerly' | 'fog' | 'overcast';
 
 /** Current atmosphere, written by render/sky + render/weather, read by everyone. */
+/** AI drivers light their headlamps when env.night rises past this (the player's own beams come on a touch earlier). */
+export const NIGHT_HEADLIGHTS = 0.35;
+
 export interface Environment {
   weather: WeatherKind;
   /** 0 = full day, 1 = dead of night. */
