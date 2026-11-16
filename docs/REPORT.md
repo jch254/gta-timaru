@@ -27,19 +27,32 @@ Checked by running the game, mostly through the headless playtest scripts in `sc
 ## What is rough
 
 - **Nobody has played it through by hand.** The scripted player teleports the long drives and, except in the one fight tested honestly, wins fights by cheating. Mission difficulty, timers and police lethality are therefore unbalanced guesses. Mouse look under pointer lock and gamepads are untested.
-- **It has not been run on a phone.** There is no iPhone or simulator on the machine it was built on. Chrome's emulation is not Safari: safe areas on both rotations, the left-edge swipe, zoom and bounce, sound starting on the first tap, the live radio starting by itself in a car, sound returning after the phone is locked, pinch zoom on the map, installing to the home screen, and ten minutes without the tab reloading all need checking on a real one. How fast it runs on a phone is unknown.
-- **Landmarks and streets.** The cathedral's west front gained flanking buttresses, a string course, three stepped arch orders round a mullioned double door, stone steps and a service board; Lancaster Park's turnstile bays carry GATE numbers and the Saturday fixture is chalked up by the gate. Suburban back yards are lived in now (trampolines, veggie patches, kennels, incinerator drums, woodpiles). Traffic signals are lit: the aspects glow and the town runs one controller cycle, crossing roads on opposite phases. Stafford Street is still sparser than the Christchurch shop streets.
-- **People.** Each figure has its own face tone, stubble or age, lips in their own depth of colour, a heavier or lighter brow line, a hairline worn a little higher or lower, and clothes with collars and cuffs; eyes already came in eight colours. Heads turn now: a glance aside every few seconds, eased in and out, and held still by any pose that owns the head (aiming, cowering, holding forth). Hair is still the same few shapes. (The dark patch at the women's mouth is gone: it was the normal map, not the skin — the philtrum groove, corner curls and chin fold were cut too deep in the source map, and the build now calms them around the mouth.)
-- **Things that switch at a distance.** Trees dissolve to a cheaper version at 120 m with a faint stipple. Their trunks used to pop (the wood had no part in the dissolve); they now fade with the crown, and in a drive past Hagley Park the worst tree switch changed the picture 1.12 times what the motion alone did, down from 1.23 before the fix (`scripts/playtest/lodwatch.js`). Cars and figures were watched while driving and showed no pop after the car glass was matched.
-- **Vehicles.** Drivers are seated properly now: the stand-in occupant grew shins and shoes that reach the footwell (deeper in a bus or truck cab), and the motorbike rider's knees go out round the tank with the shins dropping to the footpegs — which moved back to where a rider's feet actually sit — instead of vanishing into the engine. The motorbike and the bus themselves are still the plainest of the eleven.
-- **Buildings.** Old painted signs now lose their paint to the wall: where the lettering has flaked, the fragment is discarded and the brick (or plaster) behind shows through the hole. Streaks are tied to their sources now: rain runs off the ends of some masonry sills and down from a leaking joint on half the downpipes, as soft decals on the wall below.
-- **Ground.** Wet roads now carry reflections: under each lit street lamp a streak of its colour lies on the seal, stretched towards the viewer, fading as the road dries. Driveways now cross the berm and footpath to the kerb in a concrete slab instead of stopping at the boundary. The crag noise on steep faces blends to a side-on projection so it cannot smear into long streaks; the steepest face on the map (about 36°) reads clean, though the old far-hillside streaking could not be reproduced for a true before-and-after.
+- **It has not been run on a phone.** There is no iPhone or simulator on the machine it was built on. Chrome's emulation is not Safari: safe areas on both rotations, the left-edge swipe, zoom and bounce, sound starting on the first tap, the live radio starting by itself in a car, sound returning after the phone is locked, pinch zoom on the map, installing to the home screen, and ten minutes without the tab reloading all need checking on a real one. How fast it runs on a phone is unknown. (The touch playtest still passes 63 of 63; on a busy machine a single timing-sensitive check can fail spuriously and pass on a re-run.)
+- **Stafford Street** is still sparser than the Christchurch shop streets.
+- **Hair is the same few shapes**, and the familiar faces are simple: the likeness is in the name, the place and the lines, not the face, and nobody carries a prop.
+- **The motorbike and the bus** are the plainest of the eleven vehicles (their riders and drivers sit properly now, but the bodies had the least time spent on them).
 - **A glitch seen twice and not found.** During the art pass two screenshots came back covered in large dark planes. 138 reruns and four drives did not reproduce it; the likeliest cause is a page that loaded while another agent was half-way through an edit, but that is unproven.
-- **One long frame.** The 43 ms frame after a teleport was a single chunk-build step too big for the 4 ms budget: the whole Arts Centre built in one go. Heavy work is now sliced — the Arts Centre and Cathedral Square builders go a stage per frame, roads an edge per frame and rails a line per frame — and the worst single step fell from 20 ms to 10 ms (`world.slowJob` records it; the chunk system's whole cost in the worst frame of a town drive after a teleport is now 12 ms). The slowest frames left are the browser compiling a shader the first time an effect appears — up to 135 ms, once per session each — which is a different problem and still open.
-- **The familiar faces are simple.** The likeness is in the name, the place and the lines, not the face. Nobody carries a prop. (The two who used to raise both arms to speak — which read like a stick-up — now hold forth with one open hand raised, a new `orate` pose.)
+- **First-time shader compiles stall a frame.** The first time an effect appears in a session the browser compiles its program — up to 135 ms, once each. With chunk building now sliced (see below), these are what is left of the long frames: one 42 ms frame in the 22-second highway drive, none over 20 ms from chunk work.
 - **Live radio leans on other people.** The ten real stations play from their own public streams with no arrangement in place: an address can change or a station can object, and then that line in `src/audio/radio/live.ts` has to go. What they broadcast is today's radio, not 1995's.
-- **AI driving.** The cars that left the road are fixed: a degenerate junction connector could pin a car at the end of an edge and send it across the riverbank on full lock, sharp-turn curves could swing across City Mall, and a car knocked off its lane had no way back. Cars now avoid hairpin exits when wandering, rejoin the road when they find themselves well off it, and parked cars keep 22 m clear of junctions, which ends the clipping at corners. Watched for four minutes at each of the two worst corners (`scripts/playtest/roadwatch.js`), off-road events fell from 32 to 4 and 26 to 3, none further than a wheel over the seal at walking pace, and no parked car was touched.
 - **Integrated graphics are unmeasured.** Every number below is from one M2 Max.
+
+## Fixed since the art pass
+
+Each checked by running the game, with the playtest scripts named.
+
+- **Tree trunks faded with their crowns.** The wood had no part in the 120 m dissolve and popped; it now dissolves with the leaves. Driving past Hagley Park, the worst tree switch changed the picture 1.12 times what the motion alone did, down from 1.23 (`scripts/playtest/lodwatch.js`).
+- **The dark crease at the women's mouth.** It was the normal map, not the skin: the philtrum groove, mouth-corner curls and chin fold were cut too deep in the source texture. The character build now calms the map around the mouth; checked in the viewer on light and dark skin.
+- **The stick-up cameos.** The two who raised both arms to speak now hold forth with one open hand raised (a new `orate` pose, derived like the others at load).
+- **AI driving.** Three faults: a degenerate junction connector could pin a car at the end of an edge and send it across the riverbank on full lock; sharp-turn curves could swing far outside the junction (across City Mall); and a car knocked off its lane had no way back. Cars now avoid hairpin exits when wandering, rejoin the road when well off their lane, sharp connectors stay inside the junction box, and parked cars keep 22 m clear of junctions, which ended the clipped parked cars at corners. Watched four minutes at each of the two worst corners (`scripts/playtest/roadwatch.js`): off-road events fell from 32 to 4 and 26 to 3, none further than a wheel over the seal at walking pace, and no parked car was touched.
+- **The 43 ms frame after a teleport** was a single chunk-build step too big for its 4 ms budget — the whole Arts Centre in one go. Heavy builds are sliced now (the Arts Centre and Cathedral Square a stage per frame, roads an edge and rails a line per frame); the worst single step fell from 20 ms to 10 ms (`world.slowJob` records it) and the chunk system's whole cost in the worst frame of a town drive after a teleport is 12 ms.
+- **Drivers are seated properly.** The stand-in occupant grew shins and shoes that reach the footwell (deeper in a bus or truck cab), and the motorbike rider's knees go out round the tank with the shins dropping to the footpegs, which moved back to where a rider's feet sit.
+- **Traffic signals are lit.** The aspects glow and the town runs one controller cycle — green one axis while the other holds red, amber and a beat of all-red between — with crossing roads on opposite phases.
+- **Suburban back yards are lived in**: trampolines, veggie patches, kennels, incinerator drums and woodpiles behind the fences, and driveways cross the berm and footpath to the kerb in a concrete slab.
+- **Landmark detail.** The cathedral's west front gained flanking buttresses, a string course, three stepped arch orders round a mullioned double door, stone steps and a service board; Lancaster Park's turnstile bays carry GATE numbers and the Saturday fixture is chalked up by the gate.
+- **People.** Lips in their own depth of colour, heavier or lighter brow lines, hairlines worn higher or lower; and heads turn — a glance aside every few seconds, eased in and out, held still by any pose that owns the head.
+- **Buildings.** Old painted signs lose their paint to the wall: where the lettering has flaked the fragment is discarded and the brick behind shows through. Streaks are tied to their sources: rain runs off the ends of some masonry sills and down from a leaking joint on half the downpipes.
+- **Wet roads reflect the lights.** Under each lit street lamp a streak of its colour lies on the seal, stretched towards the viewer, fading as the road dries.
+- **Steep hillsides.** The crag noise blends to a side-on projection on steep faces so it cannot smear into long streaks. The steepest face on the map (about 36°) reads clean, but the old far-hillside streaking could not be reproduced for a true before-and-after.
 
 ## What was cut
 
@@ -51,21 +64,21 @@ Checked by running the game, mostly through the headless playtest scripts in `sc
 
 ## Measured frame rate
 
-Apple M2 Max MacBook Pro, 1920 × 1080, quality High unless stated, frame rate uncapped, development server. `zsh scripts/playtest/measure.sh` reproduces the table (each place is `node scripts/shot.mjs … --fps 6 --size 1920x1080`, run twice). "Before" is the same script before the art pass.
+Apple M2 Max MacBook Pro, 1920 × 1080, quality High unless stated, frame rate uncapped, development server. `zsh scripts/playtest/measure.sh` reproduces the table (each place is `node scripts/shot.mjs … --fps 6 --size 1920x1080`, run twice). "Art pass" is that pass's own measurement; "Now" is a fresh run after the bug fixes and the polish on top of it (lit signals, lived-in yards, streak decals, wet reflections), which added content back in the suburbs.
 
-| Place | Before | Now | Draw calls now | Triangles now |
-|---|---|---|---|---|
-| The Bay Hill, Timaru (start) | 164–174 | 225–230 | 580–880 | 0.7–1.0 M |
-| Linwood (suburban street) | 124–126 | 165–175 | 730–760 | 1.1 M |
-| Moorhouse Avenue, night, southerly rain, in a car | 112–120 | 145–188 | 1,000 | 1.7 M |
-| Hagley Park and the Avon | 104–106 | 110–135 | 910–1,050 | 1.4–1.6 M |
-| Cathedral Square | 95–97 | 115–130 | 880–1,040 | 1.6–2.0 M |
-| Cathedral Square, Low | 227 | 342 | 490 | 1.0 M |
-| Cathedral Square, Medium | 129 | 150 | 700 | 1.3 M |
-| Cathedral Square, Ultra | 60, at 70 % render scale | 76, at full scale | 1,300 | 2.3 M |
-| State Highway 1 at about 100 km/h for 22 s | 158 average; 99th-percentile frame 13 ms; worst 19 ms | 224 average; 99th-percentile frame 10 ms; worst 17 ms | | |
+| Place | Before | Art pass | Now | Draw calls now | Triangles now |
+|---|---|---|---|---|---|
+| The Bay Hill, Timaru (start) | 164–174 | 225–230 | 219–223 | 730–900 | 0.9–1.0 M |
+| Linwood (suburban street) | 124–126 | 165–175 | 140–148 | 790–840 | 1.1–1.2 M |
+| Moorhouse Avenue, night, southerly rain, in a car | 112–120 | 145–188 | 132–143 | 1,250 | 2.1 M |
+| Hagley Park and the Avon | 104–106 | 110–135 | 102–103 | 910–1,320 | 1.4–2.1 M |
+| Cathedral Square | 95–97 | 115–130 | 99–102 | 1,130–1,370 | 2.0–2.4 M |
+| Cathedral Square, Low | 227 | 342 | 271 | 550 | 1.0 M |
+| Cathedral Square, Medium | 129 | 150 | 132 | 960 | 1.7 M |
+| Cathedral Square, Ultra | 60, at 70 % render scale | 76, at full scale | 70, at full scale | 1,440 | 2.5 M |
+| State Highway 1 at about 100 km/h for 22 s | 158 average; worst 19 ms | 224 average; 99th-percentile 10 ms; worst 17 ms | 228 average; 99th-percentile 10 ms; worst 42 ms, once in 5,023 frames | | |
 
-The slowest single frame in the ten standing runs was 18 ms. A second pass on the same code, by the agent that did the performance work, gave lower figures in two places (113–115 at Hagley, 105–108 in the Square) and the same or higher elsewhere; runs on this machine differ by ten per cent or more, so read the table as "faster everywhere, by a fifth to a third", not to the frame.
+The slowest single standing frame at High was 19 ms (24 ms at Ultra). The polish gave back some of the art pass's gain where it added the most (Linwood's yards), and sits within this machine's ten-per-cent run-to-run variance elsewhere; the one 42 ms frame on the highway (crossing the Rakaia Bridge) is of the first-time-shader-compile kind noted above, not chunk work.
 
 Where the saving came from: figures have four levels of detail (thirty pedestrians went from 1.46 M triangles to 0.22 M), trees and cars have cheap distant versions, and small props are drawn only in chunks near the camera. The street dressing costs about a tenth of the frame rate on Christchurch's one-way parking streets (Kilmore Street: 115–117 with it, 128–160 without).
 
