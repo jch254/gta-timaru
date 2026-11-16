@@ -4,6 +4,8 @@ import type { SaveApi } from './types';
 /** localStorage save file made of slices that modules register. */
 export class Save implements SaveApi {
   private slices = new Map<string, { serialize: () => unknown; deserialize: (data: unknown) => void }>();
+  /** Slices skipped by the last load() because they threw; the rest of the save was still applied. */
+  readonly loadProblems: string[] = [];
 
   register(key: string, serialize: () => unknown, deserialize: (data: unknown) => void) {
     this.slices.set(key, { serialize, deserialize });
@@ -34,11 +36,15 @@ export class Save implements SaveApi {
   }
 
   load(): boolean {
+    this.loadProblems.length = 0;
     let data: Record<string, unknown>;
     try {
       const raw = localStorage.getItem(KEY);
       if (!raw) return false;
-      data = JSON.parse(raw) as Record<string, unknown>;
+      const parsed: unknown = JSON.parse(raw);
+      // Valid JSON that is not an object (a truncated or hand-edited file) is no save at all.
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return false;
+      data = parsed as Record<string, unknown>;
     } catch {
       return false;
     }
@@ -48,6 +54,7 @@ export class Save implements SaveApi {
         slice.deserialize(data[key]);
       } catch (err) {
         console.warn(`save: slice "${key}" failed to load`, err);
+        this.loadProblems.push(key);
       }
     }
     return true;

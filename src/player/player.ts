@@ -90,11 +90,15 @@ export class Player implements PlayerApi, System {
       'player',
       () => ({ money: this.money, x: this.position.x, z: this.position.z, heading: this.heading, health: this.health, armour: this.armour }),
       (data) => {
-        const d = data as { money: number; x: number; z: number; heading: number; health: number; armour: number };
-        this.money = d.money ?? 0;
-        this.health = clamp(d.health ?? 100, 20, this.maxHealth);
-        this.armour = d.armour ?? 0;
-        this.teleport(d.x, d.z, d.heading);
+        // Only finite numbers may come back in: NaN coordinates would put the player nowhere without a sound.
+        const d = (typeof data === 'object' && data !== null ? data : {}) as Record<string, unknown>;
+        const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+        this.money = num(d.money, 0);
+        this.health = clamp(num(d.health, 100), 20, this.maxHealth);
+        this.armour = num(d.armour, 0);
+        const x = num(d.x, NaN);
+        const z = num(d.z, NaN);
+        if (Number.isFinite(x) && Number.isFinite(z)) this.teleport(x, z, num(d.heading, 0));
         ctx.events.emit('moneyChanged', { money: this.money, delta: 0 });
       },
     );

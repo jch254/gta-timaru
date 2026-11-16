@@ -145,7 +145,12 @@ export class Game {
     save.register(
       'clock',
       () => ({ hour: clock.hour, day: clock.day }),
-      (d) => Object.assign(clock, d as object),
+      (d) => {
+        // Copy the numbers only: a corrupt slice must not overwrite the clock's methods.
+        const c = (typeof d === 'object' && d !== null ? d : {}) as { hour?: unknown; day?: unknown };
+        if (typeof c.hour === 'number' && Number.isFinite(c.hour)) clock.hour = c.hour;
+        if (typeof c.day === 'number' && Number.isFinite(c.day)) clock.day = c.day;
+      },
     );
     events.on('qualityChanged', () => undefined);
 
@@ -160,6 +165,7 @@ export class Game {
       await world.loadAround(p.x, p.z, (f) => onProgress('Finding where you left off', 0.95 + f * 0.05));
       ctx.player.teleport(p.x, p.z, ctx.player.heading);
       events.emit('playerRespawned', { reason: 'load' });
+      if (save.loadProblems.length) ctx.ui.toast('The save file was damaged; some progress may be missing.', 8);
     } else {
       events.emit('playerRespawned', { reason: 'new' });
     }

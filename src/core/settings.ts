@@ -1,6 +1,6 @@
 import { deviceHints, isPhone } from '../touch/device';
 import { SETTINGS_KEY as KEY } from './storage';
-import type { SettingsApi, SettingsData } from './types';
+import type { QualityLevel, SettingsApi, SettingsData } from './types';
 
 const DEFAULTS: SettingsData = {
   // Tuned for Apple-silicon Macs; the pause menu and dynamic resolution scale it down elsewhere.
@@ -18,6 +18,25 @@ const DEFAULTS: SettingsData = {
 /** Where a phone starts when nothing has been chosen yet: the lightest level, scaling itself to hold frame rate. */
 export const PHONE_DEFAULTS: Partial<SettingsData> = { quality: 'low', dynamicResolution: true };
 
+// Compile-time exhaustive, so a new quality level cannot be forgotten here.
+const QUALITY_LEVELS: Record<QualityLevel, true> = { low: true, medium: true, high: true, ultra: true };
+
+/** Stored values are untrusted (corrupt storage, old formats): keep only ones of the expected shape. */
+function sanitise(stored: unknown): Partial<SettingsData> {
+  if (typeof stored !== 'object' || stored === null) return {};
+  const raw = stored as Record<string, unknown>;
+  const out: Partial<SettingsData> = {};
+  for (const key of Object.keys(DEFAULTS) as (keyof SettingsData)[]) {
+    const value = raw[key];
+    if (key === 'quality') {
+      if (typeof value === 'string' && value in QUALITY_LEVELS) out.quality = value as QualityLevel;
+    } else if (typeof value === typeof DEFAULTS[key] && (typeof value !== 'number' || Number.isFinite(value))) {
+      (out as Record<string, unknown>)[key] = value;
+    }
+  }
+  return out;
+}
+
 export class Settings implements SettingsApi {
   data: SettingsData;
   private handlers = new Set<(key: keyof SettingsData) => void>();
@@ -25,7 +44,7 @@ export class Settings implements SettingsApi {
   constructor(phone = isPhone(deviceHints())) {
     let stored: Partial<SettingsData> = {};
     try {
-      stored = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<SettingsData>;
+      stored = sanitise(JSON.parse(localStorage.getItem(KEY) ?? '{}'));
     } catch {
       // Corrupt settings: fall back to defaults.
     }
