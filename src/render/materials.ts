@@ -38,6 +38,11 @@ interface AtlasPage {
  * The one place materials are made. Caches by arguments so merged geometry batches,
  * and hands every material to the shadow system.
  */
+/** A MaterialLibrary whose optional registerPatched exists: every real library; some test doubles lack it. */
+export type PatchableLibrary = MaterialLibrary & { registerPatched: NonNullable<MaterialLibrary['registerPatched']> };
+/** Feature-detect registerPatched, as the contract asks, instead of casting to the concrete class. */
+export const patchable = (lib: MaterialLibrary): lib is PatchableLibrary => typeof lib.registerPatched === 'function';
+
 export class Materials implements MaterialLibrary {
   private cache = new Map<string, THREE.MeshStandardMaterial>();
   private all = new Set<THREE.Material>();

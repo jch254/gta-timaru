@@ -4,7 +4,7 @@ import { mix3, type V3 } from '../core/vec3';
 import { packCell } from './mapsource';
 import { fbm } from '../core/rng';
 import type { District, Environment, GfxApi } from '../core/types';
-import type { Materials } from '../render/materials';
+import { patchable } from '../render/materials';
 import { groundNoiseTexture, waterNormalTexture } from '../render/textures';
 import { SEA_LEVEL, WORLD_BOUNDS, type RiverPath } from './height';
 import type { CompiledMap } from './map';
@@ -749,12 +749,14 @@ export class Ground {
       uWatWind: { value: new THREE.Vector2(-0.82, -0.57) },
     };
 
-    const lib = gfx.materials as unknown as Materials;
+    const lib = gfx.materials;
+    const patched = <T extends THREE.Material>(m: T, key: string, patch: (shader: THREE.WebGLProgramParametersWithUniforms) => void): T =>
+      patchable(lib) ? lib.registerPatched(m, key, patch) : lib.register(m);
     const u = this.uniforms;
     const terrain = (far: boolean) => {
       const material = gfx.materials.get('plain', { vertexColors: true, roughness: 1 }).clone();
       material.name = far ? 'ground-far' : 'ground-near';
-      return lib.registerPatched(material, material.name, (shader) => {
+      return patched(material, material.name, (shader) => {
         Object.assign(shader.uniforms, { uGndNoise: u.uGndNoise, uGndNear: u.uGndNear, uGndWet: u.uGndWet });
         if (!far) Object.assign(shader.uniforms, { uGndAlbedo: u.uGndAlbedo, uGndNormal: u.uGndNormal, uGndInv: u.uGndInv, uGndPbr: u.uGndPbr });
         shader.vertexShader = shader.vertexShader
@@ -776,7 +778,7 @@ export class Ground {
       material.metalness = 0;
       material.envMapIntensity = 1.15;
       material.name = far ? 'water-far' : 'water-near';
-      return lib.registerPatched(material, material.name, (shader) => {
+      return patched(material, material.name, (shader) => {
         Object.assign(shader.uniforms, { uWatNormal: u.uWatNormal, uWatTime: u.uWatTime, uWatRain: u.uWatRain, uWatWind: u.uWatWind, uGndNear: u.uGndNear, uGndBounds: u.uGndBounds });
         shader.vertexShader = shader.vertexShader
           .replace('#include <common>', `#include <common>${WATER_VERT_PARS}`)
