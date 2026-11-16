@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FOG_FACTOR_GLSL } from './glsl';
 
 /**
  * Camera-facing quads drawn in one instanced draw call. World-space positions, sizes in metres.
@@ -36,12 +37,7 @@ void main() {
   if (d > 1.0) discard;
   float a = vColor.a * (1.0 - smoothstep(uSoft, 1.0, d));
   vec3 rgb = vColor.rgb * uLight;
-  #ifdef USE_FOG
-    #ifdef FOG_EXP2
-      float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
-    #else
-      float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
-    #endif
+  #ifdef USE_FOG${FOG_FACTOR_GLSL}
     #ifdef FX_ADDITIVE
       a *= 1.0 - fogFactor;
     #else
