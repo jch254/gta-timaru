@@ -1,4 +1,4 @@
-import { CREAM, type Mat, type Site, bigDoor, box, fence, ground, mat, prop, raised, roof, run, slope, solid, stretches, trim, walls, win } from './kit';
+import { CREAM, type Mat, type Site, bigDoor, box, fence, ground, mat, prop, raised, roof, run, slope, solid, stretches, trim, walls, win, worldX, worldZ } from './kit';
 
 /**
  * The quarter-acre around a house: front fence and gate, letterbox, path, driveway, garage or carport,
@@ -89,6 +89,17 @@ export function yard(s: Site, p: Plot, o: YardStyle) {
       for (const dx of [-0.72, 0.72]) slope(s, driveX + dx, ya, s.hd, driveX + dx, yb, end, 0.55, 0.12, surface);
     } else {
       slope(s, driveX, ya, s.hd, driveX, yb, end, 2.6, 0.12, surface);
+    }
+    // The vehicle crossing: the drive carries on over the berm and footpath to the kerb in one slab.
+    const wx = worldX(s, driveX, s.hd);
+    const wz = worldZ(s, driveX, s.hd);
+    const hit = s.out.world.graph?.nearest(wx, wz, 24); // (test doubles have no road graph)
+    if (hit) {
+      const reach = hit.distance - hit.edge.width / 2 - 0.15;
+      if (reach > 0.4 && reach < 6) {
+        const yk = ground(s, driveX, s.hd + reach);
+        slope(s, driveX, ya + 0.1, s.hd - 0.05, driveX, yk + 0.09, s.hd + reach, 2.8, 0.05, mat(s, 'concrete', 0xc4c0b4));
+      }
     }
   }
 
