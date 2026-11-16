@@ -71,15 +71,8 @@ export function nodesIn(graph: RoadGraph, area: Area): RoadNode[] {
   return roadIndex(graph).nodes.get(cellKey(area.minX + 1, area.minZ + 1)) ?? [];
 }
 
-/** FNV-1a over a string: one stable number per street name, so a whole street shares its character. */
-export function hashName(name: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < name.length; i++) {
-    h ^= name.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
+/** FNV-1a over a street name, so a whole street shares its character. */
+export { hashString as hashName } from '../../core/rng';
 
 /** What set dressing must keep clear of in one area: landmark radii, mission markers, carriageways. */
 export class Keep {

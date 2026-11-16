@@ -36,6 +36,16 @@ export class Rng {
   }
 }
 
+/** FNV-1a over a string: one stable number per name (street character, landmark seeds). */
+export function hashString(text: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
 /** Stable 32-bit hash of integers, for seeding per-chunk / per-lot generators. */
 export function hashInts(...values: number[]): number {
   let h = 0x811c9dc5;

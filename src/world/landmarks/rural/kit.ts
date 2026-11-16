@@ -1,7 +1,7 @@
 import { agedLibrary } from '../aged';
 import * as THREE from 'three';
 import { TAU } from '../../../core/math';
-import { hashInts, Rng } from '../../../core/rng';
+import { hashInts, hashString, Rng } from '../../../core/rng';
 import type { ChunkBuilder, LandmarkPlacement, MaterialLibrary, MaterialOptions, SignOptions, SurfaceKind } from '../../../core/types';
 
 /**
@@ -503,11 +503,6 @@ export function decal(materials: MaterialLibrary, material: THREE.Material, fact
   return copy;
 }
 
-function hashString(text: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
-  return h | 0;
-}
 
 export interface FenceOptions {
   /** Height of the top rail. */

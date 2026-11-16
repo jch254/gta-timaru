@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { angleDiff, clamp01, damp, lerp, smooth } from './math';
-import { Rng } from './rng';
+import { hashString, Rng } from './rng';
 
 // Several modules were consolidated onto these helpers from byte-identical local copies.
 // Pinning exact outputs keeps every seeded sequence and every eased value bit-identical.
@@ -36,5 +36,12 @@ describe('Rng (mulberry32) golden sequence', () => {
   it('range draws exactly one value from the stream', () => {
     const r = new Rng(7);
     expect(r.range(-1, 1)).toBe(-0.97659049369394779);
+  });
+});
+
+describe('hashString (FNV-1a) golden values', () => {
+  it('matches the values the street and landmark seeds were built with', () => {
+    expect(hashString('Colombo Street')).toBe(2687867993);
+    expect(hashString('')).toBe(2166136261);
   });
 });

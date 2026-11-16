@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { clamp, lerp, smooth } from '../core/math';
-import { hashInts } from '../core/rng';
+import { hashInts, hashString as hashName } from '../core/rng';
 import type { DistrictType, EdgeSample, GfxApi, RoadClass, RoadEdge } from '../core/types';
 import { setBatchHint, type Materials } from '../render/materials';
 import { roadAtlasCells, roadMarkingAtlas, type AtlasCell } from '../render/textures';
@@ -557,15 +557,6 @@ function lookOf(map: CompiledMap, e: RoadEdge): EdgeLook {
   return look;
 }
 
-/** FNV-1a of a road's name: the same hash scatter/streets.ts uses to choose which side a bus shelter stands. */
-function hashName(name: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < name.length; i++) {
-    h ^= name.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
 
 /** What is painted on, or let into, one edge besides its lane lines. Worked out once per edge. */
 export interface EdgeFurniture {
