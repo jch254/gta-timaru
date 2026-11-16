@@ -2,6 +2,7 @@
  * What the world should sound like where the player is standing: bed levels and how often the wildlife pipes up.
  * Pure function of place, hour and weather, so it can be unit-tested; ambience.ts smooths towards these targets.
  */
+import { smooth } from '../core/math';
 import type { DistrictType, WeatherKind } from '../core/types';
 
 export interface AmbienceInput {
@@ -60,10 +61,6 @@ const URBAN: Record<DistrictType, number> = {
 
 const table = (o: Partial<Record<DistrictType, number>>, d: DistrictType): number => o[d] ?? 0;
 
-const smooth = (a: number, b: number, x: number): number => {
-  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
-  return t * t * (3 - 2 * t);
-};
 
 /** 0 in the small hours, 1 through the working day. */
 export function activity(hour: number): number {

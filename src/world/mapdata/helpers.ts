@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { angleDiff } from '../../core/math';
 import type { CityId, DistrictType, RoadClass } from '../../core/types';
 import type { MapBuilder, Pt, RoadOptions } from '../mapsource';
 
@@ -443,9 +444,7 @@ export function gradedDescent(natural: (x: number, z: number) => number, start: 
     }
     let h = Math.atan2(dx, dz);
     if (heading !== null) {
-      let d = h - heading;
-      while (d > Math.PI) d -= Math.PI * 2;
-      while (d < -Math.PI) d += Math.PI * 2;
+      const d = angleDiff(h, heading);
       h = heading + Math.max(-0.3, Math.min(0.3, d));
     }
     heading = h;
