@@ -466,11 +466,18 @@ float gGully = gN1.b * 0.62 + gN2.b * 0.38;
 float gMottle = gN1.a * 0.45 + gN2.a * 0.55;
 float gShade = (0.74 + 0.52 * gMottle) * mix(1.0, 0.7 + 0.52 * gGully, gRelief * gFarK);
 // Outcrops: two scales of noise at an angle to each other and a drift by height, so they gather into
-// broken bands along a face instead of dotting it evenly.
-float gCragN = gN2.a * 0.6 + texture2D(uGndNoise, vec2(gXZ.x * 0.8 - gXZ.y * 0.6, gXZ.x * 0.6 + gXZ.y * 0.8) / 233.0).a * 0.4;
+// broken bands along a face instead of dotting it evenly. Noise laid out in plan smears into long streaks
+// on a face seen side-on, so on steep ground the samples blend over to a side-on projection.
+vec3 gNrmC = normalize(vGndN);
+float gTilt = 1.0 - gNrmC.y;
+float gSideK = smoothstep(0.84, 0.52, gNrmC.y);
+vec2 gUpC = abs(gNrmC.x) > abs(gNrmC.z) ? vGndW.zy : vGndW.xy;
+float gCragA = gSideK < 0.01 ? gN2.a : mix(gN2.a, texture2D(uGndNoise, gUpC / 83.0 + vec2(0.37, 0.11)).a, gSideK);
+float gCragB = texture2D(uGndNoise, (gSideK > 0.5 ? vec2(gUpC.x * 0.8 - gUpC.y * 0.6, gUpC.x * 0.6 + gUpC.y * 0.8) : vec2(gXZ.x * 0.8 - gXZ.y * 0.6, gXZ.x * 0.6 + gXZ.y * 0.8)) / 233.0).a;
+float gCragN = gCragA * 0.6 + gCragB * 0.4;
 // Broken up at the scale of a single bluff, and gathered on the steeper ground where soil will not hold.
-float gTilt = 1.0 - normalize(vGndN).y;
-gCragN += (gN1.a - 0.5) * 0.3 + (texture2D(uGndNoise, gXZ / 21.0 + 0.3).a - 0.5) * 0.2 + (gFine - 0.5) * 0.1 + gTilt * 0.55 - 0.06;
+float gCrag21 = gSideK < 0.01 ? texture2D(uGndNoise, gXZ / 21.0 + 0.3).a : mix(texture2D(uGndNoise, gXZ / 21.0 + 0.3).a, texture2D(uGndNoise, gUpC / 21.0 + 0.3).a, gSideK);
+gCragN += (gN1.a - 0.5) * 0.3 + (gCrag21 - 0.5) * 0.2 + (gFine - 0.5) * 0.1 + gTilt * 0.55 - 0.06;
 float gCrag = smoothstep(0.7, 0.725, gCragN + (gRelief - 1.0) * 0.3) * smoothstep(0.3, 0.7, gRelief);
 vec2 gBend = ((gN1.xy - 0.5) * 1.5 + (gN2.xy - 0.5) * 0.9) * gRelief * gFarK;
 `;

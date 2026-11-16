@@ -747,6 +747,50 @@ export function downpipe(s: Site, x: number, z: number, y0: number, y1: number, 
   const m = trim(s, color);
   box(s, x + ox, y0, z + oz, 0.085, y1 - y0, 0.085, m);
   if (s.spare()) box(s, x + ox * 1.4, y1 - 0.25, z + oz * 1.4, 0.24, 0.25, 0.18, m);
+  // Half the pipes leak at a joint, and the wall behind wears the wash.
+  if (s.fx.chance(0.5)) {
+    const top = y0 + (y1 - y0) * s.fx.range(0.25, 0.7);
+    streak(s, x, top, z, 0.2 + s.fx.range(0, 0.1), top - y0 - 0.05, yaw);
+  }
+}
+
+const streakMats = new WeakMap<MaterialLibrary, Mat>();
+
+/** The one decal material for dirt washed down a wall: a soft dark smear, widest and darkest at its top. */
+function streakMat(s: Site): Mat {
+  let m = streakMats.get(s.m);
+  if (!m) {
+    const w = 32;
+    const h = 64;
+    const data = new Uint8Array(w * h * 4);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const across = Math.sin((x / (w - 1)) * Math.PI);
+        const down = y / (h - 1); // v = 0 at the bottom of the quad
+        const o = (y * w + x) * 4;
+        data[o] = 58;
+        data[o + 1] = 54;
+        data[o + 2] = 47;
+        data[o + 3] = Math.round(120 * across ** 1.6 * down ** 1.7);
+      }
+    }
+    const tex = new THREE.DataTexture(data, w, h, THREE.RGBAFormat);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.magFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.generateMipmaps = true;
+    tex.needsUpdate = true;
+    m = s.m.register(new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1 }));
+    streakMats.set(s.m, m);
+  }
+  return m;
+}
+
+/** A wash of dirt down a wall facing local `yaw`: `w` wide, running `h` down from a source at (x, y, z). */
+export function streak(s: Site, x: number, y: number, z: number, w: number, h: number, yaw = 0) {
+  const sx = Math.sin(yaw) * 0.012;
+  const cz = Math.cos(yaw) * 0.012;
+  s.out.quad(s.f, x + sx, y - h / 2, z + cz, w, h, streakMat(s), yaw);
 }
 
 /** A slender pole (flagpole, aerial, vent) standing on `y`. */
@@ -816,6 +860,13 @@ export function win(s: Site, x: number, y: number, z: number, w: number, h: numb
       const dress = j.sill ?? mat(s, 'concrete', 0xcfcabd);
       ledge(s, x + sx * 0.06, y - h / 2 - 0.09, z + cz * 0.06, w + 0.26, 0.1, 0.16, yaw, dress);
       if (o.hood && s.spare()) ledge(s, x + sx * 0.05, y + h / 2 + 0.11, z + cz * 0.05, w + 0.34, 0.16, 0.14, yaw, dress);
+      // Rain runs off the ends of some sills, and the wall below carries the streaks.
+      if (s.fx.chance(0.3) && s.spare(2)) {
+        const down = s.fx.range(0.5, 1.3);
+        for (const e of s.fx.chance(0.5) ? [-1, 1] : [s.fx.pick([-1, 1])]) {
+          streak(s, x + e * cz * (w / 2 + 0.1) + sx * 0.02, y - h / 2 - 0.14, z - e * sx * (w / 2 + 0.1) + cz * 0.02, 0.14 + s.fx.range(0, 0.08), down, yaw);
+        }
+      }
     }
   }
   pane(s, paneStyle, x + sx * proud, y, z + cz * proud, w, h, yaw, { color: j.frame, lit: level, variant, wall: reveal });
