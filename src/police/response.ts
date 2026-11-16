@@ -86,7 +86,7 @@ export function aimError(weapon: CopWeapon, distance: number, targetSpeed: numbe
   return a.base + a.perMetre * Math.max(0, distance) + a.perSpeed * Math.min(30, Math.max(0, targetSpeed));
 }
 
-/** Price of a respray and new plates at a given heat level, in dollars. */
-export function sprayCost(level: number, base = 100, perLevel = 150): number {
+/** Price of a respray and new plates at a given heat level, in dollars (rates from police tuning). */
+export function sprayCost(level: number, base: number, perLevel: number): number {
   return base + perLevel * Math.max(1, Math.min(5, Math.round(level)));
 }
