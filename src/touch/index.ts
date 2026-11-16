@@ -144,7 +144,7 @@ class TouchSystem implements System {
       this.word = word;
       this.signature = -1;
     }
-    s.talking = (ctx.missions as unknown as { dialogue?: { busy?: boolean } }).dialogue?.busy === true;
+    s.talking = ctx.missions.talking;
 
     const play = on && !portrait && !s.menuOpen;
     feed.labelsOn = !s.menuOpen;

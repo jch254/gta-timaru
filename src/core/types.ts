@@ -971,6 +971,8 @@ export interface MissionSummary {
 export interface MissionsApi {
   list(): MissionSummary[];
   active: MissionSummary | null;
+  /** A dialogue line is on screen (the touch overlay tucks its buttons away behind one). */
+  readonly talking: boolean;
   start(id: string): boolean;
   /** Abandon the active mission. */
   abort(reason?: string): void;

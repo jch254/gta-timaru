@@ -125,6 +125,10 @@ class Missions implements MissionsApi, System {
     return this.runner.active;
   }
 
+  get talking(): boolean {
+    return this.dialogue.busy;
+  }
+
   start(id: string): boolean {
     return this.runner.start(id);
   }
