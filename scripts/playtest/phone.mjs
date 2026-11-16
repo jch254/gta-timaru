@@ -14,16 +14,16 @@
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
+import { CHROME, DEV_URL, GPU_ARGS, IPHONE_UA, SETTINGS_KEY } from '../lib.mjs';
 
 const argv = process.argv.slice(2);
 const opt = (name, fallback) => {
   const i = argv.indexOf('--' + name);
   return i >= 0 ? argv[i + 1] : fallback;
 };
-const url = argv[0] && !argv[0].startsWith('--') ? argv[0] : 'http://localhost:5195/';
+const url = argv[0] && !argv[0].startsWith('--') ? argv[0] : DEV_URL;
 const shots = resolve(opt('shots', 'shots/round3/phone'));
 const [W, H] = String(opt('size', '844x390')).split('x').map(Number);
-const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
 mkdirSync(shots, { recursive: true });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -37,27 +37,27 @@ const check = (name, ok, detail = '') => {
 const note = (name, ok, detail = '') => console.log(`${ok ? 'ok  ' : 'todo'}  ${name}${detail === '' ? '' : '  ' + (typeof detail === 'string' ? detail : JSON.stringify(detail))}`);
 
 const browser = await puppeteer.launch({
-  executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  executablePath: CHROME,
   headless: true,
   protocolTimeout: 600_000,
   defaultViewport: { width: W, height: H, deviceScaleFactor: 3, isMobile: true, hasTouch: true, isLandscape: true },
-  args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--enable-webgl', '--mute-audio', `--window-size=${W},${H}`],
+  args: [...GPU_ARGS, '--enable-webgl', '--mute-audio', `--window-size=${W},${H}`],
 });
 const page = await browser.newPage();
-await page.setUserAgent(UA);
+await page.setUserAgent(IPHONE_UA);
 const problems = [];
 page.on('pageerror', (e) => problems.push('error: ' + e.message));
 page.on('console', (m) => {
   if (m.type() === 'error' && !m.text().startsWith('Failed to load resource')) problems.push('console: ' + m.text());
 });
 // No real radio stations in an automated run. Quality is deliberately not stored: a phone must pick its own.
-await page.evaluateOnNewDocument(() => {
+await page.evaluateOnNewDocument((key) => {
   try {
-    localStorage.setItem('timmaz-hard.settings.v2', JSON.stringify({ liveRadio: false }));
+    localStorage.setItem(key, JSON.stringify({ liveRadio: false }));
   } catch {
     // No storage.
   }
-});
+}, SETTINGS_KEY);
 
 // ───────────── Helpers ─────────────
 const shot = (name) => page.screenshot({ path: `${shots}/${name}.png` });
