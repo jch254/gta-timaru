@@ -36,6 +36,21 @@ export function getProp(kind: string, materials: MaterialLibrary): PropDef | nul
   return def;
 }
 
+/** De-index `source` and append its position/normal/uv (uv filled with 0 when absent) to the arrays.
+ *  Returns the number of vertices added. Shared by mergeGeometries and landmarks/paint.ts. */
+export function appendVertices(source: THREE.BufferGeometry, positions: number[], normals: number[], uvs: number[]): number {
+  const g = source.index ? source.toNonIndexed() : source;
+  const p = g.getAttribute('position');
+  const n = g.getAttribute('normal');
+  const u = g.getAttribute('uv');
+  for (let i = 0; i < p.count; i++) {
+    positions.push(p.getX(i), p.getY(i), p.getZ(i));
+    normals.push(n.getX(i), n.getY(i), n.getZ(i));
+    uvs.push(u ? u.getX(i) : 0, u ? u.getY(i) : 0);
+  }
+  return p.count;
+}
+
 /** Merge several geometries (already positioned) into one. */
 export function mergeGeometries(geometries: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const positions: number[] = [];
@@ -43,17 +58,9 @@ export function mergeGeometries(geometries: THREE.BufferGeometry[]): THREE.Buffe
   const uvs: number[] = [];
   const indices: number[] = [];
   for (const source of geometries) {
-    const g = source.index ? source.toNonIndexed() : source;
     const base = positions.length / 3;
-    const p = g.getAttribute('position');
-    const n = g.getAttribute('normal');
-    const u = g.getAttribute('uv');
-    for (let i = 0; i < p.count; i++) {
-      positions.push(p.getX(i), p.getY(i), p.getZ(i));
-      normals.push(n.getX(i), n.getY(i), n.getZ(i));
-      uvs.push(u ? u.getX(i) : 0, u ? u.getY(i) : 0);
-      indices.push(base + i);
-    }
+    const added = appendVertices(source, positions, normals, uvs);
+    for (let i = 0; i < added; i++) indices.push(base + i);
   }
   const out = new THREE.BufferGeometry();
   out.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
