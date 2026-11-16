@@ -5,7 +5,7 @@ Read this with `docs/DESIGN.md`, `docs/RESEARCH.md` and **`src/core/types.ts`** 
 ## Ground rules
 
 1. **Own only your files.** The table below says who owns what. Never edit a file you do not own, including `src/core/types.ts`, `src/game/game.ts`, anything in `src/render/`, `src/physics/`, `src/core/`. If the contract is missing something you need, work around it inside your module and say so in your final report.
-2. **Talk only through the contract.** Import types from `src/core/types.ts`. Use `ctx` (the `GameContext`) and `ctx.events` to reach other systems. Do not import another module's internals. Allowed shared helpers: `src/core/math.ts`, `src/core/rng.ts`, `src/actors/humanoid.ts` (`createHumanoid`), `src/world/props/index.ts` (`registerProp`, `mergeGeometries`, `canopy`), `src/render/textures.ts` (`canvasTexture`).
+2. **Talk only through the contract.** Import types from `src/core/types.ts`. Use `ctx` (the `GameContext`) and `ctx.events` to reach other systems. Do not import another module's internals. Allowed shared helpers: `src/core/math.ts`, `src/core/rng.ts`, `src/core/vec3.ts`, `src/core/lanes.ts`, `src/core/async.ts`, `src/actors/humanoid.ts` (`createHumanoid`), `src/world/props/index.ts` (`registerProp`, `mergeGeometries`, `appendVertices`, `canopy`), `src/render/textures.ts` (`canvasTexture`, `dataTexture`), `src/render/materials.ts` (`batchHint`, `setBatchHint`, `patchable` — world modules lean on these for draw-call batching and shader patches).
 3. **Keep your module's entry point signature.** Each stub `index.ts` exports a factory (e.g. `createPolice(ctx): PoliceApi & System`). `src/game/game.ts` already calls it. Replace the stub's body, keep the export.
 4. **Materials only from `ctx.gfx.materials`** (or the `materials` passed to you). Never call `new THREE.MeshStandardMaterial` for world geometry and never use `onBeforeCompile`; if you truly need a custom material, pass it through `materials.register()`. For dynamic objects (vehicles, effects) `register()` is fine. `MeshBasicMaterial` / `SpriteMaterial` / `PointsMaterial` / `LineBasicMaterial` for effects need no registration.
 5. **No assets, no network.** Everything is generated in code. No image, model, font or audio files; no fetches. Audio is synthesised with WebAudio.
@@ -27,12 +27,12 @@ Read this with `docs/DESIGN.md`, `docs/RESEARCH.md` and **`src/core/types.ts`** 
 
 | Owner | Files | Entry point |
 |---|---|---|
-| Lead | `src/core/**`, `src/game/**`, `src/render/**`, `src/physics/**`, `src/player/**`, `src/actors/**`, `src/main.ts`, `index.html`, `src/style.css`, `src/world/*.ts`, `src/world/props/index.ts`, `src/vehicles/vehicle.ts`, `src/vehicles/index.ts`, `src/vehicles/models/common.ts`, `docs/**` | — |
+| Lead | `src/core/**`, `src/game/**`, `src/render/**`, `src/physics/**`, `src/player/**`, `src/actors/**`, `src/main.ts`, `index.html`, `src/style.css`, `src/world/*.ts`, `src/world/props/index.ts`, `src/vehicles/vehicle.ts`, `src/vehicles/index.ts`, `docs/**` | — |
 | Map | `src/world/mapdata/**` | `buildMap(): MapSource` in `mapdata/index.ts` |
 | Buildings | `src/world/buildings/**`, `src/world/props/extra.ts` | `LOT_BUILDERS`, `buildLot` in `buildings/index.ts` |
 | Christchurch landmarks | `src/world/landmarks/christchurch/**`, `src/world/scatter/urban.ts` | registers into `LANDMARKS` |
 | Timaru + rural landmarks | `src/world/landmarks/timaru/**`, `src/world/landmarks/rural/**`, `src/world/scatter/rural.ts` | registers into `LANDMARKS` |
-| Vehicles | `src/vehicles/specs.ts`, `src/vehicles/models/**` except `common.ts` | `VEHICLE_SPECS`, `VEHICLE_MODELS` |
+| Vehicles | `src/vehicles/specs.ts`, `src/vehicles/models/**` | `VEHICLE_SPECS`, `VEHICLE_MODELS` |
 | Pedestrians + traffic | `src/ai/**` | `createPeds`, `createTraffic` |
 | Combat + effects | `src/combat/**`, `src/fx/**` | `createCombat` |
 | Police | `src/police/**` | `createPolice` |
@@ -131,9 +131,13 @@ Defined in `GameEvents` (`src/core/types.ts`). Who emits what:
 - Vehicles: `vehicleEntered`, `vehicleExited`, `vehicleCrash`, `vehicleDamaged`, `vehicleDestroyed`, `horn`.
 - Combat: `gunshot`, `impact`, `weaponChanged`, `pickup`, and `crime` (`gunfire`, `assault`, `murder`, `copAssault`, `copKilled`, `vehicleDamage`) when the offender is the player.
 - Pedestrians / traffic: `actorDamaged`, `actorDied` for their actors; `crime` `hitAndRun` when the player's vehicle hits a pedestrian.
-- Police: `wantedChanged`, `playerBusted`.
+- Police: `wantedChanged`, `playerBusted`, and `crime` (`recklessDriving`) when the player speeds in sight of a patrol.
 - Missions: `missionStarted`, `missionCompleted`, `missionFailed`.
-- Lead (game loop / atmosphere): `hourChanged`, `weatherChanged`, `pausedChanged` (UI emits this too when it pauses).
+- Lead (game loop / atmosphere): `hourChanged`, `weatherChanged`, `qualityChanged`, `pausedChanged` (UI emits this too when it pauses).
+
+Glossary: the **wanted level** is the whole number of lights (0–5); **heat** is the police module's fraction of progress towards the next light. `wantedChanged` fires on whole-level changes; `PoliceApi.heat` exposes the fraction.
+
+`System.dispose` is honoured for sub-objects a system creates and tears down during play (chunk unloads, mission entities, vehicle paint); the game itself starts once per page and has no teardown path, so nothing calls the systems' own `dispose` methods today.
 
 ## How the pieces meet
 
@@ -194,7 +198,7 @@ Read the header of `scripts/shot.mjs` for every option (`--eval` runs JavaScript
 | Lead | everything not listed, including `src/world/world.ts`, `src/render/**`, `scripts/shot.mjs` | lighting, sky, post, performance, gameplay |
 | Vegetation | tree / bush / flax definitions in `src/world/props/index.ts` and `src/world/props/extra.ts` (tree and hedge kinds only), new `src/world/props/vegetation.ts`, `scripts/assets/**` and `src/assets/**` for foliage | trees and plants that look real |
 | Buildings | `src/world/buildings/**`, the non-plant kinds in `src/world/props/extra.ts`, `windows()` in `src/render/materials.ts` | facades, glass, roofs, shopfronts |
-| Vehicles | `src/vehicles/models/**` (not `common.ts` signatures used by `vehicle.ts`), names/colours in `src/vehicles/specs.ts` | car bodies, glass, wheels, lights |
+| Vehicles | `src/vehicles/models/**`, names/colours in `src/vehicles/specs.ts` | car bodies, glass, wheels, lights |
 | Ground + water | ground colouring and materials in `src/world/world.ts` (`colorAt`, ground / far-terrain / sea materials) and `src/world/roadmesh.ts` (rivers, road surface, markings), `src/render/textures.ts` | terrain, riverbeds, beaches, sea, road surfaces |
 | Dressing | `src/world/scatter/**`, `src/world/landmarks/**` | street life, squares, parks, the Bay, set dressing |
 
@@ -219,7 +223,7 @@ The game is finished, deployed and playable (six missions, live radio, cameos). 
 1. **Before and after.** `zsh scripts/gallery.sh shots/round3/<lane>` takes the same 24 views every time (`... <lane> square` takes only the views with "square" in the name). The untouched set is in `shots/round3/before/` and its numbers in `shots/round3-before.log`. Open your after-shots next to the before-shots with the Read tool and judge them honestly. Add your own close-ups with `node scripts/shot.mjs` (read its header).
 2. **Cost.** The gallery prints draw calls and triangles for each view; those do not depend on how busy the machine is. No view may grow by more than 10 % in draw calls or 15 % in triangles over the before log unless your brief says otherwise, and anything you add has to pay for itself (merge, instance, share materials, alpha-test instead of blend, cheaper at distance, off at Low quality). **Do not measure or report frame rate**: several agents share one GPU and the numbers are meaningless. The lead measures at the end.
 3. **Quality levels.** `src/render/quality.ts` has Low, Medium, High and Ultra. A new effect must be off or at its cheapest at Low, and must not change what Low looks like for the worse.
-4. **Do not break the game.** `pnpm exec tsc --noEmit` clean and `pnpm vitest run --dir src` passing (1,095 tests at the start; use `--dir src`, plain `pnpm test` picks up a stray folder). Do not touch missions, cameos, police, audio or saves. Update tests that encode something you were asked to change, never delete one to get past it.
+4. **Do not break the game.** `pnpm exec tsc --noEmit` clean and `pnpm test` passing (vite.config.ts already excludes the stray folder; CI runs plain `pnpm test` too). Do not touch missions, cameos, police, audio or saves. Update tests that encode something you were asked to change, never delete one to get past it.
 5. **Stay in your lane.** Edit only the files in your row below. If you need something outside it, say so in your report rather than doing it. `src/core/types.ts` changes must be small and additive.
 6. **Others are editing at the same time.** If a shot fails or looks broken because of someone else's half-finished change, wait a minute and retry. Never "fix" a file outside your lane.
 7. **Do not use the Browser pane or preview tools, and do not start or stop servers.** The dev server is at `http://localhost:5195/`. `scripts/shot.mjs` keeps the live radio stations switched off; leave that alone.

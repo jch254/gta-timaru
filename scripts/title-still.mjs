@@ -16,7 +16,7 @@ for (let i = 2; i < process.argv.length; i++) {
   else args[a.slice(2)] = process.argv[++i];
 }
 const input = args._[0];
-if (!input) throw new Error('usage: still.mjs <raw.png> [--crop x,y,w,h] [--out file] [--width px] [--max-kb n]');
+if (!input) throw new Error('usage: title-still.mjs <raw.png> [--crop x,y,w,h] [--out file] [--width px] [--max-kb n]');
 const out = args.out || 'src/assets/ui/title.jpg';
 const W = Number(args.width || 1920);
 const H = Math.round((W * 9) / 16);

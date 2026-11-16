@@ -31,9 +31,10 @@ the same layout as `discogs-market-monitor/frontend`.
 - Set `manage_dns = false` to skip the site record
 
 **CodeBuild deployment** (`codebuild-project` + `codebuild-terraform-role`)
-- On a push to `main`: applies this Terraform, runs `pnpm run build`,
-  `aws s3 sync`s `dist/` to the bucket, then invalidates the CloudFront
-  distribution (see `buildspec.yml` in the repo root)
+- On a push to `main`: runs the unit tests (a red suite aborts before anything
+  deploys), applies this Terraform, runs `pnpm run build`, `aws s3 sync`s
+  `dist/` to the bucket, then invalidates the CloudFront distribution (see
+  `buildspec.yml` in the repo root)
 - `CLOUDFLARE_API_TOKEN` is read from SSM Parameter Store by `buildspec.yml`
 - Build results go to the shared-platform build notifier
 

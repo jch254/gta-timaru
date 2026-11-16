@@ -41,7 +41,7 @@ Vite + TypeScript + Three.js (WebGL2) + Rapier (WASM). Client only.
 src/
   main.ts            title screen; lazy-loads game/ (three + rapier) on Start
   core/              types.ts (ALL shared interfaces), events, input, settings, save, math, rng
-  game/              game.ts (loop, context), systems.ts (wiring — the only file that imports every module)
+  game/              game.ts (loop, context and wiring — the only file that imports every module), dev.ts
   render/            renderer + post stack, materials library, procedural textures, sky, weather
   physics/           Rapier wrapper, collision groups, raycasts, owner lookup
   world/             mapdata/ (authored map), map compile, height, chunk streaming, terrain, roads,
@@ -49,8 +49,8 @@ src/
   actors/            humanoid rig + procedural animation (shared by player, peds, police)
   player/            on-foot controller, camera, enter/exit
   combat/            weapons (data), firing, damage, pickups
-  vehicles/          vehicle physics, specs (data), procedural models, autopilot
-  ai/                pedestrians, traffic, navigation
+  vehicles/          vehicle physics, specs (data), procedural models
+  ai/                pedestrians, traffic, autopilot, navigation
   police/            wanted level, pursuit, roadblocks
   missions/          mission runner, definitions (data), story, shops
   ui/                HUD, minimap, pause/map, menus, controls screen
