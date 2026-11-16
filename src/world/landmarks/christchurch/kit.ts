@@ -15,7 +15,8 @@ import { mergeGeometries } from '../../props/index';
 
 export type Mat = THREE.Material;
 export type Pt2 = [number, number];
-export type V3 = [number, number, number];
+import type { V3 } from '../../../core/vec3';
+export type { V3 } from '../../../core/vec3';
 
 const _p = new THREE.Vector3();
 const _m = new THREE.Matrix4();

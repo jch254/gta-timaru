@@ -12,7 +12,8 @@ import type { ChunkBuilder, LandmarkPlacement, MaterialLibrary, MaterialOptions,
  * Local frame: +z is the landmark's front, +y up. Seen from the front, +x is to the viewer's right.
  */
 
-export type V3 = readonly [number, number, number];
+import type { V3 } from '../../../core/vec3';
+export type { V3 } from '../../../core/vec3';
 
 /** Clear radius per kind, from docs/CONTRACT.md. Builders keep everything inside it. */
 export const CLEAR_RADIUS: Record<string, number> = {

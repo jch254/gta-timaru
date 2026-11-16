@@ -462,7 +462,7 @@ export interface PlantShape {
   /** Width and height of this shape's stand-in, as multiples of the model's `far` geometry (default 1, 1). */
   far?: [number, number];
   /** Colour of this shape's stand-in, as a multiple of the `far` geometry's own (default 1, 1, 1). */
-  farTint?: [number, number, number];
+  farTint?: readonly [number, number, number];
 }
 
 /**

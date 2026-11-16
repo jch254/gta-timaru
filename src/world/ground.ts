@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { clamp, lerp, smooth } from '../core/math';
+import { mix3, type V3 } from '../core/vec3';
 import { fbm } from '../core/rng';
 import type { District, Environment, GfxApi } from '../core/types';
 import type { Materials } from '../render/materials';
@@ -19,7 +20,6 @@ import type { CompiledMap } from './map';
  * agree with the fences and stock that scatter/rural.ts places on the same 190 x 150 m grid.
  */
 
-type V3 = readonly [number, number, number];
 
 /** Albedo as an sRGB hex colour (what a grey card beside it would read, not how bright it looks in the sun). */
 const tone = (hex: number): V3 => {
@@ -27,7 +27,6 @@ const tone = (hex: number): V3 => {
   return [c.r, c.g, c.b];
 };
 const glsl = (c: V3) => `vec3(${c[0].toFixed(4)}, ${c[1].toFixed(4)}, ${c[2].toFixed(4)})`;
-const mix3 = (a: V3, b: V3, t: number): V3 => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 
 // A dry nor'west summer: irrigated green only where someone is paying for water.
 const C = {
