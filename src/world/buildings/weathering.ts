@@ -503,9 +503,11 @@ wxCol = mix(wxCol, mix(vec3(wxL), vec3(0.56, 0.54, 0.49), 0.6), clamp(wxFade, 0.
 // Rain streaks down from the top edge, and the whole board is grubby.
 wxCol *= 1.0 - (0.14 + 0.3 * wxAge) * smoothstep(0.45, 0.85, wxB.g) * (0.5 + 0.5 * wxA.a);
 wxCol *= 0.9 + 0.14 * wxC.r;
-// Flakes gone, down to the primer or the tin.
+// Flakes gone: on a board, down to the primer or the tin; lettering painted straight on a wall simply
+// loses its paint there, and the brick behind the sign shows through the hole.
 float wxFlake = smoothstep(0.7 - 0.16 * wxAge - 0.14 * wxGhost, 0.78, wxC.b * 0.65 + wxA.a * 0.35) * (0.25 + 0.75 * wxAge + 0.5 * wxGhost);
-wxCol = mix(wxCol, mix(vec3(0.3, 0.27, 0.23), vec3(0.19, 0.09, 0.04), step(0.72, wxC.r)) * (0.7 + 0.5 * wxA.r), clamp(wxFlake, 0.0, 0.9));
+if (wxGhost > 0.5 && wxFlake > 0.42) discard;
+wxCol = mix(wxCol, mix(vec3(0.3, 0.27, 0.23), vec3(0.19, 0.09, 0.04), step(0.72, wxC.r)) * (0.7 + 0.5 * wxA.r), clamp(wxFlake, 0.0, 0.9) * (1.0 - wxGhost));
 diffuseColor.rgb = wxCol;
 `;
 
@@ -538,7 +540,7 @@ export function agedSign(lib: MaterialLibrary, sign: THREE.Material, wear: Wear,
     copy.vertexColors = true;
     copy.name = 'weathered-sign';
     const low = cheap();
-    base = lib.registerPatched(copy, `bld-wx-sign${low ? '-low' : ''}`, patchSign(low));
+    base = lib.registerPatched(copy, `bld-wx-sign-2${low ? '-low' : ''}`, patchSign(low));
     signBases.set(page, base);
   }
   return handle(base, 255, 255 + 256 * q(wear.seed, 63) + 16384 * q(wear.age, 7) + 131072 * (ghost ? 2 : 0), 255, hint.uv);
