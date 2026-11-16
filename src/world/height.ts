@@ -1,7 +1,7 @@
 import { clamp, lerp, smooth } from '../core/math';
 import { fbm, ridged } from '../core/rng';
 import type { GroundSurface, RoadGraph, RoadHit } from '../core/types';
-import type { Pt, TerrainSource } from './mapsource';
+import { packCell, type Pt, type TerrainSource } from './mapsource';
 
 export const WORLD_BOUNDS = { minX: -3072, maxX: 3072, minZ: -6144, maxZ: 6144 };
 export const SEA_LEVEL = 0;
@@ -92,7 +92,7 @@ export class TerrainModel {
         const cz = Math.floor(s.z / this.RC);
         for (let a = -reach; a <= reach; a++) {
           for (let b = -reach; b <= reach; b++) {
-            const key = (cx + a + 512) * 1024 + (cz + b + 512);
+            const key = packCell(cx + a, cz + b);
             let list = this.riverCells.get(key);
             if (!list) this.riverCells.set(key, (list = []));
             list.push({ river, i });
@@ -205,7 +205,7 @@ export class TerrainModel {
   }
 
   private riverAt(x: number, z: number): RiverHit | null {
-    const list = this.riverCells.get((Math.floor(x / this.RC) + 512) * 1024 + (Math.floor(z / this.RC) + 512));
+    const list = this.riverCells.get(packCell(Math.floor(x / this.RC), Math.floor(z / this.RC)));
     if (!list) return null;
     let best: RiverHit | null = null;
     for (const { river, i } of list) {

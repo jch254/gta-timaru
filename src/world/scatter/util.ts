@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { ChunkBuilder, LandmarkPlacement, MaterialLibrary, Place, RoadClass, RoadEdge, RoadGraph, RoadNode, WorldApi } from '../../core/types';
+import { packCell } from '../mapsource';
 import { batchHint, setBatchHint } from '../../render/materials';
 
 /** The warm sodium-white every street lamp, porch light and lit window shares. */
@@ -22,7 +23,7 @@ export const ROUND3_OFF = typeof location !== 'undefined' && /[?&]dress3=0\b/.te
 
 /** Scatter areas are the world's 256 m chunks. */
 const CELL = 256;
-const cellKey = (x: number, z: number) => (Math.floor(x / CELL) + 512) * 1024 + Math.floor(z / CELL) + 512;
+const cellKey = (x: number, z: number) => packCell(Math.floor(x / CELL), Math.floor(z / CELL));
 
 interface RoadIndex {
   edges: Map<number, RoadEdge[]>;

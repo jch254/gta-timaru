@@ -175,6 +175,10 @@ export class MapBuilder {
   }
 }
 
+/** Packs grid-cell coords (within ±512 cells of the origin) into one Map key.
+ *  Every spatial index in the world shares it, so the bound lives in exactly one place. */
+export const packCell = (cx: number, cz: number) => (cx + 512) * 1024 + (cz + 512);
+
 /** Is (x, z) inside the shape (rect, circle, or ray-cast polygon). */
 export function inShape(shape: Shape, x: number, z: number): boolean {
   if (shape.kind === 'rect') return x >= shape.minX && x <= shape.maxX && z >= shape.minZ && z <= shape.maxZ;

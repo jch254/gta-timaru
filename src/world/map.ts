@@ -3,7 +3,7 @@ import { laneOffset } from '../core/lanes';
 import { clamp, lerp } from '../core/math';
 import type { District, EdgeSample, LandmarkPlacement, Place, RoadClass, RoadEdge, RoadGraph, RoadHit, RoadNode } from '../core/types';
 import { SEA_LEVEL, TerrainModel, type RiverPath } from './height';
-import { inShape, segSegIntersect, type DistrictSource, type MapSource, type Pt, type RailSource, type RoadSource } from './mapsource';
+import { inShape, packCell, segSegIntersect, type DistrictSource, type MapSource, type Pt, type RailSource, type RoadSource } from './mapsource';
 
 const CLASS_DEFAULTS: Record<RoadClass, { width: number; lanes: number; speed: number; footpaths: boolean; drivable: boolean; grade: number }> = {
   highway: { width: 9.5, lanes: 1, speed: 100, footpaths: false, drivable: true, grade: 0.06 },
@@ -54,7 +54,7 @@ class Graph implements RoadGraph {
     this.cells.clear();
     for (const e of this.edges) {
       e.samples.forEach((s, i) => {
-        const key = (Math.floor(s.x / CELL) + 512) * 1024 + (Math.floor(s.z / CELL) + 512);
+        const key = packCell(Math.floor(s.x / CELL), Math.floor(s.z / CELL));
         let list = this.cells.get(key);
         if (!list) this.cells.set(key, (list = []));
         list.push(e.index * 4096 + i);
@@ -72,7 +72,7 @@ class Graph implements RoadGraph {
     const reach = maxDistance > CELL - 8 ? 2 : 1;
     for (let a = cx - reach; a <= cx + reach; a++) {
       for (let b = cz - reach; b <= cz + reach; b++) {
-        const list = this.cells.get((a + 512) * 1024 + (b + 512));
+        const list = this.cells.get(packCell(a, b));
         if (!list) continue;
         for (const packed of list) {
           const ei = Math.floor(packed / 4096);

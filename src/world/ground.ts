@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { clamp, lerp, smooth } from '../core/math';
 import { mix3, type V3 } from '../core/vec3';
+import { packCell } from './mapsource';
 import { fbm } from '../core/rng';
 import type { District, Environment, GfxApi } from '../core/types';
 import type { Materials } from '../render/materials';
@@ -178,7 +179,7 @@ class RiverField {
         const cz = Math.floor(s.z / this.RC);
         for (let a = -reach; a <= reach; a++) {
           for (let b = -reach; b <= reach; b++) {
-            const key = (cx + a + 512) * 1024 + (cz + b + 512);
+            const key = packCell(cx + a, cz + b);
             let list = this.cells.get(key);
             if (!list) this.cells.set(key, (list = []));
             list.push({ river, i });
@@ -190,7 +191,7 @@ class RiverField {
 
   /** The result object is reused: read it before the next call. */
   at(x: number, z: number): RiverAt | null {
-    const list = this.cells.get((Math.floor(x / this.RC) + 512) * 1024 + (Math.floor(z / this.RC) + 512));
+    const list = this.cells.get(packCell(Math.floor(x / this.RC), Math.floor(z / this.RC)));
     if (!list) return null;
     let found = false;
     let bestScore = Infinity;
