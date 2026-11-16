@@ -184,12 +184,15 @@ function shell(rings: Ring[], t0: number, t1: number, grow: number, steps: numbe
 
 let plaid: THREE.Texture | null = null;
 let stripes: THREE.Texture | null = null;
-const patterned = new Map<string, THREE.MeshStandardMaterial>();
-let bodyMaterial: THREE.MeshStandardMaterial | null = null;
+// Registered materials are cached per library, so one library (or test double) never serves another's.
+const patterned = new WeakMap<MaterialLibrary, Map<string, THREE.MeshStandardMaterial>>();
+const bodyMaterials = new WeakMap<MaterialLibrary, THREE.MeshStandardMaterial>();
 
 function patternMaterial(style: 'bushShirt' | 'jersey', color: number, m: MaterialLibrary): THREE.MeshStandardMaterial {
+  let byKey = patterned.get(m);
+  if (!byKey) patterned.set(m, (byKey = new Map()));
   const key = `${style}|${color}`;
-  let mat = patterned.get(key);
+  let mat = byKey.get(key);
   if (mat) return mat;
   if (style === 'bushShirt') {
     plaid ??= (() => {
@@ -223,7 +226,7 @@ function patternMaterial(style: 'bushShirt' | 'jersey', color: number, m: Materi
     })();
   }
   mat = m.register(new THREE.MeshStandardMaterial({ color, map: style === 'bushShirt' ? plaid : stripes, roughness: 0.95 }));
-  patterned.set(key, mat);
+  byKey.set(key, mat);
   return mat;
 }
 
@@ -486,7 +489,8 @@ export class HumanoidRig implements Humanoid {
     }
 
     const geometry = sb.build();
-    bodyMaterial ??= m.register(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }));
+    let bodyMaterial = bodyMaterials.get(m);
+    if (!bodyMaterial) bodyMaterials.set(m, (bodyMaterial = m.register(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }))));
     const materials: THREE.Material[] = [bodyMaterial];
     if (hasPattern) materials.push(patternMaterial(style as 'bushShirt' | 'jersey', look.top, m));
     this.mesh = new THREE.SkinnedMesh(geometry, materials);

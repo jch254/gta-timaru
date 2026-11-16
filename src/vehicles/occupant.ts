@@ -27,7 +27,8 @@ const SHOE = 0x232325;
 const STYLES = ['short', 'short', 'long', 'bald', 'cap', 'short', 'long'] as const;
 
 const cache = new Map<string, THREE.BufferGeometry>();
-let material: THREE.Material | null = null;
+// Cached per library, so one library (or test double) never serves another's material.
+const materialCache = new WeakMap<MaterialLibrary, THREE.Material>();
 
 function paint(geometry: THREE.BufferGeometry, color: number): THREE.BufferGeometry {
   const c = new THREE.Color(color);
@@ -145,7 +146,8 @@ export function createOccupant(materials: MaterialLibrary, seed: number, driving
   const key = Object.values(look).join('|');
   let geometry = cache.get(key);
   if (!geometry) cache.set(key, (geometry = build(look)));
-  material ??= materials.get('plain', { vertexColors: true, roughness: 0.85 });
+  let material = materialCache.get(materials);
+  if (!material) materialCache.set(materials, (material = materials.get('plain', { vertexColors: true, roughness: 0.85 })));
   const mesh = new THREE.Mesh(geometry, material);
   mesh.castShadow = false;
   mesh.receiveShadow = false;

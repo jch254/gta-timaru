@@ -134,7 +134,10 @@ export class Game {
     };
     tune();
     settings.onChange((key) => {
-      if (key === 'quality') tune();
+      if (key === 'quality') {
+        tune();
+        events.emit('qualityChanged', { quality: settings.data.quality });
+      }
     });
     // Update order: input consumers → AI → vehicles → world → UI last.
     this.systems = [ctx.player, ctx.combat, ctx.peds, ctx.traffic, createTram(ctx), ctx.police, ctx.missions, ctx.vehicles, world, createFigureLod(ctx), ctx.audio, ctx.ui] as unknown as System[];
@@ -152,7 +155,6 @@ export class Game {
         if (typeof c.day === 'number' && Number.isFinite(c.day)) clock.day = c.day;
       },
     );
-    events.on('qualityChanged', () => undefined);
 
     await world.buildFar((f) => onProgress('Raising the Alps', 0.1 + f * 0.35));
     for (const s of this.systems) await s.init?.();
