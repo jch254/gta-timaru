@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ButtonId } from './controls';
-import { TouchFeed } from './feed';
+import { TouchFeed } from '../core/feed';
 import { TouchRouter, type RouterView } from './router';
 import { STICK_RADIUS, steerCurve } from './stick';
 

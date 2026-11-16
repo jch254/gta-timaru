@@ -1,4 +1,4 @@
-import { deviceHints, isPhone } from '../touch/device';
+import { deviceHints, isPhone } from './device';
 import { SETTINGS_KEY as KEY } from './storage';
 import type { QualityLevel, SettingsApi, SettingsData } from './types';
 

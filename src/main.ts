@@ -1,6 +1,6 @@
 import './style.css';
 import { SAVE_KEY, migrateStorage } from './core/storage';
-import { deviceHints, isTouchFirst } from './touch/device';
+import { deviceHints, isTouchFirst } from './core/device';
 
 // The title screen. Everything here runs before the engine is downloaded, so it stays small: the page's own
 // markup and CSS paint first, the photograph fades in when it arrives, and the buttons work from the first frame.

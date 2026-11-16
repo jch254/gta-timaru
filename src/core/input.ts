@@ -1,4 +1,4 @@
-import { TouchFeed } from '../touch/feed';
+import { TouchFeed } from './feed';
 import type { Action, InputApi, SettingsApi } from './types';
 
 /** Radians of camera turn per CSS pixel of look drag on a touch screen, at sensitivity 1. */
