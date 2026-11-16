@@ -673,14 +673,6 @@ export function flatRoof(s: Site, cx: number, cz: number, w: number, d: number, 
   if (s.near) rooftop(s, cx, cz, w - 1.6, d - 1.6, y + 0.07);
 }
 
-/** Low parapet wall round the edge of a flat roof (four thin boxes) with a capping line. */
-export function upstand(s: Site, cx: number, cz: number, w: number, d: number, y: number, h: number, mt: Mat) {
-  const t = 0.3;
-  box(s, cx, y, cz + d / 2 - t / 2, w, h, t, mt);
-  box(s, cx, y, cz - d / 2 + t / 2, w, h, t, mt);
-  for (const side of [-1, 1]) box(s, cx + side * (w / 2 - t / 2), y, cz, t, h, d - t * 2, mt);
-}
-
 export function chimney(s: Site, x: number, z: number, y: number, h: number, mt: Mat, pot = false) {
   box(s, x, y, z, 0.62, h, 0.62, mt);
   if (!s.spare(3)) return;

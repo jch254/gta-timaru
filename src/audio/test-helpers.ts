@@ -37,10 +37,3 @@ export function lowShare(b: Float32Array, sr: number, hz: number): number {
   }
   return all > 0 ? low / all : 0;
 }
-
-/** Rough brightness: mean frequency implied by the zero-crossing rate. */
-export function zeroCrossHz(b: Float32Array, sr: number): number {
-  let n = 0;
-  for (let i = 1; i < b.length; i++) if (b[i] >= 0 !== b[i - 1] >= 0) n++;
-  return (n / 2) * (sr / b.length);
-}
