@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { laneOffset } from '../core/lanes';
 import { clamp, lerp } from '../core/math';
 import type { District, EdgeSample, LandmarkPlacement, Place, RoadClass, RoadEdge, RoadGraph, RoadHit, RoadNode } from '../core/types';
 import { SEA_LEVEL, TerrainModel, type RiverPath } from './height';
@@ -130,9 +131,7 @@ class Graph implements RoadGraph {
     const p = this.pointAt(edge, s);
     const tx = p.tx * dir;
     const tz = p.tz * dir;
-    // Keep left: lane 0 hugs the left kerb. Two-way roads use their own half of the carriageway;
-    // one-way roads spread their lanes across the whole width.
-    const offset = edge.oneway ? edge.width / 2 - (lane + 0.5) * (edge.width / edge.lanes) : (edge.lanes - 0.5 - lane) * (edge.width / (edge.lanes * 2));
+    const offset = laneOffset(edge, lane);
     return { x: p.x + tz * offset, y: p.y, z: p.z - tx * offset, heading: Math.atan2(tx, tz) };
   }
 

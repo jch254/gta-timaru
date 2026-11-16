@@ -1,3 +1,4 @@
+import { laneOffset } from '../core/lanes';
 import { clamp } from '../core/math';
 import type { RoadEdge, RoadGraph } from '../core/types';
 
@@ -37,15 +38,7 @@ export function sampleEdge(edge: RoadEdge, s: number, out: PathPoint): PathPoint
   return out;
 }
 
-/** Offset of a lane centre from the centreline, positive = left of the direction of travel. Lane 0 is kerb-side. */
-export function laneOffset(edge: RoadEdge, lane: number): number {
-  const lanes = Math.max(1, edge.lanes);
-  const k = clamp(lane, 0, lanes - 1);
-  const laneWidth = edge.width / (lanes * 2);
-  // One-way: the whole carriageway is split into `lanes` lanes.
-  if (edge.oneway) return (lanes - 1 - 2 * k) * laneWidth;
-  return (lanes - 0.5 - k) * laneWidth;
-}
+export { laneOffset };
 
 /**
  * Lane centre at distance `s` from node a for traffic travelling in `dir`, moved `shift` metres to the RIGHT
