@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../../scatter/util';
 import type { ChunkBuilder, LandmarkBuilder, LandmarkPlacement } from '../../../core/types';
 import { flagpole, gothicRange, stoneSet } from './common';
 import { Kit, type V3, arcade, cone, drum, lancet, num, sphere, wedge } from './kit';
@@ -266,7 +267,7 @@ function gondolaStation(p: LandmarkPlacement, out: ChunkBuilder, summit: boolean
     k.prop('chch-bench', -6, 19.2, 0).prop('chch-bench', 7, 19.2, 0).prop('chch-lamp-standard', -10, 24).prop('chch-lamp-standard', 10, 24);
     k.prop('flax', -12, 19).prop('tree-cabbage', 12.2, 19.5, 1, 0.8);
     flagpole(k, 4, 25, 8, 0x2f6f66);
-    k.light(0, 4, 19, 0xffe2b0, 1.2, 18);
+    k.light(0, 4, 19, LAMP_WARM, 1.2, 18);
   } else {
     // Summit: a two-storey viewing building with a deck and a round café end.
     k.footing(0, 14, 24, 13, 0.3, m.get('limestone', { color: 0xa09496 }));
@@ -284,7 +285,7 @@ function gondolaStation(p: LandmarkPlacement, out: ChunkBuilder, summit: boolean
     k.beam([-8.5, 8.2, 11], [-8.5, 17, 11], 0.18, steel);
     k.geo(sphere(0.2, 6), m.emitter(0xff2a1a, 'night'), -8.5, 17.1, 11);
     flagpole(k, -11, 20.5, 9, 0x2f6f66);
-    k.light(0, 4, 20, 0xffe2b0, 1.2, 18);
+    k.light(0, 4, 20, LAMP_WARM, 1.2, 18);
   }
   k.flush();
 }

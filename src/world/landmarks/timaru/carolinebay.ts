@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../../scatter/util';
 import * as THREE from 'three';
 import { TAU } from '../../../core/math';
 import type { LandmarkBuilder } from '../../../core/types';
@@ -80,8 +81,8 @@ export const soundshell: LandmarkBuilder = (p, out) => {
   }
   b.flush();
 
-  s.light(0, 6, -12, 0xffe2b0, 1.6, 30);
-  s.light(0, 5, 10, 0xffe2b0, 0.8, 28);
+  s.light(0, 6, -12, LAMP_WARM, 1.6, 30);
+  s.light(0, 5, 10, LAMP_WARM, 0.8, 28);
 };
 
 const STALLS: { name: string; a: number; b: number }[] = [

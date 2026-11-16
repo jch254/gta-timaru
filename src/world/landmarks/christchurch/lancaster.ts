@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../../scatter/util';
 import type { LandmarkBuilder } from '../../../core/types';
 import { asphalt, flagpole, whiteLine } from './common';
 import { Kit, type Pt2, wedge } from './kit';
@@ -90,6 +91,6 @@ export const lancasterPark: LandmarkBuilder = (p, out) => {
     k.sub((ax + bx) / 2, 0, (az + bz) / 2, Math.atan2(-(bz - az), bx - ax)).solid(0, 0, 0, Math.hypot(bx - ax, bz - az), 2.6, 0.2, iron);
   }
 
-  k.light(0, 3, 93, 0xffe2b0, 1.3, 22).light(0, 9, flip * 70, 0xfff2d6, 1.2, 30);
+  k.light(0, 3, 93, LAMP_WARM, 1.3, 22).light(0, 9, flip * 70, 0xfff2d6, 1.2, 30);
   k.flush();
 };

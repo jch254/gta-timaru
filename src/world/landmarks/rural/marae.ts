@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../../scatter/util';
 import type { LandmarkBuilder } from '../../../core/types';
 import { bench, flagpole, gableRoof, Geo, Site, type V3, walls, windowRow } from './kit';
 
@@ -96,7 +97,7 @@ export const marae: LandmarkBuilder = (p, out) => {
     // Small windows down the sides.
     for (const side of [-1, 1]) for (const z of [-6, -1.5, 3]) out.quad(fw, side * (W + 0.01), 1.7, z, 1.2, 0.9, m.windows('house'), (side * Math.PI) / 2);
     b.flush();
-    s.light(0, 2.4, 0.5, 0xffe2b0, 1, 16);
+    s.light(0, 2.4, 0.5, LAMP_WARM, 1, 16);
   }
 
   // ── Wharekai (dining hall), set back to the right of the ātea ──
@@ -124,7 +125,7 @@ export const marae: LandmarkBuilder = (p, out) => {
     out.collider(fk, k * 14, 1.35, 0, 4, 2.7, 8);
     b.g(s.mat('corrugated', 0xa9adb0, { metalness: 0.4 })).lathe(k * 13.5, 0, -6.6, [[1.3, -0.3], [1.3, 2.1], [0, 2.35]], 12);
     b.flush();
-    s.light(side * 19, 2.4, -6, 0xffe2b0, 0.9, 16);
+    s.light(side * 19, 2.4, -6, LAMP_WARM, 0.9, 16);
 
     // Ablution block out the back, on the other side.
     const fa = s.at(-side * 20, -22);

@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../../scatter/util';
 // Registers the yard kinds (trailer, timber-stack, woodpile…) and the static cars.
 import '../../props/extra';
 import { TAU } from '../../../core/math';
@@ -220,5 +221,5 @@ export const grainSilo: LandmarkBuilder = (p, out) => {
   s.drape(gravel, 0, 6, 34, 16, 0.05);
   gravel.flush(out, s.ground('gravel'), f);
   b.flush();
-  s.light(0, 5, 6, 0xffe2b0, 1, 24);
+  s.light(0, 5, 6, LAMP_WARM, 1, 24);
 };

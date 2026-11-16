@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../scatter/util';
 import * as THREE from 'three';
 import { hashInts, Rng } from '../../core/rng';
 import type { ChunkBuilder, CityId, Lot, LotBuilder, MaterialLibrary, SurfaceKind, WorldApi } from '../../core/types';
@@ -1157,7 +1158,7 @@ export function stretches(a: number, b: number, gaps: [number, number][]): [numb
 }
 
 /** Budgeted night light at a local point (shopfronts only). */
-export function lamp(s: Site, lx: number, ly: number, lz: number, color = 0xffe2b0, intensity = 110, range = 11) {
+export function lamp(s: Site, lx: number, ly: number, lz: number, color = LAMP_WARM, intensity = 110, range = 11) {
   s.out.light(worldX(s, lx, lz), s.lot.y + s.y0 + ly, worldZ(s, lx, lz), color, intensity, range);
 }
 

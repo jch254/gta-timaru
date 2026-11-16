@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../scatter/util';
 import type { Lot, LotBuilder } from '../../core/types';
 import {
   ALUMINIUM,
@@ -482,7 +483,7 @@ const cinema: LotBuilder = (lot, out, rng) => {
     serviceWall(s, { x: side * (aw / 2), z: az, yaw, len: ad, top: ah, ground: ah, upper: 3, rows: 0, wall: barn, kind: 'back', doors: 1, dock: false, room: (w - aw) / 2 + 0.1, paint: stripeColor });
   }
   serviceWall(s, { x: 0, z: az - ad / 2, yaw: Math.PI, len: aw, top: ah, ground: ah, upper: 3, rows: 0, wall: barn, kind: 'back', doors: 1, dock: false, room: az - ad / 2 + s.hd, paint: stripeColor });
-  if (s.near) lamp(s, 0, 2.9, front + 1.3, 0xffe2b0, 150, 13);
+  if (s.near) lamp(s, 0, 2.9, front + 1.3, LAMP_WARM, 150, 13);
 };
 
 // ───────────────────────────── Department store ─────────────────────────────

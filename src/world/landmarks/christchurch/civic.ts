@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../../scatter/util';
 import * as THREE from 'three';
 import type { LandmarkBuilder } from '../../../core/types';
 import { bronze, flagpole, lawn, statue } from './common';
@@ -36,7 +37,7 @@ export const bridgeOfRemembrance: LandmarkBuilder = (p, out) => {
     k.cyl(side * 11.5, 4.95, 0, 0.12, 0.2, 0.7, trim, 8);
     k.geo(sphere(0.3, 8), m.emitter(0xffe2a8, 'night'), side * 11.5, 5.9, 0);
   }
-  k.light(0, 6.5, 0, 0xffe2b0, 1.3, 20);
+  k.light(0, 6.5, 0, LAMP_WARM, 1.3, 20);
   k.flush();
 };
 
@@ -108,7 +109,7 @@ export const townHall: LandmarkBuilder = (p, out) => {
   [0x1f3a7a, 0xb0161e, 0x1f6a3a].forEach((c, i) => flagpole(k, 19 + i * 2.2, 37, 9.5, c));
   for (const [x, z, yaw] of [[-18, 24, Math.PI / 2], [-18, 36, Math.PI / 2], [6, 38, Math.PI], [9, 25, -Math.PI / 2]]) k.prop('chch-bench', x, z, yaw);
   for (const [x, z] of [[-22, 42], [22, 22], [22, 30], [-22, 20]]) k.prop('chch-planter', x, z, x);
-  k.light(-6, 4, 31, 0xcfe6ff, 1.2, 22).light(0, 6, 19, 0xffe2b0, 1.3, 24);
+  k.light(-6, 4, 31, 0xcfe6ff, 1.2, 22).light(0, 6, 19, LAMP_WARM, 1.3, 24);
   k.flush();
 };
 
@@ -183,6 +184,6 @@ export const victoriaSquare: LandmarkBuilder = (p, out) => {
     if (k.free(tx, tz, 5)) k.prop(i === 3 || i === 6 ? 'tree-willow' : 'tree-oak', tx, tz, i * 1.9, 0.9);
   }
   for (const [x, z, yaw] of [[-12, 1.9, Math.PI], [14, -1.9, 0], [1.9, -20, -Math.PI / 2], [-1.9, 18, Math.PI / 2]]) k.prop('chch-bench', x, z, yaw);
-  k.light(0, 4, 0, 0xffe2b0, 1.2, 22).light(0, 4, 44, 0xffe2b0, 1, 16);
+  k.light(0, 4, 0, LAMP_WARM, 1.2, 22).light(0, 4, 44, LAMP_WARM, 1, 16);
   k.flush();
 };

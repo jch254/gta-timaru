@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../../scatter/util';
 import type { LandmarkBuilder } from '../../../core/types';
 import { clockFace } from './common';
 import { Kit, pyramid, tartan } from './kit';
@@ -102,6 +103,6 @@ export const newBrightonMall: LandmarkBuilder = (p, out) => {
     }
   }
   for (const [x, z] of [[-6.2, -half + 2.5], [6.2, -half + 2.5], [-6.2, half - 2.5], [6.2, half - 2.5]]) if (k.free(x, z, 1)) k.prop('tree-cabbage', x, z, x + z, 0.9);
-  k.light(cx, 5, cz, 0xffe2b0, 1.2, 22).light(0, 3.2, sz, 0xffe2b0, 1.1, 18);
+  k.light(cx, 5, cz, LAMP_WARM, 1.2, 22).light(0, 3.2, sz, LAMP_WARM, 1.1, 18);
   k.flush();
 };

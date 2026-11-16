@@ -2,6 +2,9 @@ import type * as THREE from 'three';
 import type { ChunkBuilder, LandmarkPlacement, MaterialLibrary, Place, RoadClass, RoadEdge, RoadGraph, RoadNode, WorldApi } from '../../core/types';
 import { batchHint, setBatchHint } from '../../render/materials';
 
+/** The warm sodium-white every street lamp, porch light and lit window shares. */
+export const LAMP_WARM = 0xffe2b0;
+
 /**
  * Measurement switch: load the game with `?nodress` in the URL and the round-2 dressing is left out, so its cost
  * in draw calls and triangles can be read off against the same scene (`node scripts/shot.mjs --url
@@ -125,7 +128,7 @@ export class Lights {
     private out: ChunkBuilder,
     private max: number,
   ) {}
-  add(x: number, y: number, z: number, color = 0xffe2b0, intensity = 130, range = 16): void {
+  add(x: number, y: number, z: number, color = LAMP_WARM, intensity = 130, range = 16): void {
     if (this.used++ < this.max) this.out.light(x, y, z, color, intensity, range);
   }
 }

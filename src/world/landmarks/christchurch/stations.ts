@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../../scatter/util';
 import type { LandmarkBuilder } from '../../../core/types';
 import { carPark, clockFace, flagpole, whiteLine } from './common';
 import { Kit, disc, drum, nearestRail, wedge } from './kit';
@@ -61,7 +62,7 @@ export const oldRailwayStation: LandmarkBuilder = (p, out) => {
   carPark(k, 0, 27, 60, 22, [22, 34.5]);
   if (k.free(-27, 28, 0.5)) k.prop('lamp', -27, 28, Math.PI / 2);
   if (k.free(27, 28, 0.5)) k.prop('lamp', 27, 28, -Math.PI / 2);
-  k.light(0, 4.5, 17, 0xffe2b0, 1.4, 26);
+  k.light(0, 4.5, 17, LAMP_WARM, 1.4, 26);
   k.flush();
 };
 
@@ -194,6 +195,6 @@ export const tramStop: LandmarkBuilder = (p, out) => {
   k.prop('chch-lamp-standard', 3.5, -3.4);
   k.dbox(-3.4, 0, -3.3, 0.07, 2.6, 0.07, dark);
   k.geo(disc(0.28, 12), m.get('plain', { color: 0xb0161e }), -3.4, 2.5, -3.24);
-  k.light(0, 2.6, -3, 0xffe2b0, 1, 12);
+  k.light(0, 2.6, -3, LAMP_WARM, 1, 12);
   k.flush();
 };

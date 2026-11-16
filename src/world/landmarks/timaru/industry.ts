@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../../scatter/util';
 import { TAU } from '../../../core/math';
 import type { LandmarkBuilder } from '../../../core/types';
 import { gableRoof, Geo, Site, verandah, walls, windowRow } from '../rural/kit';
@@ -180,7 +181,7 @@ export const smithfield: LandmarkBuilder = (p, out) => {
     out.box(f, -30.5, s.gy(-30.5, 80) + 0.8, 80, 0.12, 2.6, 0.12, steel);
     s.prop('lamp', -30, 60, Math.PI / 2);
     s.prop('lamp', 50, 64, -Math.PI / 2);
-    s.light(10, 6, 62, 0xffe2b0, 1.6, 55);
+    s.light(10, 6, 62, LAMP_WARM, 1.6, 55);
   }
 
   // ── Gatehouse, boom and front fence ──
@@ -203,7 +204,7 @@ export const smithfield: LandmarkBuilder = (p, out) => {
     s.fence(fence, [[-58, 92], [-22, 92]], { height: 2, spacing: 3, rails: 2, post: 0.07, rail: [0.04, 0.04] });
     s.fence(fence, [[10, 92], [56, 92]], { height: 2, spacing: 3, rails: 2, post: 0.07, rail: [0.04, 0.04] });
     main.flush();
-    s.light(2, 4, 94, 0xffe2b0, 1.2, 24);
+    s.light(2, 4, 94, LAMP_WARM, 1.2, 24);
   }
 };
 
@@ -314,8 +315,8 @@ export const saleyards: LandmarkBuilder = (p, out) => {
   for (const sx of [-3.6, 3.6]) out.box(f, sx, s.gy(sx, 52) + 1.2, 52, 0.16, 3.4, 0.16, timber);
   s.prop('lamp', -30, 20, 0);
   s.prop('lamp', 28, 22, 0);
-  s.light(0, 6, 24, 0xffe2b0, 1.3, 45);
-  s.light(42, 3.5, -14, 0xffe2b0, 1.2, 22);
+  s.light(0, 6, 24, LAMP_WARM, 1.3, 45);
+  s.light(42, 3.5, -14, LAMP_WARM, 1.2, 22);
 };
 
 /**
@@ -468,7 +469,7 @@ export const raceway: LandmarkBuilder = (p, out) => {
     const fence = b.g(white);
     s.fence(fence, [[-58, 118], [-10, 120]], { height: 1.2, spacing: 3, rails: 2, post: 0.1 });
     s.fence(fence, [[10, 120], [58, 118]], { height: 1.2, spacing: 3, rails: 2, post: 0.1 });
-    s.light(0, 4, 116, 0xffe2b0, 1.2, 26);
+    s.light(0, 4, 116, LAMP_WARM, 1.2, 26);
   }
   b.flush();
 
