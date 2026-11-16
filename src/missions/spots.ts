@@ -1,4 +1,5 @@
 /** Turns the declarative `Spot`s in mission data into world positions, using only the WorldApi. */
+import { FOOTPATH_OFFSET } from '../core/lanes';
 import { clamp } from '../core/math';
 import type { LandmarkPlacement, Place, RoadEdge, RoadGraph, RoadHit, RoadNode, WorldApi } from '../core/types';
 import type { RoadName, Spot, SpotObject } from './types';
@@ -406,7 +407,7 @@ export function resolveSpot(world: WorldApi, spot: Spot, out: Resolved, lookup?:
         out.x = p.x;
         out.z = p.z;
         out.heading = Math.atan2(p.tx * dir, p.tz * dir);
-        if (o.snap === 'verge') left += (o.side ?? nearSide) * (edge.width / 2 + (o.out ?? 1.7));
+        if (o.snap === 'verge') left += (o.side ?? nearSide) * (edge.width / 2 + (o.out ?? FOOTPATH_OFFSET));
       }
       out.edge = edge;
       out.s = s;

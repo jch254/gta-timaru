@@ -1,6 +1,7 @@
 import { hashInts, Rng } from '../core/rng';
 import type { DistrictType, LandmarkPlacement, Lot, RoadClass, RoadEdge } from '../core/types';
 import { WORLD_BOUNDS } from './height';
+import { packCell } from './mapsource';
 import type { CompiledMap } from './map';
 
 interface LotRule {
@@ -27,7 +28,7 @@ const RULES: Record<DistrictType, LotRule | null> = {
 
 const CLASS_ORDER: RoadClass[] = ['pedestrian', 'arterial', 'street', 'highway', 'lane', 'gravel'];
 export const CHUNK = 256;
-export const chunkKey = (cx: number, cz: number) => (cx + 512) * 1024 + (cz + 512);
+export const chunkKey = packCell;
 export const chunkOf = (v: number) => Math.floor(v / CHUNK);
 
 interface Placed {

@@ -1,6 +1,10 @@
 import type * as THREE from 'three';
 import type { ChunkBuilder, LandmarkPlacement, MaterialLibrary, Place, RoadClass, RoadEdge, RoadGraph, RoadNode, WorldApi } from '../../core/types';
+import { packCell } from '../mapsource';
 import { batchHint, setBatchHint } from '../../render/materials';
+
+/** The warm sodium-white every street lamp, porch light and lit window shares. */
+export const LAMP_WARM = 0xffe2b0;
 
 /**
  * Measurement switch: load the game with `?nodress` in the URL and the round-2 dressing is left out, so its cost
@@ -19,7 +23,7 @@ export const ROUND3_OFF = typeof location !== 'undefined' && /[?&]dress3=0\b/.te
 
 /** Scatter areas are the world's 256 m chunks. */
 const CELL = 256;
-const cellKey = (x: number, z: number) => (Math.floor(x / CELL) + 512) * 1024 + Math.floor(z / CELL) + 512;
+const cellKey = (x: number, z: number) => packCell(Math.floor(x / CELL), Math.floor(z / CELL));
 
 interface RoadIndex {
   edges: Map<number, RoadEdge[]>;
@@ -71,15 +75,8 @@ export function nodesIn(graph: RoadGraph, area: Area): RoadNode[] {
   return roadIndex(graph).nodes.get(cellKey(area.minX + 1, area.minZ + 1)) ?? [];
 }
 
-/** FNV-1a over a string: one stable number per street name, so a whole street shares its character. */
-export function hashName(name: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < name.length; i++) {
-    h ^= name.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
+/** FNV-1a over a street name, so a whole street shares its character. */
+export { hashString as hashName } from '../../core/rng';
 
 /** What set dressing must keep clear of in one area: landmark radii, mission markers, carriageways. */
 export class Keep {
@@ -132,7 +129,7 @@ export class Lights {
     private out: ChunkBuilder,
     private max: number,
   ) {}
-  add(x: number, y: number, z: number, color = 0xffe2b0, intensity = 130, range = 16): void {
+  add(x: number, y: number, z: number, color = LAMP_WARM, intensity = 130, range = 16): void {
     if (this.used++ < this.max) this.out.light(x, y, z, color, intensity, range);
   }
 }

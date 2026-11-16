@@ -1,8 +1,9 @@
 import * as THREE from 'three';
+import { FOOTPATH_OFFSET, laneOffset } from '../core/lanes';
 import { clamp, lerp } from '../core/math';
 import type { District, EdgeSample, LandmarkPlacement, Place, RoadClass, RoadEdge, RoadGraph, RoadHit, RoadNode } from '../core/types';
 import { SEA_LEVEL, TerrainModel, type RiverPath } from './height';
-import type { DistrictSource, MapSource, Pt, RailSource, RoadSource, Shape } from './mapsource';
+import { inShape, packCell, segSegIntersect, type DistrictSource, type MapSource, type Pt, type RailSource, type RoadSource } from './mapsource';
 
 const CLASS_DEFAULTS: Record<RoadClass, { width: number; lanes: number; speed: number; footpaths: boolean; drivable: boolean; grade: number }> = {
   highway: { width: 9.5, lanes: 1, speed: 100, footpaths: false, drivable: true, grade: 0.06 },
@@ -43,16 +44,6 @@ function resample(pts: Pt[], step: number): { x: number; z: number; s: number }[
   return out;
 }
 
-function inShape(shape: Shape, x: number, z: number): boolean {
-  if (shape.kind === 'rect') return x >= shape.minX && x <= shape.maxX && z >= shape.minZ && z <= shape.maxZ;
-  if (shape.kind === 'circle') return Math.hypot(x - shape.x, z - shape.z) <= shape.r;
-  let inside = false;
-  const p = shape.pts;
-  for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
-    if (p[i][1] > z !== p[j][1] > z && x < ((p[j][0] - p[i][0]) * (z - p[i][1])) / (p[j][1] - p[i][1]) + p[i][0]) inside = !inside;
-  }
-  return inside;
-}
 
 class Graph implements RoadGraph {
   nodes: RoadNode[] = [];
@@ -63,7 +54,7 @@ class Graph implements RoadGraph {
     this.cells.clear();
     for (const e of this.edges) {
       e.samples.forEach((s, i) => {
-        const key = (Math.floor(s.x / CELL) + 512) * 1024 + (Math.floor(s.z / CELL) + 512);
+        const key = packCell(Math.floor(s.x / CELL), Math.floor(s.z / CELL));
         let list = this.cells.get(key);
         if (!list) this.cells.set(key, (list = []));
         list.push(e.index * 4096 + i);
@@ -81,7 +72,7 @@ class Graph implements RoadGraph {
     const reach = maxDistance > CELL - 8 ? 2 : 1;
     for (let a = cx - reach; a <= cx + reach; a++) {
       for (let b = cz - reach; b <= cz + reach; b++) {
-        const list = this.cells.get((a + 512) * 1024 + (b + 512));
+        const list = this.cells.get(packCell(a, b));
         if (!list) continue;
         for (const packed of list) {
           const ei = Math.floor(packed / 4096);
@@ -140,15 +131,13 @@ class Graph implements RoadGraph {
     const p = this.pointAt(edge, s);
     const tx = p.tx * dir;
     const tz = p.tz * dir;
-    // Keep left: lane 0 hugs the left kerb. Two-way roads use their own half of the carriageway;
-    // one-way roads spread their lanes across the whole width.
-    const offset = edge.oneway ? edge.width / 2 - (lane + 0.5) * (edge.width / edge.lanes) : (edge.lanes - 0.5 - lane) * (edge.width / (edge.lanes * 2));
+    const offset = laneOffset(edge, lane);
     return { x: p.x + tz * offset, y: p.y, z: p.z - tx * offset, heading: Math.atan2(tx, tz) };
   }
 
   footpathPoint(edge: RoadEdge, s: number, side: 1 | -1) {
     const p = this.pointAt(edge, s);
-    const offset = (edge.width / 2 + 1.7) * side;
+    const offset = (edge.width / 2 + FOOTPATH_OFFSET) * side;
     return { x: p.x + p.tz * offset, y: p.y, z: p.z - p.tx * offset };
   }
 
@@ -300,10 +289,9 @@ export function compileMap(src: MapSource): CompiledMap {
         for (let j = 0; j < lb.pts.length - 1; j++) {
           const [x3, z3] = lb.pts[j];
           const [x4, z4] = lb.pts[j + 1];
-          const den = (x2 - x1) * (z4 - z3) - (z2 - z1) * (x4 - x3);
-          if (Math.abs(den) < 1e-6) continue;
-          const ua = ((x3 - x1) * (z4 - z3) - (z3 - z1) * (x4 - x3)) / den;
-          const ub = ((x3 - x1) * (z2 - z1) - (z3 - z1) * (x2 - x1)) / den;
+          const hit = segSegIntersect(x1, z1, x2, z2, x3, z3, x4, z4, 1e-6);
+          if (!hit) continue;
+          const { ua, ub } = hit;
           const lenA = la.lens[i + 1] - la.lens[i];
           const lenB = lb.lens[j + 1] - lb.lens[j];
           // Tolerate near-misses of up to 2.5 m so T-junctions drawn "close enough" still connect.

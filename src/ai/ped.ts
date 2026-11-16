@@ -1199,7 +1199,7 @@ export class Ped implements PedHandle {
       // The swing lands in front of the attacker, so square up first.
       this.heading = face;
       this.group.rotation.y = face;
-      ctx.combat.melee(this, weapon && weapon.kind === 'melee' ? weapon.damage * 0.7 : PEDS.punchDamage, reach + (target.vehicle ? 0.8 : 0));
+      ctx.combat.melee(this, weapon && weapon.kind === 'melee' ? weapon.damage * PEDS.meleeScale : PEDS.punchDamage, reach + (target.vehicle ? 0.8 : 0));
     }
     return 'idle';
   }

@@ -3,6 +3,7 @@
  * audio invents them: revs climb through each gear, drop on the up-shift, and the shift points move with load.
  * Pure maths, unit-tested.
  */
+import { damp } from '../core/math';
 import type { VehicleSpec } from '../core/types';
 
 export interface GearboxSpec {
@@ -83,7 +84,7 @@ export function stepGearbox(s: GearboxState, spec: GearboxSpec, speedFrac: numbe
   if (s.shift > 0) target -= range * 0.07;
   target = Math.min(spec.redline, Math.max(spec.idle, target));
   const rate = spec.inertia * (target > s.rpm ? 1 : 1.5);
-  s.rpm += (target - s.rpm) * (1 - Math.exp(-rate * dt));
+  s.rpm = damp(s.rpm, target, rate, dt);
   return changed;
 }
 

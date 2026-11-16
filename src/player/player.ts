@@ -5,6 +5,7 @@ import { clamp, damp, dampAngle } from '../core/math';
 import { CollisionGroup, type DamageInfo, type GameContext, type Humanoid, type HumanoidPose, type PlayerApi, type System, type Vehicle } from '../core/types';
 import type { VehicleImpl } from '../vehicles/vehicle';
 import { ChaseCamera } from './camera';
+import { TUNING } from './tuning';
 
 const RADIUS = 0.3;
 const HALF = 0.56; // capsule half-height (cylinder part)
@@ -22,8 +23,8 @@ export class Player implements PlayerApi, System {
   readonly position = new THREE.Vector3();
   readonly velocity = new THREE.Vector3();
   heading = Math.PI;
-  health = 100;
-  maxHealth = 100;
+  health = TUNING.maxHealth;
+  maxHealth = TUNING.maxHealth;
   armour = 0;
   alive = true;
   vehicle: Vehicle | null = null;
@@ -90,11 +91,15 @@ export class Player implements PlayerApi, System {
       'player',
       () => ({ money: this.money, x: this.position.x, z: this.position.z, heading: this.heading, health: this.health, armour: this.armour }),
       (data) => {
-        const d = data as { money: number; x: number; z: number; heading: number; health: number; armour: number };
-        this.money = d.money ?? 0;
-        this.health = clamp(d.health ?? 100, 20, this.maxHealth);
-        this.armour = d.armour ?? 0;
-        this.teleport(d.x, d.z, d.heading);
+        // Only finite numbers may come back in: NaN coordinates would put the player nowhere without a sound.
+        const d = (typeof data === 'object' && data !== null ? data : {}) as Record<string, unknown>;
+        const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+        this.money = num(d.money, 0);
+        this.health = clamp(num(d.health, TUNING.maxHealth), 20, this.maxHealth);
+        this.armour = num(d.armour, 0);
+        const x = num(d.x, NaN);
+        const z = num(d.z, NaN);
+        if (Number.isFinite(x) && Number.isFinite(z)) this.teleport(x, z, num(d.heading, 0));
         ctx.events.emit('moneyChanged', { money: this.money, delta: 0 });
       },
     );
@@ -146,11 +151,9 @@ export class Player implements PlayerApi, System {
 
   takeDamage(info: DamageInfo) {
     if (!this.alive || this.respawning) return;
-    // The player is outnumbered in every fight and has no cover system to lean on, so other people's bullets
-    // and bats bite less than the player's own do.
-    let amount = info.amount * (info.kind === 'bullet' ? 0.55 : info.kind === 'melee' ? 0.75 : 1);
+    let amount = info.amount * (info.kind === 'bullet' ? TUNING.bulletTaken : info.kind === 'melee' ? TUNING.meleeTaken : 1);
     if (this.armour > 0 && info.kind !== 'fall' && info.kind !== 'drown') {
-      const absorbed = Math.min(this.armour, amount * 0.75);
+      const absorbed = Math.min(this.armour, amount * TUNING.armourShare);
       this.armour -= absorbed;
       amount -= absorbed;
     }
@@ -160,7 +163,7 @@ export class Player implements PlayerApi, System {
     if (this.health <= 0) {
       this.health = 0;
       this.alive = false;
-      this.deathTimer = 3;
+      this.deathTimer = TUNING.deathSeconds;
       if (this.vehicle) this.leaveVehicle(true);
       this.ctx.events.emit('actorDied', { actor: this, info });
       this.ctx.events.emit('playerDied', { info });
@@ -183,8 +186,8 @@ export class Player implements PlayerApi, System {
     if (reason === 'died' || reason === 'busted') {
       this.armour = 0;
       // Hospital bill / bail.
-      this.addMoney(-Math.min(this.money, Math.max(50, Math.round(this.money * 0.1))));
-      ctx.clock.advanceHours(reason === 'died' ? 6 : 3);
+      this.addMoney(-Math.min(this.money, Math.max(TUNING.feeFlat, Math.round(this.money * TUNING.feeShare))));
+      ctx.clock.advanceHours(reason === 'died' ? TUNING.hospitalHours : TUNING.custodyHours);
     }
     this.teleport(spot.x, spot.z, spot.heading ?? 0);
     this.respawning = false;
@@ -247,12 +250,12 @@ export class Player implements PlayerApi, System {
     if (this.grounded) {
       this.vy = Math.max(this.vy, -2);
       if (this.jumpQueued) {
-        this.vy = 6.6;
+        this.vy = TUNING.jumpSpeed;
         this.grounded = false;
       }
     }
     this.jumpQueued = false;
-    this.vy -= 22 * dt;
+    this.vy -= TUNING.gravity * dt;
     this.mover.computeColliderMovement(
       this.collider,
       { x: this.velocity.x * dt, y: this.vy * dt, z: this.velocity.z * dt },
@@ -262,7 +265,7 @@ export class Player implements PlayerApi, System {
     const move = this.mover.computedMovement();
     const wasGrounded = this.grounded;
     this.grounded = this.mover.computedGrounded();
-    if (!wasGrounded && this.grounded && this.vy < -14) this.takeDamage({ amount: (-this.vy - 13) * 7, kind: 'fall' });
+    if (!wasGrounded && this.grounded && this.vy < -TUNING.fallHurts) this.takeDamage({ amount: (-this.vy - TUNING.fallGrace) * TUNING.fallScale, kind: 'fall' });
     if (this.grounded) this.airTime = 0;
     else this.airTime += dt;
     let ny = t.y + move.y;
@@ -319,16 +322,16 @@ export class Player implements PlayerApi, System {
       const mz = free ? input.moveZ : 0;
       const len = Math.hypot(mx, mz);
       this.sprinting = free && input.held('sprint') && len > 0.1 && !this.aiming;
-      const top = this.aiming ? 1.9 : this.sprinting ? 6.8 : 3.9;
+      const top = this.aiming ? TUNING.aimSpeed : this.sprinting ? TUNING.sprintSpeed : TUNING.walkSpeed;
       const depth = ctx.world.waterDepthAt(this.position.x, this.position.z);
-      const wade = depth > 0.4 ? 0.5 : 1;
+      const wade = depth > TUNING.wadeDepth ? TUNING.wadeFactor : 1;
       if (len > 0.05) {
         const k = (Math.min(1, len) * top * wade) / len;
         // forward = (sin, cos), left = (cos, -sin).
         this.wish.set((sin * mz + cos * mx) * k, 0, (cos * mz - sin * mx) * k);
       } else this.wish.set(0, 0, 0);
       if (free && input.pressed('jump') && this.grounded) this.jumpQueued = true;
-      if (depth > 1.5) this.takeDamage({ amount: 18 * dt, kind: 'drown' });
+      if (depth > TUNING.drownDepth) this.takeDamage({ amount: TUNING.drownPerSecond * dt, kind: 'drown' });
 
       const moving = Math.hypot(this.velocity.x, this.velocity.z);
       if (this.aiming) this.heading = dampAngle(this.heading, this.camera.yaw, 22, dt);
@@ -349,7 +352,7 @@ export class Player implements PlayerApi, System {
       this.humanoid.update(dt);
 
       // Getting into / stealing vehicles.
-      const near = ctx.vehicles.nearest(this.position.x, this.position.z, 4.2, (v) => !v.destroyed && v.position.distanceTo(this.position) < v.spec.length * 0.5 + 2.2);
+      const near = ctx.vehicles.nearest(this.position.x, this.position.z, TUNING.enterRadius, (v) => !v.destroyed && v.position.distanceTo(this.position) < v.spec.length * 0.5 + TUNING.enterReach);
       if (near && free) {
         const occupied = near.driver !== null;
         ctx.ui.prompt(`${input.label('interact')}  ${occupied ? 'Hijack' : near.tags.has('owned') ? 'Get in' : 'Nick'} the ${near.spec.name}`);

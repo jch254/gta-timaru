@@ -32,20 +32,12 @@
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
+import { CHROME, DEV_URL, GPU_ARGS, IPHONE_UA, parseArgs, SETTINGS_KEY } from './lib.mjs';
 
-const args = {};
-for (let i = 2; i < process.argv.length; i++) {
-  const a = process.argv[i];
-  if (!a.startsWith('--')) continue;
-  const next = process.argv[i + 1];
-  if (next === undefined || next.startsWith('--')) args[a.slice(2)] = true;
-  else args[a.slice(2)] = process.argv[++i];
-}
-const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const url = args.url || 'http://localhost:5195/';
+const args = parseArgs();
+const url = args.url || DEV_URL;
 const MOBILE_SIZES = { true: '844x390', max: '932x430', portrait: '390x844' };
 const mobile = args.mobile ? MOBILE_SIZES[String(args.mobile)] || MOBILE_SIZES.true : null;
-const MOBILE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
 const [width, height] = String(args.size || mobile || '1600x900').split('x').map(Number);
 if (mobile) args.hud = true;
 const out = resolve(String(args.out || 'shots/shot.png'));
@@ -56,12 +48,12 @@ const browser = await puppeteer.launch({
   headless: true,
   protocolTimeout: 1_200_000, // long --eval scripts (whole missions) are fine
   defaultViewport: mobile ? { width, height, deviceScaleFactor: 3, isMobile: true, hasTouch: true, isLandscape: width > height } : { width, height, deviceScaleFactor: 1 },
-  args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--enable-webgl', '--mute-audio', '--autoplay-policy=no-user-gesture-required', `--window-size=${width},${height}`, '--disable-frame-rate-limit', '--disable-gpu-vsync'].filter((a) => args.fps || !a.includes('rate-limit') && !a.includes('vsync')),
+  args: [...GPU_ARGS, '--enable-webgl', '--mute-audio', '--autoplay-policy=no-user-gesture-required', `--window-size=${width},${height}`, '--disable-frame-rate-limit', '--disable-gpu-vsync'].filter((a) => args.fps || !a.includes('rate-limit') && !a.includes('vsync')),
 });
 let failed = false;
 try {
   const page = await browser.newPage();
-  if (mobile) await page.setUserAgent(MOBILE_UA);
+  if (mobile) await page.setUserAgent(IPHONE_UA);
   const problems = [];
   page.on('console', (m) => {
     // Progress lines from long --eval scripts: console.log('[shot] …') is echoed as it happens.
@@ -75,9 +67,8 @@ try {
   // Settings are written before the page's own scripts run. Automated runs keep the live radio stations off
   // unless asked (--live): there is no call to connect to a real station on every screenshot.
   await page.evaluateOnNewDocument(
-    (quality, live) => {
+    (key, quality, live) => {
       try {
-        const key = 'timmaz-hard.settings.v2';
         const s = JSON.parse(localStorage.getItem(key) || '{}');
         if (quality) s.quality = quality;
         s.liveRadio = live;
@@ -86,6 +77,7 @@ try {
         // No storage: the game falls back to its defaults.
       }
     },
+    SETTINGS_KEY,
     args.quality ? String(args.quality) : null,
     !!args.live,
   );

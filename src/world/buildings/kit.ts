@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../scatter/util';
 import * as THREE from 'three';
 import { hashInts, Rng } from '../../core/rng';
 import type { ChunkBuilder, CityId, Lot, LotBuilder, MaterialLibrary, SurfaceKind, WorldApi } from '../../core/types';
@@ -673,14 +674,6 @@ export function flatRoof(s: Site, cx: number, cz: number, w: number, d: number, 
   if (s.near) rooftop(s, cx, cz, w - 1.6, d - 1.6, y + 0.07);
 }
 
-/** Low parapet wall round the edge of a flat roof (four thin boxes) with a capping line. */
-export function upstand(s: Site, cx: number, cz: number, w: number, d: number, y: number, h: number, mt: Mat) {
-  const t = 0.3;
-  box(s, cx, y, cz + d / 2 - t / 2, w, h, t, mt);
-  box(s, cx, y, cz - d / 2 + t / 2, w, h, t, mt);
-  for (const side of [-1, 1]) box(s, cx + side * (w / 2 - t / 2), y, cz, t, h, d - t * 2, mt);
-}
-
 export function chimney(s: Site, x: number, z: number, y: number, h: number, mt: Mat, pot = false) {
   box(s, x, y, z, 0.62, h, 0.62, mt);
   if (!s.spare(3)) return;
@@ -1165,7 +1158,7 @@ export function stretches(a: number, b: number, gaps: [number, number][]): [numb
 }
 
 /** Budgeted night light at a local point (shopfronts only). */
-export function lamp(s: Site, lx: number, ly: number, lz: number, color = 0xffe2b0, intensity = 110, range = 11) {
+export function lamp(s: Site, lx: number, ly: number, lz: number, color = LAMP_WARM, intensity = 110, range = 11) {
   s.out.light(worldX(s, lx, lz), s.lot.y + s.y0 + ly, worldZ(s, lx, lz), color, intensity, range);
 }
 

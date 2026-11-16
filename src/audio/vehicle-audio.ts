@@ -3,6 +3,7 @@
  * across the rev range and bent with playbackRate), induction noise, tyre squeal, road rumble, wind and gravel.
  * The graph only exists while the player is in a vehicle.
  */
+import { damp } from '../core/math';
 import { Rng } from '../core/rng';
 import type { GroundSurface, Vehicle } from '../core/types';
 import { biquadQ } from './dsp';
@@ -234,7 +235,7 @@ export class VehicleAudio {
     const changed = stepGearbox(this.gearbox, spec, speed / Math.max(1, v.spec.topSpeed), throttle, grounded, dt);
     const shifting = this.gearbox.shift > 0;
     const loadTarget = shifting ? 0.1 : throttle;
-    this.load += (loadTarget - this.load) * (1 - Math.exp(-(loadTarget > this.load ? 14 : 7) * dt));
+    this.load = damp(this.load, loadTarget, loadTarget > this.load ? 14 : 7, dt);
     const range = spec.redline - spec.idle;
     const revs = range > 0 ? (this.gearbox.rpm - spec.idle) / range : 0;
     const K = 0.035;
@@ -271,7 +272,7 @@ export class VehicleAudio {
     }
 
     // Tyres.
-    this.loose += (looseness(surface) - this.loose) * (1 - Math.exp(-6 * dt));
+    this.loose = damp(this.loose, looseness(surface), 6, dt);
     const rolling = grounded ? 1 : 0;
     const slide = rolling * Math.min(1, Math.max(0, (v.slip - 0.22) / 0.5)) * Math.min(1, speed / 7);
     const squeal = slide * (1 - Math.min(1, this.loose * 1.4));

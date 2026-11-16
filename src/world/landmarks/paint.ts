@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { appendVertices } from '../props/index';
 
 /**
  * Merge geometries (already positioned) into one with a per-vertex colour, for props that need several
@@ -11,17 +12,9 @@ export function painted(parts: readonly (readonly [geometry: THREE.BufferGeometr
   const colors: number[] = [];
   const c = new THREE.Color();
   for (const [source, color] of parts) {
-    const g = source.index ? source.toNonIndexed() : source;
-    const p = g.getAttribute('position');
-    const n = g.getAttribute('normal');
-    const u = g.getAttribute('uv');
     c.set(color);
-    for (let i = 0; i < p.count; i++) {
-      positions.push(p.getX(i), p.getY(i), p.getZ(i));
-      normals.push(n.getX(i), n.getY(i), n.getZ(i));
-      uvs.push(u ? u.getX(i) : 0, u ? u.getY(i) : 0);
-      colors.push(c.r, c.g, c.b);
-    }
+    const added = appendVertices(source, positions, normals, uvs);
+    for (let i = 0; i < added; i++) colors.push(c.r, c.g, c.b);
   }
   const out = new THREE.BufferGeometry();
   out.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));

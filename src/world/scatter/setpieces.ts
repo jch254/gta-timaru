@@ -1,3 +1,4 @@
+import { LAMP_WARM } from './util';
 import { hashInts } from '../../core/rng';
 import type { ChunkBuilder, LandmarkPlacement, Scatterer, WorldApi } from '../../core/types';
 // Registers picnic-table, bus-parked, chch-lamp-standard… and tussock, rock…
@@ -189,7 +190,7 @@ function paddlingPool(c: Ctx, x: number, z: number, r: number): void {
   for (const a of [1.3, 2.9, 4.5, 6.1]) bedding(c, x + Math.sin(a) * (r + 5.6), z + Math.cos(a) * (r + 5.6), a, 2);
   c.put('tree-phoenix-palm', x + r + 4.5, z - r - 1, 1, 1, 0.9);
   c.put('tree-phoenix-palm', x + r + 4.5, z + r + 1, 2, 1, 0.95);
-  c.lights.add(x, s.y + 4.5, z + r + 1, 0xffe2b0, 130, 20);
+  c.lights.add(x, s.y + 4.5, z + r + 1, LAMP_WARM, 130, 20);
 }
 
 /** The Bay's aviary: an eight-sided wire flight under a green iron roof, on a low wall, with a keeper's door. */
@@ -391,7 +392,7 @@ function lytteltonWharf(c: Ctx): void {
     b.flush();
     s.sign(s.f, 'WHARF OFFICE', 0, 2.55, 1.72, 3.4, 6, { bg: '#f2ead6', fg: '#1d2a44', style: 'block' });
     c.out.collider(s.f, 0, 1.4, 0, 5.2, 2.8, 3.4);
-    c.lights.add(1402.5, s.y + 3, -2302, 0xffe2b0, 110, 14);
+    c.lights.add(1402.5, s.y + 3, -2302, LAMP_WARM, 110, 14);
   }
   const CARS = [0x8f959a, 0x1f3f7a, 0xe8e6df];
   CARS.forEach((tint, i) => c.put('car-parked', 1396 + i * 2.9, -2291, 0.04 * (i - 1), 1.3, 1, tint));
@@ -465,7 +466,7 @@ function lockUps(c: Ctx, x: number, z: number, heading: number): void {
     }
   }
   const [lx, lz] = at(0, 7);
-  c.lights.add(lx, s.y + 3.2, lz, 0xffe2b0, 140, 18);
+  c.lights.add(lx, s.y + 3.2, lz, LAMP_WARM, 140, 18);
 }
 
 /** Local → world for a placement's frame (local +z = its heading). */
@@ -496,7 +497,7 @@ export const setPieces: Scatterer = (area, out) => {
     paddlingPool(k, 630, 4618, 8);
     aviary(k, 629, 4572);
     memorialWall(k, 628, 4716, 0, 13);
-    k.lights.add(650, k.world.heightAt(650, 4655) + 4, 4655, 0xffe2b0, 120, 22);
+    k.lights.add(650, k.world.heightAt(650, 4655) + 4, 4655, LAMP_WARM, 120, 22);
   }
   if (within(400, 600, 4700, 4820)) lookoutStreet(ctx(), 'The Bay Hill');
 

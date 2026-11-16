@@ -33,6 +33,7 @@ import {
 } from '../core/types';
 import { createPolice } from './index';
 import { MAX_ON_FOOT, MAX_POLICE_VEHICLES, MAX_ROADBLOCKS, sprayCost } from './response';
+import { TUNING } from './tuning';
 
 const STEP = 1 / 60;
 const BLOCK = 200;
@@ -1043,7 +1044,7 @@ describe('police system, end to end in a toy town', () => {
 
     town.police.setLevel(2);
     town.step(0.2);
-    const cost = sprayCost(2);
+    const cost = sprayCost(2, TUNING.sprayBase, TUNING.sprayPerLevel);
     expect(town.prompts.at(-1)).toBe(`F  Respray and new plates — $${cost}`);
 
     // Skint.

@@ -96,9 +96,9 @@ src/assets/          shipped third-party assets (CC0 textures and character mode
 scripts/assets/      scripts that fetch and optimise those assets (not needed to build or run)
 scripts/shot.mjs     headless screenshots and frame-rate measurements of the running dev server
 scripts/gallery.sh   the same 24 views every time, for before-and-after comparisons
-scripts/playtest/    scripted play sessions for shot.mjs (missions, a police chase, a gunfight)
+scripts/playtest/    scripted play sessions and measurement tools for the running dev server
 infrastructure/      Terraform for S3, CloudFront, certificate, DNS and the CodeBuild deploy project
-buildspec.yml        what CodeBuild runs on a push to main: apply Terraform, build, upload, invalidate
+buildspec.yml        what CodeBuild runs on a push to main: run the tests, apply Terraform, build, upload, invalidate
 ```
 
 `docs/DESIGN.md` explains the architecture, the performance budget and (section 8) what changed after the first build, with measured frame rates. `docs/CONTRACT.md` is the interface contract between modules. `docs/REPORT.md` is the plain account of what works, what is rough and what was cut, with screenshots.
@@ -109,7 +109,7 @@ In `pnpm dev`, or on any build with `?dev` added to the URL, a `dev` object is a
 
 `node scripts/shot.mjs --place cathedral-square --time 15 --fps 5` takes a screenshot of the running dev server with the Chrome already installed on the machine and prints draw calls, triangles and frame rate; its header lists the options.
 
-`scripts/playtest/` holds scripted play sessions for that tool: `missions.js` plays all six missions back to back, `chase.js` runs a three-star pursuit across Christchurch, `fight.js` plays a mission up to its first shoot-out and fights it without cheats, `carjack.js` walks, takes a parked car, drives it and pulls a driver out of another, `escape.js` loses a two-light pursuit by ditching the car, `radio.js` tunes through every station and reports which live streams connect, `soak.js` stands in town counting traffic crashes, `highway.js` records frame times along State Highway 1, and `continue.mjs` (run directly with node) saves, reloads and continues. `phone.mjs` (run directly with node) plays it as a phone would, with touch events. `zsh scripts/playtest/measure.sh` reproduces the frame-rate table in the report, and `zsh scripts/gallery.sh shots/now` takes the same 24 views every time for comparing looks. `shot.mjs` keeps the live radio stations off unless given `--live`, and `--mobile` makes it a phone. For example:
+`scripts/playtest/` holds scripted play sessions for that tool: `missions.js` plays all six missions back to back, `chase.js` runs a three-star pursuit across Christchurch, `fight.js` plays a mission up to its first shoot-out and fights it without cheats, `carjack.js` walks, takes a parked car, drives it and pulls a driver out of another, `escape.js` loses a two-light pursuit by ditching the car, `radio.js` tunes through every station and reports which live streams connect, `soak.js` stands in town counting traffic crashes, `highway.js` records frame times along State Highway 1, and `continue.mjs` (run directly with node) saves, reloads and continues. `phone.mjs` (run directly with node) plays it as a phone would, with touch events. `zsh scripts/playtest/measure.sh` reproduces the frame-rate table in the report, and `zsh scripts/gallery.sh shots/now` takes the same 24 views every time for comparing looks. The rest are measurement and debugging aids from the art passes, each documented in its own header: `citydrive.js`, `frames.mjs`, `hitches.js`, `lodwatch.js`, `lodpairs.mjs`, `roadwatch.js`, `pops.mjs`, `probe.js`, `darkscan.mjs`, `sheet.mjs` and `hunt.sh`. `shot.mjs` keeps the live radio stations off unless given `--live`, and `--mobile` makes it a phone. For example:
 
 ```bash
 node scripts/shot.mjs --place timaru-spawn --hud --eval "$(cat scripts/playtest/missions.js)"
@@ -117,6 +117,6 @@ node scripts/shot.mjs --place timaru-spawn --hud --eval "$(cat scripts/playtest/
 
 ## Deploying
 
-`infrastructure/` holds the Terraform for a private S3 bucket behind CloudFront, its certificate, the Cloudflare DNS record and a CodeBuild project; `buildspec.yml` is what that project runs on each push to `main`: apply the Terraform, `pnpm run build`, sync `dist/` to the bucket, invalidate CloudFront. [infrastructure/README.md](infrastructure/README.md) has the settings and the one-off first deploy.
+`infrastructure/` holds the Terraform for a private S3 bucket behind CloudFront, its certificate, the Cloudflare DNS record and a CodeBuild project; `buildspec.yml` is what that project runs on each push to `main`: run the unit tests (a red suite stops everything), apply the Terraform, `pnpm run build`, sync `dist/` to the bucket, invalidate CloudFront. [infrastructure/README.md](infrastructure/README.md) has the settings and the one-off first deploy.
 
 To host it some other way, upload the contents of `dist/`. All asset URLs are relative, so it works from a bucket root or any prefix. Hashed files under `assets/` can be cached forever; serve `index.html` with a short cache lifetime.

@@ -1,6 +1,6 @@
 import './style.css';
 import { SAVE_KEY, migrateStorage } from './core/storage';
-import { deviceHints, isTouchFirst } from './touch/device';
+import { deviceHints, isTouchFirst } from './core/device';
 
 // The title screen. Everything here runs before the engine is downloaded, so it stays small: the page's own
 // markup and CSS paint first, the photograph fades in when it arrives, and the buttons work from the first frame.
@@ -94,9 +94,14 @@ async function start(load: boolean) {
     // Remove it outright once faded, so it can never linger over the game.
     setTimeout(() => title.remove(), 1200);
     if (import.meta.env.DEV || new URLSearchParams(location.search).has('dev')) {
-      const { installDevTools } = await import('./game/dev');
-      installDevTools(game);
-      (window as unknown as { game: unknown }).game = game;
+      try {
+        const { installDevTools } = await import('./game/dev');
+        installDevTools(game);
+        (window as unknown as { game: unknown }).game = game;
+      } catch (err) {
+        // Dev tools are optional and the game is already running: never show "Could not start" over it.
+        console.error('Dev tools failed to load', err);
+      }
     }
     game.ctx.input.capture();
     try {

@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import { clamp, lerp, smooth } from '../core/math';
+import { mix3, type V3 } from '../core/vec3';
+import { packCell } from './mapsource';
 import { fbm } from '../core/rng';
 import type { District, Environment, GfxApi } from '../core/types';
-import type { Materials } from '../render/materials';
+import { patchable } from '../render/materials';
 import { groundNoiseTexture, waterNormalTexture } from '../render/textures';
 import { SEA_LEVEL, WORLD_BOUNDS, type RiverPath } from './height';
 import type { CompiledMap } from './map';
@@ -19,7 +21,6 @@ import type { CompiledMap } from './map';
  * agree with the fences and stock that scatter/rural.ts places on the same 190 x 150 m grid.
  */
 
-type V3 = readonly [number, number, number];
 
 /** Albedo as an sRGB hex colour (what a grey card beside it would read, not how bright it looks in the sun). */
 const tone = (hex: number): V3 => {
@@ -27,7 +28,6 @@ const tone = (hex: number): V3 => {
   return [c.r, c.g, c.b];
 };
 const glsl = (c: V3) => `vec3(${c[0].toFixed(4)}, ${c[1].toFixed(4)}, ${c[2].toFixed(4)})`;
-const mix3 = (a: V3, b: V3, t: number): V3 => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 
 // A dry nor'west summer: irrigated green only where someone is paying for water.
 const C = {
@@ -179,7 +179,7 @@ class RiverField {
         const cz = Math.floor(s.z / this.RC);
         for (let a = -reach; a <= reach; a++) {
           for (let b = -reach; b <= reach; b++) {
-            const key = (cx + a + 512) * 1024 + (cz + b + 512);
+            const key = packCell(cx + a, cz + b);
             let list = this.cells.get(key);
             if (!list) this.cells.set(key, (list = []));
             list.push({ river, i });
@@ -191,7 +191,7 @@ class RiverField {
 
   /** The result object is reused: read it before the next call. */
   at(x: number, z: number): RiverAt | null {
-    const list = this.cells.get((Math.floor(x / this.RC) + 512) * 1024 + (Math.floor(z / this.RC) + 512));
+    const list = this.cells.get(packCell(Math.floor(x / this.RC), Math.floor(z / this.RC)));
     if (!list) return null;
     let found = false;
     let bestScore = Infinity;
@@ -749,12 +749,14 @@ export class Ground {
       uWatWind: { value: new THREE.Vector2(-0.82, -0.57) },
     };
 
-    const lib = gfx.materials as unknown as Materials;
+    const lib = gfx.materials;
+    const patched = <T extends THREE.Material>(m: T, key: string, patch: (shader: THREE.WebGLProgramParametersWithUniforms) => void): T =>
+      patchable(lib) ? lib.registerPatched(m, key, patch) : lib.register(m);
     const u = this.uniforms;
     const terrain = (far: boolean) => {
       const material = gfx.materials.get('plain', { vertexColors: true, roughness: 1 }).clone();
       material.name = far ? 'ground-far' : 'ground-near';
-      return lib.registerPatched(material, material.name, (shader) => {
+      return patched(material, material.name, (shader) => {
         Object.assign(shader.uniforms, { uGndNoise: u.uGndNoise, uGndNear: u.uGndNear, uGndWet: u.uGndWet });
         if (!far) Object.assign(shader.uniforms, { uGndAlbedo: u.uGndAlbedo, uGndNormal: u.uGndNormal, uGndInv: u.uGndInv, uGndPbr: u.uGndPbr });
         shader.vertexShader = shader.vertexShader
@@ -776,7 +778,7 @@ export class Ground {
       material.metalness = 0;
       material.envMapIntensity = 1.15;
       material.name = far ? 'water-far' : 'water-near';
-      return lib.registerPatched(material, material.name, (shader) => {
+      return patched(material, material.name, (shader) => {
         Object.assign(shader.uniforms, { uWatNormal: u.uWatNormal, uWatTime: u.uWatTime, uWatRain: u.uWatRain, uWatWind: u.uWatWind, uGndNear: u.uGndNear, uGndBounds: u.uGndBounds });
         shader.vertexShader = shader.vertexShader
           .replace('#include <common>', `#include <common>${WATER_VERT_PARS}`)

@@ -2,6 +2,7 @@
  * Free-roam services the missions module owns: gun shops, safehouses, their map blips, and a handful of
  * world pickups that appear once their corner of the map has streamed in.
  */
+import { settle } from '../core/async';
 import type { GameContext, Place } from '../core/types';
 import { maraeAt, newResolved, resolveSpot } from './spots';
 import { TUNING } from './tuning';
@@ -61,18 +62,6 @@ export function clockText(hour: number): string {
   }
   const twelve = whole % 12 === 0 ? 12 : whole % 12;
   return `${twelve}:${String(minutes).padStart(2, '0')} ${whole < 12 ? 'am' : 'pm'}`;
-}
-
-/** Resolve when the promise does, or after `ms` if it never does (a UI that drops a fade must not freeze the player). */
-function settle(promise: Promise<unknown>, ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    const done = () => {
-      clearTimeout(timer);
-      resolve();
-    };
-    promise.then(done, done);
-  });
 }
 
 export class Services {

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as csmShader from 'three/addons/csm/CSMShader.js';
+import { dataTexture } from './textures';
 
 // The typings declare only an interface here; the module exports the object.
 const CSMShader = (csmShader as unknown as { CSMShader: { lights_fragment_begin: string; lights_pars_begin: string } }).CSMShader;
@@ -297,12 +298,5 @@ export function cloudFieldTexture(size = 256): THREE.DataTexture {
     data[k * 4 + 2] = Math.round(streak[k] * 255);
     data[k * 4 + 3] = Math.round(shadow[k] * 255);
   }
-  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.magFilter = THREE.LinearFilter;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.generateMipmaps = true;
-  texture.colorSpace = THREE.NoColorSpace;
-  texture.needsUpdate = true;
-  return texture;
+  return dataTexture(data, size);
 }

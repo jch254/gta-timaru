@@ -1,7 +1,7 @@
 import type * as THREE from 'three';
 import { clamp } from '../core/math';
 import type { Rng } from '../core/rng';
-import type { Actor, Autopilot, DamageInfo, GameContext, RoadEdge, RoadHit, RoadNode, Vehicle } from '../core/types';
+import { NIGHT_HEADLIGHTS, type Actor, type Autopilot, type DamageInfo, type GameContext, type RoadEdge, type RoadHit, type RoadNode, type Vehicle } from '../core/types';
 import type { Intel } from './intel';
 import { ARMED_LOOK, Officer, PATROL_LOOKS, RigPool, type OfficerHost } from './officer';
 import { SimplePilot, holdStill } from './pilot';
@@ -459,7 +459,7 @@ export class Force implements OfficerHost {
     const pursuing = u.role === 'pursuit';
     this.setUnitBlip(u, pursuing);
     v.siren = pursuing;
-    v.headlightsOn = ctx.env.night > 0.35;
+    v.headlightsOn = ctx.env.night > NIGHT_HEADLIGHTS;
 
     let alive = 0;
     let seated = 0;
@@ -1029,7 +1029,7 @@ export class Force implements OfficerHost {
     }
     if (v) {
       v.siren = true;
-      v.headlightsOn = this.ctx.env.night > 0.35;
+      v.headlightsOn = this.ctx.env.night > NIGHT_HEADLIGHTS;
       v.controls.handbrake = true;
     }
     return v;

@@ -616,7 +616,8 @@ export class PauseMenu {
   }
 
   private apply(row: SettingRow, value: string | boolean | number) {
-    this.host.ctx.settings.set(row.key, value as never);
+    // The rows carry runtime values; check the pairing instead of casting through never.
+    if (typeof value === typeof this.host.ctx.settings.data[row.key]) this.host.ctx.settings.set(row.key, value as SettingsData[keyof SettingsData]);
     this.refreshSettings();
   }
 

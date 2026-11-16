@@ -3,6 +3,7 @@ import type { EdgeSample, RoadEdge, RoadGraph, RoadNode } from '../core/types';
 import { CALL_SIGNS, VAN_CALL_SIGN, levelEvent, radioLine, radioLines, whereText, type RadioEvent } from './radio';
 import { AIM, MAX_ON_FOOT, MAX_POLICE_VEHICLES, MAX_ROADBLOCKS, aimError, responseFor, sprayCost } from './response';
 import { exitsFrom, straightest, walkAhead } from './roadwalk';
+import { TUNING } from './tuning';
 
 describe('response by level', () => {
   it('nothing at level 0, one car to look at level 1, two in pursuit at level 2', () => {
@@ -76,11 +77,12 @@ describe('marksmanship', () => {
 });
 
 describe('respray price', () => {
+  const cost = (level: number) => sprayCost(level, TUNING.sprayBase, TUNING.sprayPerLevel);
   it('scales with the level', () => {
-    expect(sprayCost(1)).toBe(250);
-    expect(sprayCost(5)).toBe(850);
-    for (let l = 2; l <= 5; l++) expect(sprayCost(l)).toBeGreaterThan(sprayCost(l - 1));
-    expect(sprayCost(0)).toBe(sprayCost(1));
+    expect(cost(1)).toBe(250);
+    expect(cost(5)).toBe(850);
+    for (let l = 2; l <= 5; l++) expect(cost(l)).toBeGreaterThan(cost(l - 1));
+    expect(cost(0)).toBe(cost(1));
   });
 });
 

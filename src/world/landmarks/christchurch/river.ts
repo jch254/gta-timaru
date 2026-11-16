@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../../scatter/util';
 import type { LandmarkBuilder } from '../../../core/types';
 import { Kit, type Pt2, headingTowardsWater, prism, wedge } from './kit';
 
@@ -83,6 +84,6 @@ export const antiguaBoatsheds: LandmarkBuilder = (p, out) => {
   if (k.free(-16.5, -2, 2)) k.prop('tree-willow', -16.5, -2, 1.2, 0.9);
   if (k.free(16.8, -5, 2)) k.prop('tree-willow', 16.8, -5, 2.6, 0.8);
   k.prop('chch-lamp-standard', 2.2, -10.8);
-  k.light(0, 3, 4, 0xffe2b0, 1.1, 18);
+  k.light(0, 3, 4, LAMP_WARM, 1.1, 18);
   k.flush();
 };

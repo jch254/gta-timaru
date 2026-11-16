@@ -5,7 +5,7 @@
 #
 # The view: Mack on the Bay Hill, Timaru, at dusk, looking over Caroline Bay, a V8 parked by the fence. It is
 # taken wide (2560 × 1080) and the left 1920 kept, so he stands right of centre, clear of the wordmark.
-# still.mjs then fades it like an old colour print and keeps it under 240 KB.
+# title-still.mjs then fades it like an old colour print and keeps it under 240 KB.
 RAW=shots/title-still-raw.png
 node scripts/shot.mjs --place timaru-spawn --time ${TIME:-20.7} --weather ${WEATHER:-clear} --quality ultra \
   --size 2560x1080 --look ${YAW:-2.75},0.03,1.35 --wait 6 --out $RAW \

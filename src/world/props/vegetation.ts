@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { MaterialLibrary } from '../../core/types';
-import { noise2 } from '../../core/rng';
+import { Rng as CoreRng, noise2 } from '../../core/rng';
+import { add3 as add, cross3 as cross, dot3 as dot, len3 as len, mix3 as mix, norm3 as norm, sub3 as sub, type V3 } from '../../core/vec3';
 import { registerTexturePreload } from '../../render/phototextures';
 import { farLeafMaterial, foliageCell, foliageWind, hasFoliageCell, leafMaterial, loadFoliage, plantField, woodMaterial, type FoliageCell, type PlantModel, type PlantShape } from './foliage';
 import type { PropDef, PropFactory } from './index';
@@ -34,19 +35,7 @@ export { foliageWind };
  * and how it is sized, leant and toned, comes from where it stands (`plantVariation`).
  */
 
-type V3 = [number, number, number];
-
-const add = (a: V3, b: V3, s = 1): V3 => [a[0] + b[0] * s, a[1] + b[1] * s, a[2] + b[2] * s];
-const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const mul = (a: V3, s: number): V3 => [a[0] * s, a[1] * s, a[2] * s];
-const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const len = (a: V3) => Math.hypot(a[0], a[1], a[2]);
-const norm = (a: V3): V3 => {
-  const l = len(a) || 1;
-  return [a[0] / l, a[1] / l, a[2] / l];
-};
-const mix = (a: V3, b: V3, t: number): V3 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const UP: V3 = [0, 1, 0];
 /** Unit vector at `az` round the y axis, raised `el` above the horizontal. */
 const polar = (az: number, el = 0): V3 => [Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el)];
@@ -59,22 +48,15 @@ interface Rng {
 }
 
 function rng(seed: number): Rng {
-  let a = seed >>> 0;
-  const next = () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-  const range = (lo: number, hi: number) => lo + (hi - lo) * next();
+  const r = new CoreRng(seed);
+  const next = () => r.next();
   const unit = (): V3 => {
-    const y = range(-1, 1);
-    const az = range(0, Math.PI * 2);
-    const r = Math.sqrt(1 - y * y);
-    return [Math.cos(az) * r, y, Math.sin(az) * r];
+    const y = r.range(-1, 1);
+    const az = r.range(0, Math.PI * 2);
+    const rad = Math.sqrt(1 - y * y);
+    return [Math.cos(az) * rad, y, Math.sin(az) * rad];
   };
-  return Object.assign(next, { range, unit });
+  return Object.assign(next, { range: (lo: number, hi: number) => r.range(lo, hi), unit });
 }
 
 // ───────────────────────────── Wood ─────────────────────────────
@@ -146,7 +128,7 @@ class Wood {
 
 // ───────────────────────────── Leaf cards ─────────────────────────────
 
-type Tint = [number, number, number];
+type Tint = readonly [number, number, number];
 
 /** sRGB hex to the linear colour vertex colours are written in. */
 function lin(hex: number): Tint {
@@ -713,7 +695,7 @@ const PLANE_LEANING: CrownSpec = { ...PLANE, seed: 331, centre: [-0.6, 7.9, 0.3]
 
 const broadleaf = (m: MaterialLibrary, key: string, spec: CrownSpec, far?: [number, number], farTint?: Tint) => shape(m, key, () => ({ ...crown(spec), far, farTint }));
 /** The colour of `spec`'s leaves as a multiple of `other`'s: what its stand-in is tinted by when it borrows `other`'s. */
-const against = (spec: CrownSpec, other: CrownSpec): Tint => [0, 1, 2].map((c) => (spec.tint[c] * spec.cells[0].mean[c]) / (other.tint[c] * other.cells[0].mean[c])) as Tint;
+const against = (spec: CrownSpec, other: CrownSpec): Tint => [0, 1, 2].map((c) => (spec.tint[c] * spec.cells[0].mean[c]) / (other.tint[c] * other.cells[0].mean[c])) as unknown as Tint;
 const oaks = (m: MaterialLibrary) => [broadleaf(m, 'oak', OAK), broadleaf(m, 'oak-tall', OAK_TALL, [0.92, 1.1]), broadleaf(m, 'oak-wide', OAK_WIDE, [1.2, 0.9])];
 // As stand-ins the limes and planes borrow the oak's (see `broadleaves`), stretched and tinted to suit.
 const limes = (m: MaterialLibrary) => [broadleaf(m, 'lime', LIME, [0.9, 1.18], against(LIME, OAK)), broadleaf(m, 'lime-tall', LIME_TALL, [0.84, 1.32], against(LIME, OAK))];

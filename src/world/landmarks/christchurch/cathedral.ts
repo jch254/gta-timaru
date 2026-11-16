@@ -1,5 +1,5 @@
 import type { ChunkBuilder, LandmarkBuilder, LandmarkPlacement } from '../../../core/types';
-import { DRESSING_OFF, ROUND3_OFF } from '../../scatter/util';
+import { DRESSING_OFF, LAMP_WARM, ROUND3_OFF } from '../../scatter/util';
 import { asphalt, bronze, lawn, statue, stoneSet, whiteLine } from './common';
 import { Kit, cone, disc, lancet, pyramid, ring, sphere, steps, tartan, wedge } from './kit';
 
@@ -187,7 +187,7 @@ export const cathedralSquare: LandmarkBuilder = function* (p, out) {
   const NORTH = -Math.PI / 2;
   const SOUTH = Math.PI / 2;
   const EAST = Math.PI;
-  const lit = (lx: number, ly: number, lz: number, color = 0xffe2b0, intensity = 140, range = 20) => out.light(wx(lx, lz), e[13] + ly, wz(lx, lz), color, intensity, range);
+  const lit = (lx: number, ly: number, lz: number, color = LAMP_WARM, intensity = 140, range = 20) => out.light(wx(lx, lz), e[13] + ly, wz(lx, lz), color, intensity, range);
   const pigeons = (cx: number, cz: number, n: number, spread: number) => {
     for (let i = 0; i < n; i++) {
       const a = i * 2.4;
@@ -243,7 +243,7 @@ export const cathedralSquare: LandmarkBuilder = function* (p, out) {
     c.sign('SPEAKERS CORNER', 1.1, 0.19, 0.415, 0.56, 0.22, 0, { bg: '#e9dfc4', fg: '#3a2a1c', style: 'paint' });
   }
   pigeons(2, 35, 9, 5);
-  lit(0, 5, 35, 0xffe2b0, 150, 24);
+  lit(0, 5, 35, LAMP_WARM, 150, 24);
 
   yield;
   // ── North side, inside the loop: the Citizens' War Memorial against the nave, trees, seats facing the tram ──
@@ -323,7 +323,7 @@ export const cathedralSquare: LandmarkBuilder = function* (p, out) {
   if (ok(-15.5, 66, 2.2)) {
     statue(k, -15.5, 66, EAST, 3);
     k.collide(-15.5, 0, 66, 2.3, 3.4, 2.3);
-    lit(-15.5, 5.5, 63, 0xffe2b0, 130, 18);
+    lit(-15.5, 5.5, 63, LAMP_WARM, 130, 18);
     if (out.lod === 0) pigeons(-15.5, 66, 8, 4.6);
   }
   if (ok(-30.5, 65, 3.6)) {
@@ -444,7 +444,7 @@ export function cathedralSquareAnnex(p: LandmarkPlacement, out: ChunkBuilder, al
   // The lead's street lamp and the plain bench are kinds this chunk already draws.
   put('lamp', x0 + 13, 73.5, SOUTH, 0.3);
   put('lamp', x0 + 13, 90.5, SOUTH + Math.PI, 0.3);
-  out.light(wx(x0 + 13, 82), e[13] + 5, wz(x0 + 13, 82), 0xffe2b0, 120, 22);
+  out.light(wx(x0 + 13, 82), e[13] + 5, wz(x0 + 13, 82), LAMP_WARM, 120, 22);
 
   k.pave(steps(23, 47, 8), steps(74, 124, 10), () => lawn(m), 0.05);
   for (const x of [28, 38]) for (const z of [79, 90, 101, 112, 121]) put('tree-plane', x + (z % 2) * 4, z, x * z, 2.4, 0.84 + ((x + z) % 7) / 40);

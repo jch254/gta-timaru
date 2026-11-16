@@ -233,14 +233,3 @@ export function buildLods(geometry: THREE.BufferGeometry, parts: Parts, boneName
   const two = level(1);
   return { levels: [one, two], far: compactFar(level(2), geometry) };
 }
-
-/** Triangles a list of part spans adds up to (for reports and tests). */
-export function spanTriangles(parts: Parts, spans: [from: string, to: string][]): number {
-  let total = 0;
-  for (const [from, to] of spans) {
-    const a = parts[from];
-    const b = parts[to];
-    if (a && b) total += Math.max(0, b[0] + b[1] - a[0]) / 3;
-  }
-  return total;
-}

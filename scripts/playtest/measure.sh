@@ -1,6 +1,6 @@
 #!/bin/zsh
 # The frame-rate table in docs/REPORT.md: five places twice each at High, Cathedral Square at the other three
-# settings, and the highway drive. Needs the dev server running (pnpm dev -- --port 5195). About six minutes.
+# settings, and the highway drive. Needs the dev server running (pnpm dev). About six minutes.
 #   zsh scripts/playtest/measure.sh
 cd "$(dirname "$0")/../.."
 out=shots/measure.png

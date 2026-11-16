@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Vehicle } from '../core/types';
+import { FOG_FACTOR_GLSL } from './glsl';
 
 /**
  * Flat stains on the world: blood, bullet holes, scorch marks, tyre marks, and pocks that ride on
@@ -64,12 +65,7 @@ void main() {
     a = max(a, vShape.w * fleck);
   }
   a *= vColor.a;
-  #ifdef USE_FOG
-    #ifdef FOG_EXP2
-      float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
-    #else
-      float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
-    #endif
+  #ifdef USE_FOG${FOG_FACTOR_GLSL}
     a *= 1.0 - fogFactor;
   #endif
   // Multiplied into the framebuffer: white leaves the surface untouched.

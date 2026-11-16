@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { clamp, lerp, smooth } from '../core/math';
-import { hashInts } from '../core/rng';
+import { hashInts, hashString as hashName } from '../core/rng';
 import type { DistrictType, EdgeSample, GfxApi, RoadClass, RoadEdge } from '../core/types';
-import { setBatchHint, type Materials } from '../render/materials';
+import { patchable, setBatchHint } from '../render/materials';
 import { roadAtlasCells, roadMarkingAtlas, type AtlasCell } from '../render/textures';
 import type { ChunkBuilderImpl } from './chunkbuilder';
 import { bermColour } from './ground';
@@ -331,7 +331,8 @@ float mGlow = 0.0;
 /** Every material the roads, kerbs, markings, bridges and railway lines are built from. */
 export function createRoadMaterials(gfx: GfxApi, shared: RoadShared): RoadMaterials {
   const mats = gfx.materials;
-  const lib = mats as unknown as Materials;
+  const patched = <T extends THREE.Material>(m: T, key: string, patch: (shader: THREE.WebGLProgramParametersWithUniforms) => void): T =>
+    patchable(mats) ? mats.registerPatched(m, key, patch) : mats.register(m);
   const offset = <T extends THREE.Material>(material: T, factor: number): T => {
     const copy = material.clone() as T;
     copy.polygonOffset = true;
@@ -340,7 +341,7 @@ export function createRoadMaterials(gfx: GfxApi, shared: RoadShared): RoadMateri
     return copy;
   };
   const surface = (base: THREE.MeshStandardMaterial) =>
-    lib.registerPatched(offset(base, -1), 'road-surface-3', (shader) => {
+    patched(offset(base, -1), 'road-surface-3', (shader) => {
       shader.uniforms.uGndNoise = shared.noise;
       shader.uniforms.uGndWet = shared.wet;
       shader.vertexShader = shader.vertexShader
@@ -358,7 +359,7 @@ export function createRoadMaterials(gfx: GfxApi, shared: RoadShared): RoadMateri
   // that sits on top of the seal.
   const atlas = roadMarkingAtlas(Math.min(8, gfx.renderer.capabilities.getMaxAnisotropy()));
   const atlasUniform = { value: atlas.texture };
-  const marking = lib.registerPatched(offset(mats.get('plain', { vertexColors: true, roughness: 0.78 }), -4), 'road-marking-3', (shader) => {
+  const marking = patched(offset(mats.get('plain', { vertexColors: true, roughness: 0.78 }), -4), 'road-marking-3', (shader) => {
     shader.uniforms.uGndNoise = shared.noise;
     shader.uniforms.uGndWet = shared.wet;
     shader.uniforms.uGndNight = shared.night ?? { value: 0 };
@@ -557,15 +558,6 @@ function lookOf(map: CompiledMap, e: RoadEdge): EdgeLook {
   return look;
 }
 
-/** FNV-1a of a road's name: the same hash scatter/streets.ts uses to choose which side a bus shelter stands. */
-function hashName(name: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < name.length; i++) {
-    h ^= name.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
 
 /** What is painted on, or let into, one edge besides its lane lines. Worked out once per edge. */
 export interface EdgeFurniture {

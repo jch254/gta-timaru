@@ -1,5 +1,5 @@
 import type { QualityLevel } from '../core/types';
-import { deviceHints, isPhone } from '../touch/device';
+import { deviceHints, isPhone } from '../core/device';
 
 export interface QualityPreset {
   /** Max device pixel ratio. */
@@ -73,7 +73,7 @@ const PHONE: Record<QualityLevel, Partial<QualityPreset>> = {
 };
 
 let phone: boolean | null = null;
-/** Whether this is a phone (asked once; see `src/touch/device.ts`). */
+/** Whether this is a phone (asked once; see `src/core/device.ts`). */
 export const onPhone = () => (phone ??= isPhone(deviceHints()));
 
 /** The preset for a level on this device. */

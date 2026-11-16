@@ -9,7 +9,8 @@ export default defineConfig({
     exclude: [...configDefaults.exclude, 'studiodaw/**'],
   },
   // Full reloads only on request: with several people (or agents) editing at once, hot reloads fire mid-play.
-  server: { hmr: false },
+  // The fixed port is what every script in scripts/ and scripts/playtest/ dials.
+  server: { hmr: false, port: 5195 },
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 3500,

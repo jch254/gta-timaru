@@ -1,7 +1,7 @@
 import type { GameContext, System, WeaponSpec } from '../core/types';
 import { fireLabel, fireRepeat, interactLabel, isPortrait, visibleButtons, type ButtonId, type ControlState } from './controls';
-import { deviceHints, isTouchFirst } from './device';
-import type { TouchFeed } from './feed';
+import { deviceHints, isTouchFirst } from '../core/device';
+import type { TouchFeed } from '../core/feed';
 import { Overlay } from './overlay';
 import { prepareTouchPage, watchViewport } from './page';
 import { TouchRouter } from './router';
@@ -144,7 +144,7 @@ class TouchSystem implements System {
       this.word = word;
       this.signature = -1;
     }
-    s.talking = (ctx.missions as unknown as { dialogue?: { busy?: boolean } }).dialogue?.busy === true;
+    s.talking = ctx.missions.talking;
 
     const play = on && !portrait && !s.menuOpen;
     feed.labelsOn = !s.menuOpen;

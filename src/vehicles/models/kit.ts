@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Rng } from '../../core/rng';
+import { add3, cross3, dot3, len3, sub3, type V3 } from '../../core/vec3';
 import type { MaterialLibrary } from '../../core/types';
 import { METALLIC } from './paints';
 
@@ -25,7 +26,7 @@ import { METALLIC } from './paints';
  * the driver sits at x < 0.
  */
 
-export type V3 = readonly [x: number, y: number, z: number];
+export { add3, cross3, dot3, len3, mix3, norm3, sub3, type V3 } from '../../core/vec3';
 export type Pt = readonly [a: number, b: number];
 export type Fn = (t: number) => number;
 
@@ -504,22 +505,7 @@ export function line(knots: Pt[]): Fn {
   };
 }
 
-export const clamp01 = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t);
-export const smooth = (a: number, b: number, t: number) => {
-  const u = clamp01((t - a) / (b - a));
-  return u * u * (3 - 2 * u);
-};
-export const mix = (a: number, b: number, t: number) => a + (b - a) * t;
-export const mix3 = (a: V3, b: V3, t: number): V3 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-export const sub3 = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-export const add3 = (a: V3, b: V3, s = 1): V3 => [a[0] + b[0] * s, a[1] + b[1] * s, a[2] + b[2] * s];
-export const cross3 = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-export const dot3 = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-export const len3 = (a: V3) => Math.hypot(a[0], a[1], a[2]);
-export const norm3 = (a: V3): V3 => {
-  const l = len3(a) || 1;
-  return [a[0] / l, a[1] / l, a[2] / l];
-};
+export { clamp01, lerp as mix, smooth } from '../../core/math';
 
 // ───────────────────────────── Baking ─────────────────────────────
 

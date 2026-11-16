@@ -10,7 +10,7 @@
  * Cost: with nobody about, one timer per frame and a distance check per cameo twice a second.
  */
 import * as THREE from 'three';
-import { angleDiff, dampAngle } from '../core/math';
+import { angleDiff, damp, dampAngle } from '../core/math';
 import type { DamageInfo, GameContext, HumanoidLook, PedHandle, RoadEdge, WeatherKind, WorldApi } from '../core/types';
 import type { CameoDef } from './defs/cameos';
 import { lineSeconds } from './dialogue';
@@ -372,7 +372,7 @@ export class Cameos {
 
     const lift = live.state === 'home' && atHome ? (r.def.lift ?? 0) : 0;
     if (live.lift !== lift) {
-      const next = live.lift + (lift - live.lift) * (1 - Math.exp(-7 * dt));
+      const next = damp(live.lift, lift, 7, dt);
       live.lift = Math.abs(lift - next) < 0.01 ? lift : next;
       setLift(ped, live.lift);
     }

@@ -2,13 +2,14 @@
 // Save, reload the page, Continue: checks that money and position come back. Start `pnpm dev` first.
 //   node scripts/playtest/continue.mjs [url]
 import puppeteer from 'puppeteer-core';
+import { CHROME, DEV_URL, GPU_ARGS } from '../lib.mjs';
 
-const url = process.argv[2] || 'http://localhost:5195/';
+const url = process.argv[2] || DEV_URL;
 const browser = await puppeteer.launch({
-  executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  executablePath: CHROME,
   headless: true,
   defaultViewport: { width: 1280, height: 720 },
-  args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--mute-audio'],
+  args: [...GPU_ARGS, '--mute-audio'],
 });
 try {
   const page = await browser.newPage();

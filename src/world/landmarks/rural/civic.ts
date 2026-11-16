@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../../scatter/util';
 import { TAU } from '../../../core/math';
 import type { LandmarkBuilder } from '../../../core/types';
 import { bench, clockFace, flagpole, gableRoof, Geo, picnicTable, rugbyPosts, Site, type V3, verandah, walls, windowRow } from './kit';
@@ -221,7 +222,7 @@ export const school: LandmarkBuilder = (p, out) => {
     windowRow(out, fo, 0, 5.6, 2, 1.8, 3.53, 2, 1.4, m.windows('house'));
     s.sign(fo, 'OFFICE', -2, 2.5, 3.55, 1.4, 4, { bg: '#f7f3e8', fg: '#22313a', style: 'block' });
     b.flush();
-    s.light(26, 2.6, 36, 0xffe2b0, 1, 16);
+    s.light(26, 2.6, 36, LAMP_WARM, 1, 16);
   }
 
   // Toilets and bike shed.
@@ -346,7 +347,7 @@ export const school: LandmarkBuilder = (p, out) => {
 
   for (let z = -58; z <= 2; z += 12) s.prop('tree-pine', -47, z, z, 1.1);
   for (const [x, z] of [[-30, 50], [22, 54], [38, 48]] as const) s.prop('tree-oak', x, z, x, 0.9);
-  s.light(-4, 2.6, 24, 0xffe2b0, 0.9, 20);
+  s.light(-4, 2.6, 24, LAMP_WARM, 0.9, 20);
 };
 
 const CLUBS = [
@@ -422,7 +423,7 @@ export const rugbyField: LandmarkBuilder = (p, out) => {
     s.sign(fc, `${name} R.F.C.`, 0, 2.6, -4.54, 7, 7, { bg: hex(club.a), fg: hex(club.b), style: 'paint' }, Math.PI);
     windowRow(out, fc, -8, 8, 4, 1.8, -4.53, 1.4, 1.1, m.get('glass'), Math.PI);
     out.box(fc, -7.5, 5.4, 1.5, 0.8, 2.2, 0.8, s.mat('brick'));
-    s.light(-4, 2.6, 30, 0xffe2b0, 1.1, 18);
+    s.light(-4, 2.6, 30, LAMP_WARM, 1.1, 18);
   }
 
   // Small covered stand.

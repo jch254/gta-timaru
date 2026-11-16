@@ -174,3 +174,35 @@ export class MapBuilder {
     return this.source.terrain;
   }
 }
+
+/** Packs grid-cell coords (within ±512 cells of the origin) into one Map key.
+ *  Every spatial index in the world shares it, so the bound lives in exactly one place. */
+export const packCell = (cx: number, cz: number) => (cx + 512) * 1024 + (cz + 512);
+
+/** Is (x, z) inside the shape (rect, circle, or ray-cast polygon). */
+export function inShape(shape: Shape, x: number, z: number): boolean {
+  if (shape.kind === 'rect') return x >= shape.minX && x <= shape.maxX && z >= shape.minZ && z <= shape.maxZ;
+  if (shape.kind === 'circle') return Math.hypot(x - shape.x, z - shape.z) <= shape.r;
+  let inside = false;
+  const p = shape.pts;
+  for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+    if (p[i][1] > z !== p[j][1] > z && x < ((p[j][0] - p[i][0]) * (z - p[i][1])) / (p[j][1] - p[i][1]) + p[i][0]) inside = !inside;
+  }
+  return inside;
+}
+
+/** Where segment (x1,z1)-(x2,z2) crosses (x3,z3)-(x4,z4): the fraction along each, or null when near-parallel.
+ *  Callers apply their own acceptance windows to `ua`/`ub`; `den` is the cross product of the two directions. */
+export function segSegIntersect(
+  x1: number, z1: number, x2: number, z2: number,
+  x3: number, z3: number, x4: number, z4: number,
+  eps: number,
+): { ua: number; ub: number; den: number } | null {
+  const den = (x2 - x1) * (z4 - z3) - (z2 - z1) * (x4 - x3);
+  if (Math.abs(den) < eps) return null;
+  return {
+    den,
+    ua: ((x3 - x1) * (z4 - z3) - (z3 - z1) * (x4 - x3)) / den,
+    ub: ((x3 - x1) * (z2 - z1) - (z3 - z1) * (x2 - x1)) / den,
+  };
+}

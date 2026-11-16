@@ -1,3 +1,4 @@
+import { LAMP_WARM } from '../../scatter/util';
 // Registers the static cars, sandwich boards and yard kinds.
 import { hashInts } from '../../../core/rng';
 import '../../props/extra';
@@ -325,7 +326,7 @@ export const countryChurch: LandmarkBuilder = (p, out) => {
   b.flush();
   s.prop(rng.pick(['tree-oak', 'tree-cabbage']), rng.pick([-7.5, 7.5]), -10.5, rng.range(0, 6), 0.8);
   if (rng.chance(0.5)) s.prop('tree-cabbage', rng.pick([-8, 8]), 11, rng.range(0, 6), 0.9);
-  s.light(porchSide ? 6 : 0, 2.4, porchSide ? 1.5 : 8, 0xffe2b0, 0.9, 14);
+  s.light(porchSide ? 6 : 0, 2.4, porchSide ? 1.5 : 8, LAMP_WARM, 0.9, 14);
 };
 
 /**
@@ -477,5 +478,5 @@ export const railStationSmall: LandmarkBuilder = (p, out) => {
   s.drape(gravel, 19, 3.5, 16, 10, 0.05);
   gravel.flush(out, s.ground('gravel'), f);
   b.flush();
-  s.light(-7, 2.7, -6.5, 0xffe2b0, 1.1, 18);
+  s.light(-7, 2.7, -6.5, LAMP_WARM, 1.1, 18);
 };

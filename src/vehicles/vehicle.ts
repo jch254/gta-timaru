@@ -1,6 +1,7 @@
 import type RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { createOccupant } from './occupant';
+import { TUNING } from './tuning';
 import { clamp, damp, moveToward } from '../core/math';
 import { CollisionGroup, type Actor, type GameContext, type Vehicle, type VehicleControls, type VehicleModel, type VehicleSpec } from '../core/types';
 
@@ -250,7 +251,7 @@ export class VehicleImpl implements Vehicle {
     // Crash detection from the change in velocity over one step.
     this.spawnGrace -= dt;
     const dv = _v.subVectors(this.velocity, this.prevVel).length();
-    if (dv > 2.6 && this.spawnGrace < 0) {
+    if (dv > TUNING.crashNoticeDv && this.spawnGrace < 0) {
       // Whoever is close enough to have been hit.
       let other: Vehicle | null = null;
       for (const v of this.ctx.vehicles.all) {
@@ -260,12 +261,12 @@ export class VehicleImpl implements Vehicle {
         }
       }
       this.ctx.events.emit('vehicleCrash', { vehicle: this, speed: dv, other });
-      if (dv > 4.5) this.applyDamage((dv - 4) * 2.4, null);
+      if (dv > TUNING.crashHurtsDv) this.applyDamage((dv - TUNING.crashDamageGrace) * TUNING.crashDamageScale, null);
     }
     this.prevVel.copy(this.velocity);
 
     // Deep water kills the engine.
-    if (!this.destroyed && this.ctx.world.waterDepthAt(this.position.x, this.position.z) > 1.3 && this.position.y < this.ctx.world.seaLevel + 0.6) {
+    if (!this.destroyed && this.ctx.world.waterDepthAt(this.position.x, this.position.z) > TUNING.drownDepth && this.position.y < this.ctx.world.seaLevel + TUNING.drownAboveSea) {
       this.health = 0;
       this.destroyed = true;
       body.setLinearDamping(1.5);
@@ -357,7 +358,7 @@ export class VehicleImpl implements Vehicle {
     this.ctx.events.emit('vehicleDamaged', { vehicle: this, amount, source });
     if (this.health <= 0 && !this.burning) {
       this.burning = true;
-      this.burnTimer = 4.5;
+      this.burnTimer = TUNING.burnSeconds;
       this.lastAttacker = source;
     }
   }
@@ -370,7 +371,7 @@ export class VehicleImpl implements Vehicle {
     if (this.model.bodyMaterial) this.model.bodyMaterial.roughness = 0.95;
     this.body.applyImpulse({ x: 0, y: this.spec.mass * 4.5, z: 0 }, true);
     this.body.applyTorqueImpulse({ x: this.spec.mass * 1.2, y: 0, z: this.spec.mass * 0.6 }, true);
-    this.ctx.combat.explode(this.position.clone(), 9, 120, this.lastAttacker);
+    this.ctx.combat.explode(this.position.clone(), TUNING.explosionRadius, TUNING.explosionDamage, this.lastAttacker);
     this.ctx.events.emit('vehicleDestroyed', { vehicle: this, source: this.lastAttacker });
   }
 

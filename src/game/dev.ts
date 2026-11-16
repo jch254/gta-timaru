@@ -140,7 +140,6 @@ export function installDevTools(game: Game) {
     },
     /** Mark every mission before `id` as done and start it (test use only). */
     startMission(id: string) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const runner = (ctx.missions as any).runner;
       for (const m of ctx.missions.list()) {
         if (m.id === id) break;
@@ -151,7 +150,6 @@ export function installDevTools(game: Game) {
     },
     /** The active mission's current step, read from the runner's internals (test use only). */
     step() {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const run = (ctx.missions as any).runner?.run;
       if (!run) return null;
       const step = run.def.steps[run.stepIndex] ?? {};
@@ -231,7 +229,6 @@ export function installDevTools(game: Game) {
             await wait(800);
           } else await wait(500);
         } else if (kind === 'enterVehicle') {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const record = (st.run.entities as any[])?.find?.((e) => e.name === st.step.vehicle) ?? null;
           const target = record?.vehicle ?? null;
           if (!target) {
@@ -296,7 +293,6 @@ export function installDevTools(game: Game) {
         } else if (kind === 'say') {
           // Skip the talking.
           await wait(900);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (ctx.missions as any).dialogue?.clear?.();
         } else {
           await wait(500);

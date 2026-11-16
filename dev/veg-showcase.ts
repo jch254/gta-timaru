@@ -8,7 +8,6 @@ import { getProp } from '../src/world/props';
  *   node scripts/shot.mjs --at -1318,-1300 --heading 3.14 --time 15 \
  *     --eval "const m = await import('/dev/veg-showcase.ts'); m.show(dev, ['tree-oak', 'tree-willow'], { dist: 22, gap: 14 })"
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function show(dev: any, kinds: string[], o: { dist?: number; gap?: number; scale?: number; rows?: number; turn?: number } = {}) {
   const ctx = dev.ctx;
   const p = ctx.player.position;
@@ -55,7 +54,6 @@ const OLD_PARTS: Record<string, number> = { bush: 1, flax: 1, hedge: 1 };
  * and triangles (instances × the kind's triangles, before shadow passes), with the same sums for the props
  * they replaced.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function census(dev: any) {
   const ctx = dev.ctx;
   const owner = new Map<THREE.BufferGeometry, { kind: string; triangles: number; first: boolean }>();
@@ -89,7 +87,6 @@ export function census(dev: any) {
 }
 
 /** Position of the instance of `kind` nearest the player, for pointing a camera at one. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function nearest(dev: any, kind: string) {
   const ctx = dev.ctx;
   const def = getProp(kind, ctx.gfx.materials);

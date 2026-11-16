@@ -144,11 +144,11 @@ To rebuild: `sh scripts/assets/characters/fetch.sh` (downloads the two Standard 
 | Package | Licence | Use |
 |---|---|---|
 | three | MIT | rendering |
-| @dimforge/rapier3d-compat | Apache-2.0 | physics |
+| @dimforge/rapier3d | Apache-2.0 | physics |
 | postprocessing | Zlib | post-processing stack |
 | n8ao | ISC | ambient occlusion |
 
-Development only: vite (MIT), typescript (Apache-2.0), vitest (MIT), @types/three (MIT).
+Development only: vite (MIT), vite-plugin-wasm (MIT), typescript (Apache-2.0), vitest (MIT), @types/three (MIT), @dimforge/rapier3d-compat (Apache-2.0; types and node-side physics tests), puppeteer-core (Apache-2.0), sharp (Apache-2.0), @gltf-transform/core+extensions+functions (MIT).
 
 Fonts: system font stacks only; nothing is downloaded.
 

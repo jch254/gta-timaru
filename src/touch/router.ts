@@ -1,5 +1,5 @@
 import { BUTTONS, zoneAt, type ButtonId } from './controls';
-import type { TouchFeed } from './feed';
+import type { TouchFeed } from '../core/feed';
 import { clampBase, emptyStick, followBase, steerCurve, stickVector, type StickState } from './stick';
 
 /** What the router needs from whatever draws the controller. Tests pass a stand-in. */

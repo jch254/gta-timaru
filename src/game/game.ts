@@ -134,9 +134,15 @@ export class Game {
     };
     tune();
     settings.onChange((key) => {
-      if (key === 'quality') tune();
+      if (key === 'quality') {
+        tune();
+        events.emit('qualityChanged', { quality: settings.data.quality });
+      }
     });
     // Update order: input consumers → AI → vehicles → world → UI last.
+    // Three things deliberately run outside this array: fx is created and pumped by combat (shared ownership),
+    // the radio scheduler runs on a wall-clock interval so music survives rAF throttling in background tabs,
+    // and the render stack (sky, air, film) updates inside gfx.render each frame.
     this.systems = [ctx.player, ctx.combat, ctx.peds, ctx.traffic, createTram(ctx), ctx.police, ctx.missions, ctx.vehicles, world, createFigureLod(ctx), ctx.audio, ctx.ui] as unknown as System[];
     // The on-screen controller for phones: one more input source, drawn over the HUD.
     this.systems.push(createTouch(ctx, input.touch, canvas));
@@ -145,9 +151,13 @@ export class Game {
     save.register(
       'clock',
       () => ({ hour: clock.hour, day: clock.day }),
-      (d) => Object.assign(clock, d as object),
+      (d) => {
+        // Copy the numbers only: a corrupt slice must not overwrite the clock's methods.
+        const c = (typeof d === 'object' && d !== null ? d : {}) as { hour?: unknown; day?: unknown };
+        if (typeof c.hour === 'number' && Number.isFinite(c.hour)) clock.hour = c.hour;
+        if (typeof c.day === 'number' && Number.isFinite(c.day)) clock.day = c.day;
+      },
     );
-    events.on('qualityChanged', () => undefined);
 
     await world.buildFar((f) => onProgress('Raising the Alps', 0.1 + f * 0.35));
     for (const s of this.systems) await s.init?.();
@@ -160,6 +170,7 @@ export class Game {
       await world.loadAround(p.x, p.z, (f) => onProgress('Finding where you left off', 0.95 + f * 0.05));
       ctx.player.teleport(p.x, p.z, ctx.player.heading);
       events.emit('playerRespawned', { reason: 'load' });
+      if (save.loadProblems.length) ctx.ui.toast('The save file was damaged; some progress may be missing.', 8);
     } else {
       events.emit('playerRespawned', { reason: 'new' });
     }

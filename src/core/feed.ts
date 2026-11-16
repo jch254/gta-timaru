@@ -1,4 +1,4 @@
-import type { Action } from '../core/types';
+import type { Action } from './types';
 
 /**
  * What the on-screen controller feeds into the input layer (`Input.touch`, src/core/input.ts). It holds no DOM

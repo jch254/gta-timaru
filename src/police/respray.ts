@@ -1,21 +1,10 @@
+import { settle } from '../core/async';
 import type { Rng } from '../core/rng';
 import type { GameContext, Place, Vehicle } from '../core/types';
 import { sprayCost } from './response';
 import { TUNING } from './tuning';
 
 const SPEAKER = 'Panelbeater';
-
-/** Resolves when the promise does, or after `ms` regardless: a fade that never settles must not lock the shop. */
-function settle(promise: Promise<unknown>, ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    const done = () => {
-      clearTimeout(timer);
-      resolve();
-    };
-    promise.then(done, done);
-  });
-}
 
 /** Panel & paint shops (places tagged 'spray'): a respray and new plates loses the heat, for a price. */
 export class Respray {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PHONE_DEFAULTS, Settings } from '../core/settings';
-import { SETTINGS_KEY } from '../core/storage';
+import { PHONE_DEFAULTS, Settings } from './settings';
+import { SETTINGS_KEY } from './storage';
 import { deviceHints, isPhone, isTouchFirst, type DeviceHints } from './device';
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
