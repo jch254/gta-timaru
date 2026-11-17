@@ -223,7 +223,7 @@ export function buildHighway(a: Author): Pt[] {
   mark(a, 'service-station', 'West Street Service Station', [WEST - 36, 560], [WEST, 560]);
   mark(a, 'school', 'Ashburton Borough School', [-830, 282], [-960, 282]);
   mark(a, 'rugby-field', 'Ashburton Showgrounds', [-1540, 480], [-1420, 480]);
-  a.place('ashburton-stock-agent', 'Canterbury Plains Stock & Station', [EAST + 10, 320], [EAST, 320], 'ashburton', ['mission']);
+  a.place('ashburton-stock-agent', 'Canterbury Plains Stock & Station', [EAST + 10, 320], [EAST, 320], 'ashburton', ['mission', 'yard']);
   a.place('ashburton-police', 'Ashburton Police Station', [-1010, 209], [-1010, 200], 'ashburton', ['police']);
   a.place('ashburton-panelbeater', 'Mid Canterbury Panel & Paint', [-1372, 449], [-1372, 440], 'ashburton', ['spray']);
   a.rect('ashburton-shops', 'Ashburton', 'ashburton', 'shops', EAST - 22, -1070, 110, 530, 5, 'Hakatere');

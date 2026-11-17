@@ -496,7 +496,10 @@ export interface Place {
   z: number;
   heading: number;
   city: CityId | null;
-  /** Free-form tags: 'hospital', 'police', 'safehouse', 'spawn', 'payphone', 'gunshop', 'spray', 'mission'… */
+  /**
+   * Free-form tags: 'hospital', 'police', 'safehouse', 'spawn', 'payphone', 'gunshop', 'spray', 'mission'…
+   * 'yard' keeps generated lots out of the ground around the point (fights and deliveries happen there).
+   */
   tags: string[];
   /** Te reo Māori name where one is well attested. */
   teReo?: string;
