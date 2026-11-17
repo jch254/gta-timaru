@@ -392,6 +392,11 @@ class Combat implements CombatApi, System {
     return this.pickups.spawn(kind, x, z, amount, respawnSeconds);
   }
 
+  /** Live, takeable pickups — a dev-tools aid, not part of the contract. */
+  livePickups(): { kind: string; x: number; z: number }[] {
+    return this.pickups.all();
+  }
+
   // ───────────── The player ─────────────
 
   update(dt: number) {
