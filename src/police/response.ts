@@ -38,11 +38,13 @@ const TABLE: readonly Response[] = [
   // 1: the nearest patrol car comes for a look; officers try to make an arrest.
   { cars: 1, van: false, shoot: false, shotguns: false, cruise: 28, aggression: 1.7, ram: false, roadblocks: 0, spawnInterval: 4 },
   // 2: active pursuit by two cars.
-  { cars: 2, van: false, shoot: false, shotguns: false, cruise: 40, aggression: 2.1, ram: false, roadblocks: 0, spawnInterval: 3 },
-  // 3: three cars (a fourth once it heats up), pistols out, roadblocks begin.
-  { cars: 3, van: false, shoot: true, shotguns: false, cruise: 46, aggression: 2.4, ram: false, roadblocks: 1, spawnInterval: 2.5 },
+  { cars: 2, van: false, shoot: false, shotguns: false, cruise: 38, aggression: 2.1, ram: false, roadblocks: 0, spawnInterval: 3 },
+  // 3: three cars (a fourth once it heats up), pistols out, roadblocks begin. Cruise sits just under the
+  // ute's top speed: an honest playtest showed that at 46 nothing short of the V8 could ever break their
+  // line of sight, which made the evade rules (and two missions) unwinnable in ordinary cars.
+  { cars: 3, van: false, shoot: true, shotguns: false, cruise: 40, aggression: 2.4, ram: false, roadblocks: 1, spawnInterval: 2.5 },
   // 4: more cars, shotguns, ramming.
-  { cars: 5, van: false, shoot: true, shotguns: true, cruise: 52, aggression: 2.8, ram: true, roadblocks: 2, spawnInterval: 2 },
+  { cars: 5, van: false, shoot: true, shotguns: true, cruise: 48, aggression: 2.8, ram: true, roadblocks: 2, spawnInterval: 2 },
   // 5: everything, plus the Armed Response Section's van.
   { cars: MAX_POLICE_VEHICLES, van: true, shoot: true, shotguns: true, cruise: 58, aggression: 3.2, ram: true, roadblocks: 2, spawnInterval: 1.5 },
 ];
