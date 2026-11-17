@@ -5,12 +5,14 @@ import { LANDMARK_KINDS, PICKUP_KINDS, PLACE_IDS, VEHICLE_IDS, WEAPON_IDS } from
 import { MarkerPool } from './markers';
 import { collectRefs } from './refs';
 import { MissionRunner, type MissionRun } from './runner';
+import { responseFor } from '../police/response';
+import { VEHICLE_SPECS } from '../vehicles/specs';
 import { WORLD_PICKUPS } from './services';
 import { maraeAt, newResolved, type Resolved } from './spots';
 import { STEP_HANDLERS } from './steps';
 import { FakePed, flush, makeFake, type Fake, type FakeOptions, type FakeVehicle } from './testkit';
 import { TUNING } from './tuning';
-import type { Line, MissionDef, Step } from './types';
+import type { Line, MissionDef, Spot, Step } from './types';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -125,10 +127,92 @@ describe('the six missions (data)', () => {
       expect(pursuit || shootOut, def.id).toBe(true);
     }
     const count = (kind: Step['kind']) => MISSIONS.filter((m) => m.steps.some((s) => s.kind === kind)).length;
-    expect(count('loseHeat')).toBeGreaterThanOrEqual(4);
+    expect(count('loseHeat')).toBeGreaterThanOrEqual(3);
     expect(count('eliminate')).toBeGreaterThanOrEqual(3);
     expect(count('race')).toBe(1);
     expect(count('chase')).toBe(1);
+  });
+
+  // An honest playtest could not finish On Ice while its timed run both held a pursuit and failed for a
+  // damaged ute: contact with a patrol car escalates past any floor, and gunfire takes the cargo's health.
+  it('never holds a police pursuit on a leg that also fails for a damaged vehicle', () => {
+    for (const def of MISSIONS) {
+      for (const step of def.steps) {
+        if (step.kind !== 'deliverVehicle' || step.minHealth === undefined) continue;
+        const staged = (step.police?.minLevel ?? 0) > 0 || (step.police?.heatPerSecond ?? 0) > 0 || (step.cues ?? []).some((cue) => (cue.wanted ?? 0) > 0);
+        expect(staged, `${def.id}: ${step.objective}`).toBe(false);
+      }
+    }
+  });
+
+  // Mint Sauce asked for two lights to be lost in the stock truck. Nothing slower than a pursuit can break
+  // its line of sight (the patrol cars sit on the bumper and a respray is refused while they watch), so an
+  // honest playtest was arrested or shot there every time.
+  it('never asks for a pursuit to be lost in a vehicle that pursuit can keep up with', () => {
+    for (const def of MISSIONS) {
+      const specOf = new Map<string, string>();
+      for (const step of def.steps) {
+        if (step.kind === 'spawnVehicle') specOf.set(step.as, step.spec);
+        if (step.kind !== 'loseHeat' || step.vehicle === undefined) continue;
+        const spec = VEHICLE_SPECS.find((v) => v.id === specOf.get(step.vehicle!));
+        expect(spec, `${def.id}: ${step.vehicle}`).toBeDefined();
+        const pursuit = responseFor(Math.max(1, step.atLeast ?? 1)).cruise;
+        expect(spec!.topSpeed, `${def.id}: the ${spec!.name} against ${step.atLeast ?? 1} light(s)`).toBeGreaterThan(pursuit * 1.25);
+      }
+    }
+  });
+
+  it('never resumes a checkpoint on ground a crew is about to turn hostile on', () => {
+    // "Have another go?" must give the player either distance or a beat of talk before the shooting starts:
+    // the honest playtest, resumed on the boat-shed crew's own ground, died in nine seconds three retries
+    // straight. A blocking briefing between the checkpoint and the attack counts as the beat of talk.
+    const placeOf = (s: Spot | undefined) => (typeof s === 'string' ? s : s?.place);
+    const alongOf = (s: Spot | undefined) => (typeof s === 'string' ? 0 : (s?.along ?? 0));
+    const bad: string[] = [];
+    for (const def of MISSIONS) {
+      const spawnedAt = new Map<string, Spot>();
+      const spawnedHostile = new Set<string>();
+      for (const step of def.steps) {
+        if (step.kind !== 'spawnPeds') continue;
+        for (const p of step.peds) {
+          spawnedAt.set(p.as, p.at);
+          if (p.behaviour === 'attack') spawnedHostile.add(p.as);
+        }
+      }
+      const check = (step: Extract<Step, { kind: 'checkpoint' }>, name: string) => {
+        const at = spawnedAt.get(name);
+        if (!at || placeOf(at) !== placeOf(step.at)) return;
+        const gap = Math.abs(alongOf(at) - alongOf(step.at));
+        if (gap < 20) bad.push(`${def.id}: "${step.label}" resumes ${Math.round(gap)} m along from ${name}`);
+      };
+      def.steps.forEach((step, i) => {
+        if (step.kind !== 'checkpoint') return;
+        let talked = false;
+        for (let j = i + 1; j < def.steps.length; j++) {
+          const next = def.steps[j];
+          if (next.kind === 'checkpoint') break;
+          if (next.kind === 'say' && next.block) talked = true;
+          // A crew turned hostile by a step after the resume: a blocking briefing in between is the beat of
+          // talk that makes it fair. A crew spawned hostile shoots through any talk, so distance is the
+          // only mitigation.
+          if (next.kind === 'setBehaviour' && next.behaviour === 'attack' && !talked) for (const name of next.peds) check(step, name);
+          if (next.kind === 'eliminate') for (const name of next.targets) if (spawnedHostile.has(name)) check(step, name);
+        }
+      });
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('keeps the law out of the first job and hands out one light, no more, in the second', () => {
+    const staged = (def: MissionDef) =>
+      def.steps.flatMap((step) => [
+        step.police?.minLevel ?? 0,
+        ...(step.cues ?? []).map((cue) => cue.wanted ?? 0),
+        step.kind === 'loseHeat' ? (step.atLeast ?? 0) : 0,
+        step.kind === 'setWanted' ? step.level : 0,
+      ]);
+    expect(Math.max(...staged(MISSIONS[0])), MISSIONS[0].id).toBe(0);
+    expect(Math.max(...staged(MISSIONS[1])), MISSIONS[1].id).toBe(1);
   });
 
   it('world pickups hang off contract places and known pickup kinds, with a cricket bat by the start', () => {

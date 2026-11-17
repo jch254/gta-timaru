@@ -11,7 +11,8 @@ const LAST_WAVE = ['flash', ...handles('last', 4)];
 /**
  * 6. The finale. Over Dyers Pass in a rising southerly: shoot through the Easterlies' roadblock at the Sign
  * of the Kiwi, stay on the van carrying their bolt cutters down to Lyttelton, then hold the wharf against
- * two waves, the second led by Flash Harkness, while Tip Waaka gets Rena's container onto a truck.
+ * two waves — the second led by Flash Harkness in person — while Tip Waaka gets Rena's container onto a
+ * truck. Rena comes up for what is hers, and the story ends where it started: with the whānau.
  */
 export const southerlyChange: MissionDef = {
   id: 'southerly-change',
@@ -62,7 +63,12 @@ export const southerlyChange: MissionDef = {
     { kind: 'spawnVehicle', as: 'van', spec: 'van', at: { place: 'sign-of-the-kiwi', snap: 'lane', toward: 'lyttelton-wharf', along: 40 }, ai: { aggression: 1.7, cruiseSpeed: 24 }, activate: 320 },
     {
       kind: 'spawnPeds',
-      peds: crew('pass', PASS, [{ weapon: 'pistol' }, { weapon: 'shotgun' }, { weapon: 'pistol' }, { weapon: 'bat', health: 130 }], 8, 3.5),
+      // A roadblock stands its ground: hostile-from-spawn had them charging the car 120 m down the hill
+      // (and converging on the retry's resume spot during the fade). The turn comes with the line below.
+      // Boat-sheds weight (the finale's fights escalate from there: three guns at the gate, four with
+      // Flash): with a shotgun in this crew the opening fight alone cost the honest playtest its whole
+      // 200-point pool three attempts in four, with two more waves still to come.
+      peds: crew('pass', PASS, [{ weapon: 'pistol' }, { weapon: 'bat' }, { weapon: 'pistol' }, { weapon: 'bat', health: 130 }], 8, 3.5, 'stand'),
       activate: 120,
     },
     {
@@ -73,15 +79,31 @@ export const southerlyChange: MissionDef = {
       objective: 'Take Dyers Pass Road up to the Sign of the Kiwi',
       cues: [{ at: 35, lines: [line(MACK, "Southerly's coming up the harbour. You can smell the rain in it.")] }],
     },
+    // The retry resumes down the road on the city side, V8 at the kerb, the roadblock ahead — the same
+    // ground a fresh arrival meets it from. Resumed on the crew's own spot, the honest playtest lost its
+    // whole pool in eight seconds, three retries straight.
+    { kind: 'checkpoint', label: 'the Sign of the Kiwi', at: { ...PASS, snap: 'verge', along: 45 } },
+    {
+      kind: 'setBehaviour',
+      peds: PASS_CREW,
+      behaviour: 'attack',
+      lines: [line(EASTERLY, "Road's closed, mate."), line(MACK, 'Not to me.')],
+    },
     {
       kind: 'eliminate',
       targets: PASS_CREW,
+      // The law sits the scripted shoot-outs out (the rule findings 7 and 9 set): there is nobody on the
+      // summit to ring it in but the Easterlies, and a patrol car up the pass mid-fight wrecks the van
+      // chase the next step depends on. The wharf half already stages the police out explicitly.
+      police: { suspend: true },
       objective: 'Clear the Easterlies off the pass ({n} left)',
-      lines: [line(EASTERLY, "Road's closed, mate."), line(MACK, 'Not to me.')],
     },
     {
       kind: 'chase',
       target: 'van',
+      // The summit is the end of anyone's patch: a stray light picked up on the drive stood the player
+      // under arrest while walking back to the V8. What is left is the chase.
+      police: { clear: true },
       to: 'lyttelton-wharf',
       maxDistance: 480,
       grace: 6,
@@ -96,7 +118,10 @@ export const southerlyChange: MissionDef = {
       kind: 'goTo',
       to: 'lyttelton-wharf',
       radius: 45,
-      timer: { base: 50, perKm: 55, to: 'lyttelton-wharf', label: 'Bolt cutters', reason: 'They had the container open and empty before you got down the hill' },
+      // Roomy on purpose: the chase supplies the urgency, the timer only stops a player walking it. At 55
+      // s/km an honest descent of a wet pass at night — straight after the roadblock fight — kept running
+      // out with the wharf in sight.
+      timer: { base: 70, perKm: 75, to: 'lyttelton-wharf', label: 'Bolt cutters', reason: 'They had the container open and empty before you got down the hill' },
       objective: 'Get down to the wharf at Lyttelton',
     },
 
@@ -107,7 +132,12 @@ export const southerlyChange: MissionDef = {
       wait: true,
       police: { clear: true },
     },
+    // Holding a wharf against two waves costs more than one vest: the pass fight honestly costs well over
+    // half the pool, so kit waits at the gate and again between the waves (the honest playtest reached the
+    // wharf on 38–63 health, bare, and died there every attempt).
     { kind: 'spawnPickup', pickup: 'armour', at: { ...WHARF, snap: 'verge', along: 9 } },
+    { kind: 'spawnPickup', pickup: 'health', at: { ...WHARF, snap: 'verge', along: 12 } },
+    { kind: 'checkpoint', label: 'the wharf gate', at: 'lyttelton-wharf' },
     {
       kind: 'eliminate',
       targets: FIRST_WAVE,
@@ -119,24 +149,60 @@ export const southerlyChange: MissionDef = {
         line(TIP, "I'll get the box onto the truck. You keep them off my crane."),
       ],
     },
+    // The crane crew's first-aid box and a spare vest, by the gatehouse, before Flash's wave comes through.
+    { kind: 'spawnPickup', pickup: 'health', at: { ...WHARF, snap: 'verge', along: 4 } },
+    { kind: 'spawnPickup', pickup: 'armour', at: { ...WHARF, snap: 'verge', along: 6 } },
+    { kind: 'checkpoint', label: 'the last wave', at: 'lyttelton-wharf' },
     {
       kind: 'spawnPeds',
+      // The wave walks in standing: Flash is the kind of man who monologues before the shooting, and the
+      // beat of talk below is what makes the resume (and the dash for the gatehouse kit) survivable against
+      // a rifle that distance alone cannot answer.
       peds: [
-        { as: 'flash', at: { ...WHARF, snap: 'road', along: -42 }, name: FLASH, kind: 'gang', behaviour: 'attack', weapon: 'rifle', health: 260, look: { topStyle: 'jacket', top: 0x8a7350, legs: 0x2b2b30, hairStyle: 'mullet', hat: 'none' } },
-        ...crew('last', WHARF, [{ weapon: 'shotgun' }, { weapon: 'pistol' }, { weapon: 'pistol' }, { weapon: 'pistol', health: 130 }], -34, -5),
+        // Flash collects in person: a shotgun and 260 points, a boss who has to close rather than a rifle
+        // that shreds the whole pool from range — measured honestly, the rifle wave dealt 188 points in six
+        // seconds, more than any kit survives. The crew carries one gun more than the gate wave.
+        { as: 'flash', at: { ...WHARF, snap: 'road', along: -42 }, name: FLASH, kind: 'gang', behaviour: 'stand', weapon: 'shotgun', health: 260, look: { topStyle: 'jacket', top: 0x8a7350, legs: 0x2b2b30, hairStyle: 'mullet', hat: 'none' } },
+        ...crew('last', WHARF, [{ weapon: 'shotgun' }, { weapon: 'pistol' }, { weapon: 'bat' }, { weapon: 'pistol', health: 130 }], -34, -5, 'stand'),
       ],
       wait: true,
       police: { suspend: true },
+      lines: [
+        line(TIP, "Second lot coming through the gate. Big fella out front in the long coat — that'll be your Harkness."),
+        line(FLASH, 'TULLY!'),
+      ],
     },
+    {
+      kind: 'say',
+      block: true,
+      objective: null,
+      lines: [
+        line(FLASH, 'Fourteen years on a chain, Tully, and you think you can stand between me and my money?'),
+        line(MACK, "It's not your money. It's twenty years of fish and chips."),
+      ],
+    },
+    { kind: 'setBehaviour', peds: LAST_WAVE, behaviour: 'attack' },
     {
       kind: 'eliminate',
       targets: LAST_WAVE,
       police: { suspend: true },
       objective: 'Flash Harkness has come himself. Finish it ({n} left)',
-      lines: [
-        line(FLASH, 'Fourteen years on a chain, Tully, and you think you can stand between me and my money?'),
-        line(MACK, "It's not your money. It's twenty years of fish and chips."),
+      cues: [{ at: 15, lines: [line(FLASH, 'I built the Easterlies out of nothing, you freezing-works nobody! NOTHING!')] }],
+    },
+    // Rena was never going to wait in Sydenham for news. She came up for what is hers.
+    {
+      kind: 'spawnPeds',
+      peds: [
+        {
+          as: 'rena',
+          at: { ...WHARF, snap: 'verge', along: -8 },
+          name: RENA,
+          kind: 'scripted',
+          behaviour: 'stand',
+          look: { female: true, hairStyle: 'bob', hair: 0xb8b2a8, topStyle: 'jacket', top: 0x6a3b4a, legs: 0x3a3f48, shoes: 0x2a1a12, height: 0.94, bulk: 1.05 },
+        },
       ],
+      wait: true,
     },
     {
       kind: 'say',
@@ -146,8 +212,12 @@ export const southerlyChange: MissionDef = {
         line(TIP, "Box is on the truck. And here's your southerly, right on time."),
         line(MACK, 'Harkness?'),
         line(TIP, "Somebody will have to tell his mother. He had one, you know. They all do."),
-        line(MACK, 'Rena said to bring a coat.'),
-        line(TIP, "She's usually right. Kia kaha, e hoa. Go home and tell her it's done."),
+        line(RENA, 'Tip Waaka. You shut those gates with my nephew inside them?'),
+        line(TIP, "He's standing, isn't he? Kia ora, Rena."),
+        line(RENA, "Twenty years of fish and chips in one steel box. Well. Now it's the lease on the shop, and something for the whānau — with both of us alive to see it."),
+        line(MACK, "You shouldn't have come up, Aunty."),
+        line(RENA, "Boy, I buried your mother. I wasn't going to hear about you from a crane driver. Come home — the fryer's on, and you still look like a dropped pie."),
+        line(TIP, "Kia kaha, e hoa. Go on home, and tell the Bay it's done."),
       ],
     },
   ],

@@ -1,5 +1,5 @@
 import type { MissionDef, SpotObject } from '../types';
-import { HINE, line, MACK, RENA, RUSSELL, SHONA } from './cast';
+import { EASTERLY, EASTERLY_LOOK, HINE, line, MACK, RENA, RUSSELL, SHONA } from './cast';
 
 /**
  * The road outside Arowhenua marae, just south of Temuka. A marae is a place of respect: the only thing
@@ -9,9 +9,10 @@ import { HINE, line, MACK, RENA, RUSSELL, SHONA } from './cast';
 const AROWHENUA_GATE: SpotObject = { landmark: 'marae', near: 'temuka-pub', edge: 1, snap: 'verge' };
 
 /**
- * 2. Timaru → Arowhenua → Temuka → the Rangitata. Drop Rena's kai at the marae gate, then a timed run up
- * SH1 with four chilly bins of off-the-books crayfish in the tray while the police pile on; lose them
- * before the buyer will open his van.
+ * 2. Timaru → Arowhenua → Temuka → the Rangitata. Drop Rena's kai at the marae gate, then a run against the
+ * clock up SH1 with four chilly bins of off-the-books crayfish in the tray; the law is waiting at the lay-by
+ * and has to be lost before the buyer will open his van — and there, Mack learns the Easterlies have been
+ * watching the whole hand-over.
  */
 export const onIce: MissionDef = {
   id: 'on-ice',
@@ -55,6 +56,7 @@ export const onIce: MissionDef = {
       radius: 14,
       stop: true,
       objective: "Take Rena's kai out to the hui at Arowhenua marae, south of Temuka",
+      cues: [{ at: 40, lines: [line(MACK, 'Washdyke, Winchester, and the plains going on forever. The whole province smells of cut grass and diesel.')] }],
     },
     {
       kind: 'say',
@@ -64,13 +66,18 @@ export const onIce: MissionDef = {
       lines: [
         line(HINE, 'Kia ora, Mack! Look at the size of you. Last time you were under a table in the wharekai eating all the fried bread.'),
         line(MACK, "Kia ora, Aunty Hine. Rena sent kai. She said to tell you it's the good chowder."),
-        line(HINE, "It's always the good chowder. Tell her ka pai, and tell her to bring it herself next time."),
-        line(HINE, "We heard about the works. You need anything, e hoa, you come here. That's not charity. That's whānau."),
+        line(HINE, "Ka pai. Tell her to bring it herself next time. And we heard about the works. You need anything, e hoa, you come here. That's whānau, not charity."),
         line(MACK, 'Cheers, Aunty. I will.'),
       ],
     },
-    { kind: 'spawnVehicle', as: 'ute', spec: 'ute', at: { place: 'temuka-pub', snap: 'lane', along: 7, kerb: true }, owned: true },
+    { kind: 'checkpoint', label: 'Temuka', at: 'temuka-pub' },
+    // A tray full of ice chests that can take a knock: it has to survive two bridges and a chase and still
+    // count as "sound". Generously tough on purpose — this is an early job and the fail is for genuinely
+    // wrecking it, not for a few dents picked up outrunning a tail.
+    { kind: 'spawnVehicle', as: 'ute', spec: 'ute', at: { place: 'temuka-pub', snap: 'lane', along: 7, kerb: true }, owned: true, health: 2 },
     { kind: 'spawnVehicle', as: 'chiller', spec: 'van', at: { place: 'rangitata-layby', snap: 'verge', along: 10, out: 2.6 } },
+    // Shona wasn't exaggerating: the law is parked across the road from the pub with its motor running.
+    { kind: 'spawnVehicle', as: 'fisheries', spec: 'police', at: { place: 'temuka-pub', snap: 'lane', along: -18, kerb: true } },
     {
       kind: 'goTo',
       to: 'temuka-pub',
@@ -86,7 +93,7 @@ export const onIce: MissionDef = {
         line(SHONA, "Four chilly bins of crays in my ute out front. They didn't come over any wharf with a clipboard on it."),
         line(SHONA, 'Russell is parked at the lay-by north of the Rangitata bridges. He leaves when the ice does.'),
         line(MACK, 'And the law?'),
-        line(SHONA, "Fisheries has been parked across the road since lunch, and he's brought the Temuka constable. So, briskly."),
+        line(SHONA, "See the car over the road? Fisheries, with the Temuka constable keeping him company since lunch. So, briskly."),
       ],
     },
     { kind: 'enterVehicle', vehicle: 'ute', objective: "Get in Shona's ute" },
@@ -99,26 +106,47 @@ export const onIce: MissionDef = {
       vehicle: 'ute',
       to: 'rangitata-layby',
       radius: 12,
-      minHealth: 0.3,
+      minHealth: 0.2,
       objective: 'Run the crays up SH1 to the lay-by past the Rangitata bridges',
       returnObjective: "Get back in Shona's ute",
       damageReason: 'The ute shook itself to bits, and the crays went over the road',
-      police: { minLevel: 2 },
-      lines: [line(MACK, "Right. Four bins, two bridges, one constable. Let's go.")],
+      // The run is against the clock, not a gunfight. An honest playtest showed that holding a police chase
+      // on this fragile-cargo timed leg was unwinnable: contact with a pursuer escalates past any floor, and
+      // a third light's gunfire shreds the ute under the "keep it sound" rule. The law converges at the
+      // lay-by instead (the loseHeat step below), where there is no cargo-health gate to fight.
+      lines: [line(MACK, "Right. Four bins, two bridges, and the ice already sweating. Let's go.")],
       cues: [
-        { at: 30, wanted: 3, lines: [line(MACK, "That'll be Geraldine's car joining in. All this for crayfish.")] },
-        { at: 70, lines: [line(MACK, "Hold together, you lot. You're worth more than I am.")] },
+        { at: 3, lines: [line(MACK, "Fisheries car's still parked. He'll radio ahead, but he won't catch this.")] },
+        { at: 35, lines: [line(MACK, "Rangitata bridges coming up. Bet there's a welcome on the far side.")] },
+        { at: 75, lines: [line(MACK, "Hold together, you lot. You're worth more than I am.")] },
       ],
     },
     { kind: 'stopTimer' },
+    { kind: 'checkpoint', label: 'the Rangitata lay-by', at: 'rangitata-layby' },
+    // One light, not two: this is where being wanted is taught, on open plains with no corner to hide
+    // behind. A single patrol car (cruising at 28 m/s) is one the ute can simply outrun; at two lights the
+    // pursuit matches the ute's top speed down a road with 260 m of clear view, and an honest playtest was
+    // arrested there every time.
     {
       kind: 'loseHeat',
       vehicle: 'ute',
+      atLeast: 1,
+      holdFor: 12,
       objective: "Russell won't open the van with the law watching. Lose them",
       returnObjective: "Get back in Shona's ute",
       toast: 'Break their line of sight and lie low, or get a respray at a panel and paint shop',
       lines: [line(RUSSELL, "You've brought half the South Canterbury police to a lay-by, mate. Come back when you're on your own.")],
     },
+    // Two men by a black V8, pricing the load from across the lay-by. They were here before Mack was.
+    {
+      kind: 'spawnPeds',
+      peds: [
+        { as: 'watcher1', at: { place: 'rangitata-layby', snap: 'verge', side: 1, along: -26 }, name: EASTERLY, kind: 'scripted', behaviour: 'stand', look: EASTERLY_LOOK },
+        { as: 'watcher2', at: { place: 'rangitata-layby', snap: 'verge', side: -1, along: -22 }, name: EASTERLY, kind: 'scripted', behaviour: 'stand', look: EASTERLY_LOOK },
+      ],
+      activate: 400,
+    },
+    { kind: 'spawnVehicle', as: 'watchers-car', spec: 'v8sedan', color: 0x15161a, at: { entity: 'watcher1', snap: 'lane', along: 6, kerb: true }, activate: 400 },
     {
       kind: 'deliverVehicle',
       vehicle: 'ute',
@@ -131,9 +159,11 @@ export const onIce: MissionDef = {
     {
       kind: 'say',
       lines: [
-        line(RUSSELL, 'Still kicking, the lot of them. Five hundred, as agreed with Shona.'),
-        line(RUSSELL, 'She says hang on to the ute till the weekend. She wants it back with the same number of doors.'),
-        line(RUSSELL, "Word of advice. There's a Christchurch mob taxing every load on this road now. Call themselves the Easterlies. Don't meet them at night."),
+        line(EASTERLY, "That's him. Shona's new driver. Flash will want the name."),
+        line(RUSSELL, 'Eyes front. Still kicking, the lot of them. Five hundred, as agreed with Shona.'),
+        line(MACK, 'The two by the black V8. Friends of yours?'),
+        line(RUSSELL, "Nobody's friends. Easterlies. Christchurch mob — they tax every load on this road now, and they've just priced yours. Don't meet them at night."),
+        line(RUSSELL, 'Shona says hang on to the ute till the weekend. She wants it back with the same number of doors.'),
         line(RUSSELL, 'Neville Stroud, the stock agent in Ashburton, is short a driver. Tell him I sent you. Then count your change.'),
       ],
     },
