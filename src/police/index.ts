@@ -151,6 +151,10 @@ class Police implements PoliceApi, System {
     this.threatTime = 0;
   }
 
+  flush() {
+    this.reset();
+  }
+
   private reportClock = 0;
   /** Its own stream, so that who phones what in never changes how the rest of the response plays out. */
   private reportRng = new Rng(0x7e1e9);

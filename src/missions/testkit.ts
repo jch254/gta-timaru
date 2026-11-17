@@ -443,6 +443,12 @@ export function makeFake(options: FakeOptions = {}) {
     addArmour(amount: number) {
       this.armour = Math.min(100, this.armour + amount);
     },
+    warpIntoVehicle(vehicle: Vehicle) {
+      this.vehicle = vehicle;
+      vehicle.driver = this as unknown as Actor;
+      vehicle.controller = 'player';
+      this.position.copy(vehicle.position);
+    },
   };
 
   const vehicles = {
@@ -523,6 +529,13 @@ export function makeFake(options: FakeOptions = {}) {
       this.heat += amount;
     },
     clear() {
+      this.cleared++;
+      this.level = 0;
+      this.heat = 0;
+    },
+    flushed: 0,
+    flush() {
+      this.flushed++;
       this.cleared++;
       this.level = 0;
       this.heat = 0;

@@ -954,6 +954,11 @@ export interface PoliceApi {
   setLevel(level: number): void;
   addHeat(amount: number): void;
   clear(): void;
+  /**
+   * Clear the heat AND remove every patrol car, officer and roadblock at once. Only for behind-a-fade
+   * moments (a mission resume); `clear()` alone leaves the cars to drive off, still there to re-engage.
+   */
+  flush(): void;
   /** Missions can suspend the law briefly. */
   enabled: boolean;
 }

@@ -17,9 +17,9 @@ import { Dialogue } from './dialogue';
 import { MarkerPool, type Marker } from './markers';
 import { MissionRunner } from './runner';
 import { Services } from './services';
-import { findPlace, maraeAt } from './spots';
+import { findPlace, maraeAt, newResolved, resolveSpot } from './spots';
 import { TUNING } from './tuning';
-import type { Line, MissionDef } from './types';
+import type { Line, MissionDef, ResumePoint } from './types';
 
 /** A place the player can walk up to and use: a job on offer, a bed, a gun counter, or several at once. */
 interface Point {
@@ -78,6 +78,8 @@ class Missions implements MissionsApi, System {
   private introSeen = false;
   private introObjective = false;
   private finaleTimer = -1;
+  /** Counts down to the retry offer after a failure (waits out the banner and any respawn). */
+  private retryTimer = -1;
   private prompts = new PromptMemo();
   /** "Talk to …" / "Browse …" lines, built once. */
   private talk = new Map<MissionDef, string>();
@@ -93,6 +95,7 @@ class Missions implements MissionsApi, System {
     this.runner.onChange = () => this.sync();
     this.runner.onResult = (def, result) => {
       if (result === 'passed' && def.finale) this.finaleTimer = TUNING.finaleDelay;
+      this.retryTimer = result === 'failed' ? TUNING.retryDelay : -1;
     };
     ctx.save.register(
       'missions',
@@ -196,6 +199,55 @@ class Missions implements MissionsApi, System {
         ctx.ui.banner("You've done it", "Rena's money is safe and the southerly has blown through. Canterbury is yours.", 9, 'good');
         ctx.ui.toast('Story complete. Every road is still open.', 8);
       }
+    }
+    // After a failure: once the banner has landed and any hospital or cell fade is over, offer another go.
+    if (this.retryTimer >= 0 && !this.busy && !ctx.ui.menuOpen) {
+      if (this.runner.retry === null) this.retryTimer = -1;
+      else if (ctx.player.alive && ctx.player.controlsEnabled) {
+        this.retryTimer -= dt;
+        if (this.retryTimer < 0) {
+          const retry = this.runner.retry;
+          const def = this.runner.def(retry.id);
+          if (def && this.runner.stateOf(def) === 'available') void this.offerRetry(def, retry.resume);
+          else this.runner.retry = null;
+        }
+      }
+    }
+  }
+
+  /** "Have another go?" — a yes puts the player straight back at the checkpoint, drive already driven. */
+  private offerRetry(def: MissionDef, resume: ResumePoint | null): Promise<void> {
+    const from = resume ? resume.label : 'the start';
+    return this.guard(
+      this.ctx.ui.choose('Have another go?', `${def.title}, picking it up from ${from}.`, ['Go again', 'Leave it']).then(async (pick) => {
+        if (pick !== 0) {
+          this.runner.retry = null;
+          return;
+        }
+        await this.resumeMission(def, resume);
+      }),
+    );
+  }
+
+  private async resumeMission(def: MissionDef, resume: ResumePoint | null) {
+    const { ctx } = this;
+    const out = newResolved();
+    resolveSpot(ctx.world, resume ? resume.at : def.placeId, out);
+    if (!out.ok) {
+      // Nowhere to put them: an ordinary start from wherever they stand.
+      this.runner.start(def.id);
+      return;
+    }
+    try {
+      await ctx.ui.fade(true, 0.6);
+      await ctx.world.whenLoaded(out.x, out.z);
+      // Flush, not clear: the cars from the failed attempt are parked at this very kerb, and a lone clear()
+      // leaves them to re-engage the moment the first step re-raises the heat.
+      ctx.police.flush();
+      ctx.player.teleport(out.x, out.z, out.heading);
+      this.runner.start(def.id, resume);
+    } finally {
+      void ctx.ui.fade(false, 0.6);
     }
   }
 
