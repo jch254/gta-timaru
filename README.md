@@ -56,7 +56,7 @@ It has been tested in Chrome's phone emulation with real touch events (`node scr
 
 - **New game** starts you on the Bay Hill in Timaru. Yellow markers on the minimap are jobs: walk into one and press F. There are six, and they take you up State Highway 1 to Christchurch and back. Everything else is free roam.
 - **Cars**: F beside any vehicle. Taking one with a driver in it is a crime if anybody sees it. Fast cars knock over lamp posts, fences and street furniture; trees, buildings and slow speeds do not forgive.
-- **Police**: the lights at the top right are your heat, one to five. Crimes only count when somebody sees them. To lose the police, get out of their sight and stop drawing attention: slow down, swap to a car they have not seen you in, or pay a panelbeater (spray-can icon) for new paint and plates. Speeding through town in the car they are looking for keeps the calls coming in. From three lights they shoot and set roadblocks.
+- **Police**: the lights at the top right are your heat, one to five. Crimes only count when somebody sees them. To lose the police, get out of their sight and stop drawing attention: slow down, swap to a car they have not seen you in, go to ground on foot away from the roads until the trail goes cold, or pay a panelbeater (spray-can icon) for new paint and plates. Speeding through town in the car they are looking for keeps the calls coming in. From three lights they shoot and set roadblocks.
 - **Dying or being arrested** costs a fee and puts you back at the nearest hospital or police station.
 - **Familiar faces**: eleven people you may feel you have seen before stand about the two towns and the road between: on a ladder in Cathedral Square, at the gates of Lancaster Park, on the sand at New Brighton. Walk up and they talk. They are look-alike parodies under invented names, they keep daytime hours, and they cannot be hurt.
 - **Radio**: R in a car moves along the dial and T moves back: ten live stations, then six invented ones, then off.
@@ -109,11 +109,23 @@ In `pnpm dev`, or on any build with `?dev` added to the URL, a `dev` object is a
 
 `node scripts/shot.mjs --place cathedral-square --time 15 --fps 5` takes a screenshot of the running dev server with the Chrome already installed on the machine and prints draw calls, triangles and frame rate; its header lists the options.
 
-`scripts/playtest/` holds scripted play sessions for that tool: `missions.js` plays all six missions back to back, `chase.js` runs a three-star pursuit across Christchurch, `fight.js` plays a mission up to its first shoot-out and fights it without cheats, `carjack.js` walks, takes a parked car, drives it and pulls a driver out of another, `escape.js` loses a two-light pursuit by ditching the car, `radio.js` tunes through every station and reports which live streams connect, `soak.js` stands in town counting traffic crashes, `highway.js` records frame times along State Highway 1, and `continue.mjs` (run directly with node) saves, reloads and continues. `phone.mjs` (run directly with node) plays it as a phone would, with touch events. `zsh scripts/playtest/measure.sh` reproduces the frame-rate table in the report, and `zsh scripts/gallery.sh shots/now` takes the same 24 views every time for comparing looks. The rest are measurement and debugging aids from the art passes, each documented in its own header: `citydrive.js`, `frames.mjs`, `hitches.js`, `lodwatch.js`, `lodpairs.mjs`, `roadwatch.js`, `pops.mjs`, `probe.js`, `darkscan.mjs`, `sheet.mjs` and `hunt.sh`. `shot.mjs` keeps the live radio stations off unless given `--live`, and `--mobile` makes it a phone. For example:
+`scripts/playtest/` holds scripted play sessions for that tool: `missions.js` plays all six missions back to back with the cheating test player (teleported drives, scripted fights — it checks logic, not play), `chase.js` runs a three-star pursuit across Christchurch, `fight.js` plays a mission up to its first shoot-out and fights it without cheats, `carjack.js` walks, takes a parked car, drives it and pulls a driver out of another, `escape.js` loses a two-light pursuit by ditching the car and `escape3.js` tries the same at three lights, `radio.js` tunes through every station and reports which live streams connect, `soak.js` stands in town counting traffic crashes, `highway.js` records frame times along State Highway 1, and `continue.mjs` (run directly with node) saves, reloads and continues. `phone.mjs` (run directly with node) plays it as a phone would, with touch events. `zsh scripts/playtest/measure.sh` reproduces the frame-rate table in the report, and `zsh scripts/gallery.sh shots/now` takes the same 24 views every time for comparing looks. The rest are measurement and debugging aids from the art passes, each documented in its own header: `citydrive.js`, `frames.mjs`, `hitches.js`, `lodwatch.js`, `lodpairs.mjs`, `roadwatch.js`, `pops.mjs`, `probe.js`, `darkscan.mjs`, `sheet.mjs` and `hunt.sh`. `shot.mjs` keeps the live radio stations off unless given `--live`, and `--mobile` makes it a phone. For example:
 
 ```bash
 node scripts/shot.mjs --place timaru-spawn --hud --eval "$(cat scripts/playtest/missions.js)"
 ```
+
+Two of them play **honestly** — walking with the movement keys, driving every metre of every route, fighting with only what the mission hands out, losing the police the way the game intends — and both run directly with node against `pnpm dev`:
+
+```bash
+node scripts/playtest/honest.mjs            # a new game, all six missions back to back, with retries;
+                                            #   prints a per-mission table and writes JSON under shots/honest/
+node scripts/playtest/abuse.mjs             # the ways a player breaks missions: dying, arrest, wrecking or
+                                            #   abandoning the mission vehicle, killing the contact, saving
+                                            #   mid-job, heat at the giver, parking on a spawn, skipping talk
+```
+
+Both share `scripts/playtest/bot.js`, the honest test player they inject into the page.
 
 ## Deploying
 

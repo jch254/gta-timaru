@@ -6,7 +6,8 @@ export default defineConfig({
   base: './',
   plugins: [wasm()],
   test: {
-    exclude: [...configDefaults.exclude, 'studiodaw/**'],
+    // .claude/ can hold whole worktree copies of the repo; without this the suite runs twice.
+    exclude: [...configDefaults.exclude, 'studiodaw/**', '.claude/**'],
   },
   // Full reloads only on request: with several people (or agents) editing at once, hot reloads fire mid-play.
   // The fixed port is what every script in scripts/ and scripts/playtest/ dials.
