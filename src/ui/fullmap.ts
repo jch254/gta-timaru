@@ -1,11 +1,12 @@
 import type { Blip, GameContext } from '../core/types';
 import { el, hint, TextCache, touchOn } from './dom';
 import { bilingual, cityName, cityTeReo, featureTeReo } from './format';
-import { IconSheet, paintArrow, paintIcon, type IconKind } from './icons';
+import { IconSheet, paintArrow, paintIcon, PEN, type IconKind } from './icons';
 import { ROAD_ORDER, T_INDUSTRY, T_PARK, T_SUBURB, T_TOWN, T_WATER, type MapData } from './mapdata';
 import { clampView, northUpAngle, scaleBar, zoomAbout, type MapView } from './mapmath';
 import { ATLAS_PALETTE, buildNetworkPaths, MapRaster, type NetworkPaths } from './maprender';
 import type { StaticMarker } from './minimap';
+import type { Waypoint } from './waypoint';
 import type { MenuNav } from './nav';
 import { DISPLAY_FONT, REO_FONT, TEXT_FONT } from './type';
 
@@ -30,12 +31,18 @@ const LEGEND: [IconKind | 'you', string][] = [
   ['you', 'You'],
   ['mission', 'Job on offer'],
   ['objective', 'Where to go'],
+  ['waypoint', 'Your mark'],
   ['safehouse', 'Safehouse'],
   ['hospital', 'Hospital'],
   ['police', 'Police station'],
   ['gunshop', 'Sports & guns'],
   ['spray', 'Panel & paint'],
 ];
+
+/** A press that stays put this long (ms) is a mark, not a pan. */
+const PRESS_MS = 480;
+/** A press that wanders further than this (CSS px) is a pan. */
+const PRESS_SLOP = 7;
 
 /** A canvas font with its pixel size alongside, so labels can be measured without parsing the string. */
 interface Face {
@@ -97,13 +104,22 @@ export class FullMap {
   /** Pointers down on the map (one drags, two pinch), and the last distance between the first two. */
   private pointers = new Map<number, { x: number; y: number }>();
   private pinch = 0;
+  /** A finger held still long enough marks the map (the mouse has right-click for the same thing). */
+  private pressTimer: ReturnType<typeof setTimeout> | undefined;
+  private pressX = 0;
+  private pressY = 0;
+  /** The last time a mark landed, so a long-press and a synthesised contextmenu cannot both act. */
+  private markedAt = -Infinity;
   private boxes = new Float32Array(MAX_BOXES * 4);
   private boxCount = 0;
   private jobs: StaticMarker[] = [];
   private landmarks: { x: number; z: number; name: string }[] = [];
   private whereText: TextCache;
+  private markText!: TextCache;
   private surveyText: TextCache;
   private surveyShown = -1;
+  /** Waypoint version last drawn: a re-plan while the map is up redraws the pen line. */
+  private penShown = -1;
   private foot: HTMLDivElement;
   private footMode = '';
   /** The printed panels that sit over the map (title, key), and where they are in CSS pixels: lettering keeps clear of them. */
@@ -116,6 +132,7 @@ export class FullMap {
     private data: MapData,
     private blips: readonly Blip[],
     private markers: readonly StaticMarker[],
+    private waypoint: Waypoint,
   ) {
     this.root = el('div', 'nw-map', parent);
     this.canvas = el('canvas', 'nw-map-canvas', this.root);
@@ -127,6 +144,7 @@ export class FullMap {
     el('div', 'nw-map-title', head, 'Canterbury');
     el('div', 'nw-map-reo', head, 'Waitaha');
     this.whereText = new TextCache(el('div', 'nw-map-where', head));
+    this.markText = new TextCache(el('div', 'nw-map-where', head));
 
     const legend = el('div', 'nw-map-legend nw-cartouche', this.root);
     el('div', 'nw-legend-title', legend, 'Key');
@@ -184,8 +202,19 @@ export class FullMap {
       this.pinch = 0;
       canvas.setPointerCapture?.(e.pointerId);
       this.root.classList.add('dragging');
+      // One finger held still: a mark. A second finger or a wander cancels it.
+      clearTimeout(this.pressTimer);
+      if (this.pointers.size === 1) {
+        this.pressX = e.clientX;
+        this.pressY = e.clientY;
+        this.pressTimer = setTimeout(() => {
+          this.mark(this.pressX, this.pressY);
+          stop();
+        }, PRESS_MS);
+      }
     });
     canvas.addEventListener('pointermove', (e) => {
+      if (this.pointers.size >= 2 || Math.hypot(e.clientX - this.pressX, e.clientY - this.pressY) > PRESS_SLOP) clearTimeout(this.pressTimer);
       if (!this.dragging || this.view.scale <= 0) return;
       const held = this.pointers.get(e.pointerId ?? 0);
       if (held) {
@@ -214,6 +243,7 @@ export class FullMap {
       this.dirty = true;
     });
     const stop = (e?: PointerEvent) => {
+      clearTimeout(this.pressTimer);
       if (e) this.pointers.delete(e.pointerId ?? 0);
       else this.pointers.clear();
       this.pinch = 0;
@@ -243,6 +273,26 @@ export class FullMap {
       this.anchor();
       this.zoom(2, (e.clientX - this.cssW / 2) * this.ratio, (e.clientY - this.cssH / 2) * this.ratio);
     });
+    // Right-click marks the map (Android fires this for a long-press too, hence the shared debounce).
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      this.mark(e.clientX, e.clientY);
+    });
+  }
+
+  /** Put the X down at a screen point — or, on the X already there, rub it out. */
+  private mark(cx: number, cy: number) {
+    const at = performance.now();
+    if (at - this.markedAt < 400) return;
+    this.markedAt = at;
+    const view = this.shown;
+    if (view.scale <= 0) return;
+    const d = this.data;
+    const wx = view.x + ((cx - this.cssW / 2) * this.ratio) / view.scale;
+    const wz = view.z + ((cy - this.cssH / 2) * this.ratio) / view.scale;
+    // A thumb's width on screen rubs out; anywhere else (clamped to the sheet) marks afresh.
+    this.waypoint.toggle(Math.min(d.maxX, Math.max(d.minX, wx)), Math.min(d.maxZ, Math.max(d.minZ, wz)), (28 * this.ratio) / view.scale);
+    this.dirty = true;
   }
 
   private get minScale() {
@@ -365,6 +415,7 @@ export class FullMap {
     if (mode === 'touch') {
       hint(this.foot, ['Drag'], 'Pan');
       hint(this.foot, ['Pinch', '+', '−'], 'Zoom');
+      hint(this.foot, ['Hold'], 'Mark the map');
       hint(this.foot, ['‹ Back'], 'Close');
     } else if (pad) {
       hint(this.foot, ['Left stick'], 'Pan');
@@ -374,6 +425,7 @@ export class FullMap {
     } else {
       hint(this.foot, ['Drag', 'W A S D'], 'Pan');
       hint(this.foot, ['Wheel', 'Q', 'E'], 'Zoom');
+      hint(this.foot, ['Right-click'], 'Mark the map');
       hint(this.foot, ['Enter'], 'Find me');
       hint(this.foot, ['Esc'], 'Back');
     }
@@ -409,6 +461,12 @@ export class FullMap {
     if (percent !== this.surveyShown) {
       this.surveyShown = percent;
       this.surveyText.set(percent >= 100 ? '' : `Surveying the land… ${percent}%`);
+    }
+    const wp = this.waypoint;
+    if (wp.version !== this.penShown) {
+      this.penShown = wp.version;
+      this.markText.set(!wp.target ? '' : wp.distance > 0 ? `Your mark: ${wp.distance >= 950 ? `${(wp.distance / 1000).toFixed(1)} km` : `${Math.max(10, Math.round(wp.distance / 10) * 10)} m`} by road` : 'Your mark: off every road');
+      this.dirty = true;
     }
     if (this.dirty) this.draw();
     return 'stay';
@@ -582,6 +640,25 @@ export class FullMap {
     for (let i = 0; i < blips.length; i++) {
       const at = blips[i].follow ? blips[i].follow!.position : blips[i];
       this.symbol(g, blips[i].kind, at.x * s + ox, at.z * s + oz, W, H, true);
+    }
+
+    // The player's own mark, and the pen line of the route out to it.
+    const wp = this.waypoint;
+    if (wp.target) {
+      const route = wp.route;
+      if (route.length >= 4) {
+        g.beginPath();
+        g.moveTo(route[0] * s + ox, route[1] * s + oz);
+        for (let i = 2; i < route.length; i += 2) g.lineTo(route[i] * s + ox, route[i + 1] * s + oz);
+        g.strokeStyle = PEN;
+        g.globalAlpha = 0.7;
+        g.lineWidth = Math.max(2, 2.6 * ratio);
+        g.lineJoin = 'round';
+        g.lineCap = 'round';
+        g.stroke();
+        g.globalAlpha = 1;
+      }
+      this.symbol(g, 'waypoint', wp.target.x * s + ox, wp.target.z * s + oz, W, H, true);
     }
 
     // Lettering, most important first (earlier labels win where they would overlap).

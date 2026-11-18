@@ -1,7 +1,8 @@
 import { damp } from '../core/math';
 import type { Blip, GameContext } from '../core/types';
 import { el } from './dom';
-import { IconSheet, paintArrow, type IconKind } from './icons';
+import { IconSheet, paintArrow, PEN, type IconKind } from './icons';
+import type { Waypoint } from './waypoint';
 import { TILE_M, type MapData } from './mapdata';
 import { arrowAngle, clampToSquare, minimapMatrix, minimapReach, worldToMinimap, type Point } from './mapmath';
 import { landColor, RoadTiles, STREET_PALETTE, TILE_PAD, type MapRaster } from './maprender';
@@ -37,6 +38,9 @@ export class Minimap {
   private duskStyle = '';
   private m: number[] = [1, 0, 0, 1, 0, 0];
   private p: Point = { x: 0, y: 0 };
+  /** The waypoint pen line, cached as a path against the waypoint's version. */
+  private penPath: Path2D | null = null;
+  private penVersion = -1;
 
   constructor(
     parent: HTMLElement,
@@ -61,7 +65,7 @@ export class Minimap {
     this.icons.resize(Math.max(12, px * 0.105));
   }
 
-  draw(ctx: GameContext, blips: readonly Blip[], markers: readonly StaticMarker[], dt: number) {
+  draw(ctx: GameContext, blips: readonly Blip[], markers: readonly StaticMarker[], waypoint: Waypoint | null, dt: number) {
     const g = this.g;
     const player = ctx.player;
     if (!g || this.px === 0 || !player) return;
@@ -106,6 +110,28 @@ export class Minimap {
       }
     }
 
+    // The waypoint's pen line, inked over the roads (still in the world transform).
+    if (waypoint?.target) {
+      if (waypoint.version !== this.penVersion) {
+        this.penVersion = waypoint.version;
+        const r = waypoint.route;
+        if (r.length >= 4) {
+          const path = (this.penPath = new Path2D());
+          path.moveTo(r[0], r[1]);
+          for (let i = 2; i < r.length; i += 2) path.lineTo(r[i], r[i + 1]);
+        } else this.penPath = null;
+      }
+      if (this.penPath) {
+        g.strokeStyle = PEN;
+        g.globalAlpha = 0.72;
+        g.lineWidth = 3.2 / scale;
+        g.lineJoin = 'round';
+        g.lineCap = 'round';
+        g.stroke(this.penPath);
+        g.globalAlpha = 1;
+      }
+    }
+
     // Symbols, in screen space.
     g.setTransform(1, 0, 0, 1, 0, 0);
     // After dark the paper is read by the dashboard light: shaded, so a cream square does not glare out of a
@@ -135,6 +161,13 @@ export class Minimap {
       const off = clampToSquare(p, rim);
       if (off && !blip.pinned) continue;
       this.icons.draw(g, blip.kind, half + p.x, half + p.y, off ? 0.82 : 1);
+    }
+
+    // The X itself, pinned to the rim when it is off the plate.
+    if (waypoint?.target) {
+      worldToMinimap(waypoint.target.x, waypoint.target.z, px, pz, heading, scale, p);
+      const off = clampToSquare(p, rim);
+      this.icons.draw(g, 'waypoint', half + p.x, half + p.y, off ? 0.82 : 1);
     }
 
     // North tab on the rim.

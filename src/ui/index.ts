@@ -11,6 +11,7 @@ import { Banner, Fader, Subtitles, Toasts } from './messages';
 import { Minimap, MINIMAP_EM, type StaticMarker } from './minimap';
 import { MenuNav } from './nav';
 import { PauseMenu } from './pause';
+import { Waypoint } from './waypoint';
 
 /** Border of the minimap plate in em, taken off its edge to get the canvas size (see .nw-mini). */
 const MINIMAP_BORDER_EM = 0.6;
@@ -44,6 +45,8 @@ class Ui implements UiApi, System {
 
   private mapData: MapData | null = null;
   private minimap: Minimap | null = null;
+  /** The player's own X on the island map, guided to with a pen line on both maps. */
+  private waypoint = new Waypoint(() => this.toast("That's your X. You're there.", 4));
   private pause: PauseMenu | null = null;
   /** Shared (by reference) with the minimap and the island map; always mutated in place. */
   private blips: Blip[] = [];
@@ -119,6 +122,7 @@ class Ui implements UiApi, System {
         data,
         this.blips,
         this.markers,
+        this.waypoint,
       ));
       data.onCells = (c0, r0, c1, r1) => {
         raster.paint(c0, r0, c1, r1);
@@ -350,6 +354,8 @@ class Ui implements UiApi, System {
     if (this.layoutDirty) this.layout();
     const { ctx, pause } = this;
     const input = ctx.input;
+    // The waypoint re-plans paused or live: the island map wants a fresh pen line while it is being marked.
+    this.waypoint.update(ctx, dt);
 
     // Menus first. The frame a menu opens on never also feeds it input (the opening press is spent).
     if (this.dialog.open) {
@@ -404,7 +410,7 @@ class Ui implements UiApi, System {
     // The minimap is a full 2D canvas repaint: thirty times a second is plenty.
     this.minimapClock += dt;
     if (this.minimap && !pauseOpen && this.minimapClock >= 1 / 30) {
-      this.minimap.draw(ctx, this.blips, this.markers, this.minimapClock);
+      this.minimap.draw(ctx, this.blips, this.markers, this.waypoint, this.minimapClock);
       this.minimapClock = 0;
     }
     const data = this.mapData;
