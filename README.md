@@ -39,6 +39,8 @@ Then open the URL Vite prints. `pnpm build` type-checks and writes a self-contai
 | Map | M or Tab | Back |
 | Pause | Esc or P | Start |
 
+On the island map, right-click (or hold a finger) to mark an X anywhere: a pen line is drawn along the roads to it on both the map and the minimap, re-drawn as you drive, and the X wipes itself when you arrive. The same press on the X rubs it out.
+
 The mouse is captured when you start; if the browser refuses pointer lock (for example inside an embedded frame), hold any mouse button and drag to look.
 
 ### On a phone

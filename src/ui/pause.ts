@@ -5,6 +5,7 @@ import { FullMap } from './fullmap';
 import type { MapData } from './mapdata';
 import type { StaticMarker } from './minimap';
 import type { MenuNav } from './nav';
+import type { Waypoint } from './waypoint';
 
 type ItemId = 'resume' | 'map' | 'jobs' | 'controls' | 'settings' | 'save' | 'quit';
 
@@ -189,6 +190,7 @@ export class PauseMenu {
     data: MapData,
     blips: readonly Blip[],
     markers: readonly StaticMarker[],
+    waypoint: Waypoint,
   ) {
     this.root = el('div', 'nw-pause', parent);
     this.shown = new Flag(this.root, 'on');
@@ -229,7 +231,7 @@ export class PauseMenu {
     });
 
     this.foot = el('div', 'nw-pause-foot', main);
-    this.map = new FullMap(this.root, host.ctx, data, blips, markers);
+    this.map = new FullMap(this.root, host.ctx, data, blips, markers, waypoint);
   }
 
   // ───────────── Open / close ─────────────

@@ -4,9 +4,12 @@ import type { BlipKind } from '../core/types';
  * Map symbols, drawn in code. One set serves the minimap, the island map and its legend, so they are
  * painted once into a sprite strip per size and blitted from there.
  */
-export type IconKind = BlipKind | 'gunshop' | 'spray' | 'north';
+export type IconKind = BlipKind | 'gunshop' | 'spray' | 'north' | 'waypoint';
 
-export const ICON_KINDS: readonly IconKind[] = ['mission', 'objective', 'safehouse', 'shop', 'gunshop', 'spray', 'police', 'hospital', 'vehicle', 'enemy', 'friend', 'pickup', 'north'];
+export const ICON_KINDS: readonly IconKind[] = ['mission', 'objective', 'safehouse', 'shop', 'gunshop', 'spray', 'police', 'hospital', 'vehicle', 'enemy', 'friend', 'pickup', 'north', 'waypoint'];
+
+/** The waypoint pen: a ballpoint blue that reads on cream paper and over every road colour. */
+export const PEN = '#2b50b8';
 
 const INK = '#10141a';
 const PAPER = '#f4eedd';
@@ -117,6 +120,23 @@ export function paintIcon(g: G, kind: IconKind, cx: number, cy: number, s: numbe
       poly(g, cx, cy, s, [0, -0.28, 0.28, 0, 0, 0.28, -0.28, 0]);
       fillStroke(g, PAPER, s);
       break;
+    case 'waypoint': {
+      // The player's own mark: two ballpoint strokes, the way anyone X-es a road map.
+      const r = s * 0.3;
+      g.beginPath();
+      g.moveTo(cx - r, cy - r);
+      g.lineTo(cx + r, cy + r);
+      g.moveTo(cx + r, cy - r);
+      g.lineTo(cx - r, cy + r);
+      g.lineCap = 'round';
+      g.lineWidth = Math.max(2, s * 0.16);
+      g.strokeStyle = PAPER;
+      g.stroke();
+      g.lineWidth = Math.max(1.2, s * 0.1);
+      g.strokeStyle = PEN;
+      g.stroke();
+      break;
+    }
     case 'north':
       disc(g, cx, cy, s * 0.42);
       fillStroke(g, PAPER, s, INK);
