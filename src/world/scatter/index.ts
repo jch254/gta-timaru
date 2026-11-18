@@ -3,6 +3,7 @@ import './rural';
 import './urban';
 import './streets';
 import './country';
+import './hoardings';
 import './setpieces';
 import './shopstreets';
 

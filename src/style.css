@@ -1,5 +1,5 @@
 /*
- * Timmaz Hard: page shell and the title / loading screen.
+ * THE 03: page shell and the title / loading screen.
  *
  * One type system for everything the player reads (title, HUD, menus, maps); system faces only, nothing is
  * downloaded. src/ui/ui.css and src/ui/type.ts (canvas lettering) take their stacks from here.
@@ -18,12 +18,12 @@
   --post-dull: #c4a01e;
   --plate: #0c0d10;
   --silver: #dfe3e6;
-  --th-display: Superclarendon, Rockwell, 'Rockwell Nova', Clarendon, 'Bookman Old Style', Georgia, 'Times New Roman', serif;
-  --th-text: 'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
-  --th-reo: 'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, 'Times New Roman', serif;
-  --th-mono: Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+  --the03-display: Superclarendon, Rockwell, 'Rockwell Nova', Clarendon, 'Bookman Old Style', Georgia, 'Times New Roman', serif;
+  --the03-text: 'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+  --the03-reo: 'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, 'Times New Roman', serif;
+  --the03-mono: Menlo, Consolas, 'DejaVu Sans Mono', monospace;
   /* The interface's one size: everything else is in em of this, so it scales from 800×600 to 2560×1440. */
-  --th-size: clamp(10px, min(1.6vh, 1.15vw), 22px);
+  --the03-size: clamp(10px, min(1.6vh, 1.15vw), 22px);
 }
 
 * {
@@ -37,7 +37,7 @@ body {
   overflow: hidden;
   background: var(--ink);
   color: var(--paper);
-  font-family: var(--th-text);
+  font-family: var(--the03-text);
   user-select: none;
   -webkit-user-select: none;
 }
@@ -62,7 +62,7 @@ body {
   inset: 0;
   z-index: 50;
   overflow: hidden;
-  font: 600 var(--th-size) / 1.25 var(--th-text);
+  font: 600 var(--the03-size) / 1.25 var(--the03-text);
   letter-spacing: 0.01em;
   color: var(--paper);
   /* Shown until the photograph arrives (and for good if it never does): dusk over the plains. */
@@ -153,7 +153,7 @@ body {
 
 #title h1 {
   margin: 0.04em 0 0 -0.03em;
-  font: 700 clamp(40px, 7.4em, 168px) / 0.98 var(--th-display);
+  font: 700 clamp(40px, 7.4em, 168px) / 0.98 var(--the03-display);
   letter-spacing: -0.005em;
   color: var(--paper);
   text-shadow:
@@ -164,7 +164,7 @@ body {
 #title .epigraph {
   max-width: 34em;
   margin: 0.9em 0 0;
-  font: italic 500 1.25em / 1.35 var(--th-reo);
+  font: italic 500 1.25em / 1.35 var(--the03-reo);
   letter-spacing: 0;
   color: #f3ead2;
   text-shadow: 0 0.06em 0.35em rgba(0, 0, 0, 0.85);
@@ -212,7 +212,7 @@ body {
   color: #15140f;
   border: 0;
   border-radius: 0;
-  font: 800 1.25em / 1.2 var(--th-text);
+  font: 800 1.25em / 1.2 var(--the03-text);
   letter-spacing: 0.07em;
   text-align: left;
   text-transform: uppercase;
@@ -272,7 +272,7 @@ body {
   color: var(--silver);
   border: 0.09em solid var(--silver);
   border-radius: 0.28em;
-  font: 800 0.92em / 1.15 var(--th-text);
+  font: 800 0.92em / 1.15 var(--the03-text);
   letter-spacing: 0.06em;
   text-align: center;
   white-space: nowrap;
@@ -345,7 +345,7 @@ body {
 
 .load-reo {
   margin-top: 0.1em;
-  font: italic 500 1.1em / 1.2 var(--th-reo);
+  font: italic 500 1.1em / 1.2 var(--the03-reo);
   letter-spacing: 0;
   color: #ffe9a3;
 }
@@ -416,7 +416,7 @@ body {
 #load-colour {
   min-height: 2.7em;
   margin: 1em 0 0;
-  font: italic 500 1.15em / 1.35 var(--th-reo);
+  font: italic 500 1.15em / 1.35 var(--the03-reo);
   letter-spacing: 0;
   color: #f3ead2;
   text-shadow: 0 0.06em 0.35em rgba(0, 0, 0, 0.9);
@@ -443,7 +443,7 @@ body {
   margin: 0 0 0.6em;
   padding-bottom: 0.3em;
   border-bottom: max(3px, 0.2em) double #1c2430;
-  font: 700 1.6em / 1.1 var(--th-display);
+  font: 700 1.6em / 1.1 var(--the03-display);
 }
 
 .ctl-grid {
@@ -520,7 +520,7 @@ body {
 #title .caption {
   grid-column: 2;
   grid-row: 1 / span 2;
-  font: italic 500 1.15em / 1.25 var(--th-reo);
+  font: italic 500 1.15em / 1.25 var(--the03-reo);
   letter-spacing: 0;
   text-align: right;
   color: #f6eeda;
@@ -689,7 +689,7 @@ html.touch-first #controls-panel {
 }
 
 .turn-title {
-  font: 700 24px / 1.05 var(--th-text);
+  font: 700 24px / 1.05 var(--the03-text);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--gold);
@@ -697,7 +697,7 @@ html.touch-first #controls-panel {
 
 .turn-text {
   max-width: 260px;
-  font: 500 15px / 1.35 var(--th-text);
+  font: 500 15px / 1.35 var(--the03-text);
   opacity: 0.85;
 }
 

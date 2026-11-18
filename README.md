@@ -1,6 +1,6 @@
-# Timmaz Hard
+# THE 03
 
-An original third-person open-world crime sandbox for the browser, set in a compressed Canterbury, New Zealand, around 1995: pre-earthquake Christchurch and the port town of Timaru, joined by State Highway 1 across the plains.
+An original third-person open-world crime sandbox for the browser, set in a compressed Canterbury, New Zealand, around 1995: pre-earthquake Christchurch and the port town of Timaru, joined by State Highway 1 across the plains. 03 is the South Island's telephone area code: the title is the place, said the way a local says it.
 
 Built with Vite, TypeScript, Three.js and Rapier. Client-only: no backend, no accounts, no analytics. The one thing that reaches outside is the car radio, which can play real New Zealand stations live from their own streams ([Live radio](#live-radio)); switch that off and the game is entirely offline. Geometry, sound and the six invented stations' music are generated in code; surface textures and the human figures are CC0 assets, every one of them listed with its source and licence in [ASSETS.md](ASSETS.md).
 

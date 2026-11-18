@@ -23,10 +23,10 @@ const REAL_NAMES = [
 
 /**
  * Meshes per vehicle up close, wheels included. Ten is the rule: paint, glass, trim, head lamps, tail
- * lamps, number plates and four wheels. Signwriting, beacons, the truck's timber and the bus's blind are
- * extra.
+ * lamps, number plates and four wheels. Signwriting, beacons, the truck's timber, the bus's blind and the
+ * diced bumper sticker beside the rear plate are extra.
  */
-const MESH_BUDGET: Record<string, number> = { police: 13, van: 11, farmtruck: 11, bus: 12 };
+const MESH_BUDGET: Record<string, number> = { police: 14, van: 12, farmtruck: 12, bus: 13 };
 /**
  * And beyond `LOD_RANGE`, where the wheels are part of the body: paint, glass, trim, head lamps, tail
  * lamps. The patrol car keeps its two beacons, the van its signwriting, the truck its timber, the bus its
@@ -195,7 +195,7 @@ describe('vehicle roster', () => {
           const far = drawn(model, true);
           const count = (list: THREE.Mesh[]) => list.reduce((sum, mesh) => sum + triangles(mesh), 0);
           // Draw calls matter more than triangles: every mesh is drawn again in each shadow pass.
-          expect(near.length, 'meshes up close').toBeLessThanOrEqual(MESH_BUDGET[spec.id] ?? 10);
+          expect(near.length, 'meshes up close').toBeLessThanOrEqual(MESH_BUDGET[spec.id] ?? 11);
           expect(count(near), 'triangles up close').toBeLessThanOrEqual(heavy ? 18000 : 15000);
           // The distant version is what a street of traffic is made of: half the draw calls of the
           // round-2 models and under a third of their triangles.

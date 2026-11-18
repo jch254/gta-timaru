@@ -1070,6 +1070,12 @@ export class Kit {
     const mat = this.m.sign(text, old ? { bg: '#0d0d0d', fg: '#d6d6cf', style: 'block', aspect: 3.1 } : { bg: '#f3f2ea', fg: '#111111', style: 'block', aspect: 3.1 });
     if (Number.isFinite(frontZ)) this.board(mat, 0.36 * scale, 0.116 * scale, 0, frontY, frontZ);
     this.board(mat, 0.36 * scale, 0.116 * scale, 0, rearY, rearZ, Math.PI, tilt);
+    // One vehicle in six wears a sticker beside the rear plate (not the bike: nowhere to put it).
+    if (scale >= 1 && dice.chance(0.17)) {
+      const s = dice.pick(STICKERS);
+      const m = this.m.sign(s.text, { bg: s.bg, fg: s.fg, style: 'block', aspect: 3.4, border: false });
+      this.board(m, 0.21 * scale, 0.062 * scale, -0.31 * scale, rearY + 0.01, rearZ, Math.PI, tilt);
+    }
   }
 
   /**
@@ -1222,9 +1228,16 @@ function timberGeometry(w: number, h: number, d: number, tone: number): THREE.Bu
   return geo;
 }
 
-// Invented registrations in the two-letters-four-digits format of the day.
+// Invented registrations in the two-letters-four-digits format of the day, plus one personalised plate doing the rounds.
 const OLD_PLATES = ['JK4127', 'KD9306', 'LW5571', 'MB2084', 'MX7719', 'LE3662'];
-const NEW_PLATES = ['NA1047', 'NT8825', 'PF3390', 'PY6102', 'RH4476', 'SB7251', 'SU2938', 'TD5814'];
+const NEW_PLATES = ['NA1047', 'NT8825', 'PF3390', 'PY6102', 'RH4476', 'SB7251', 'SU2938', 'TD5814', 'THE03'];
+
+// Rear-window and bumper stickers: the area code worn as a badge, and the stations that give them away.
+const STICKERS = [
+  { text: 'THE 03', bg: '#0f6b47', fg: '#ffffff' },
+  { text: 'SHINGLE FM 93.4', bg: '#b3261e', fg: '#fff6e0' },
+  { text: 'PARTYLINE 1017 AM', bg: '#1d2a44', fg: '#f0c33a' },
+] as const;
 
 // ───────────────────────────── Wheels ─────────────────────────────
 

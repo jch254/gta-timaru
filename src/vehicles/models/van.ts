@@ -10,6 +10,7 @@ const FIRMS: { text: string; fg: string; style: 'paint' | 'block' | 'script'; ra
   { text: 'PLAINS BAKERY\nFresh Daily', fg: '#7a4a1e', style: 'paint' },
   { text: 'BAY HILL ELECTRICAL', fg: '#1f6a4a', style: 'block' },
   { text: 'Harper & Sons\nFAMILY BUTCHERS', fg: '#8a1c24', style: 'paint' },
+  { text: 'SPEEDY SPARKS ELECTRICAL\nPH 03 688 0303', fg: '#1d2a44', style: 'block', rack: true },
 ];
 
 /**

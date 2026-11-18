@@ -1,5 +1,5 @@
 /*
- * Timmaz Hard: HUD, minimap, pause screen and dialogs.
+ * THE 03: HUD, minimap, pause screen and dialogs.
  *
  * Visual language: New Zealand roadside and print ephemera, c. 1995.
  *   - motorway-sign green with a white keyline ........ minimap, location sign, map title
@@ -37,10 +37,10 @@
   --nw-rule: rgba(88, 134, 176, 0.2);
   --nw-margin: rgba(196, 72, 60, 0.5);
   /* The type system lives in src/style.css (:root), shared with the title screen; src/ui/type.ts mirrors it for canvas. */
-  --nw-data: var(--th-text, 'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif);
-  --nw-serif: var(--th-display, Superclarendon, Rockwell, 'Rockwell Nova', Clarendon, 'Bookman Old Style', Georgia, 'Times New Roman', serif);
-  --nw-reo: var(--th-reo, 'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, 'Times New Roman', serif);
-  --nw-mono: var(--th-mono, Menlo, Consolas, 'DejaVu Sans Mono', monospace);
+  --nw-data: var(--the03-text, 'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif);
+  --nw-serif: var(--the03-display, Superclarendon, Rockwell, 'Rockwell Nova', Clarendon, 'Bookman Old Style', Georgia, 'Times New Roman', serif);
+  --nw-reo: var(--the03-reo, 'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, 'Times New Roman', serif);
+  --nw-mono: var(--the03-mono, Menlo, Consolas, 'DejaVu Sans Mono', monospace);
   --nw-shadow: 0 0.06em 0.12em rgba(0, 0, 0, 0.9), 0 0 0.5em rgba(0, 0, 0, 0.55);
   /* Edge treatment shared by everything that floats over the game. */
   --nw-edge: 1.4em;
@@ -59,7 +59,7 @@
   z-index: 10;
   overflow: hidden;
   pointer-events: none;
-  font: 600 var(--th-size, clamp(10px, min(1.6vh, 1.15vw), 22px)) / 1.2 var(--nw-data);
+  font: 600 var(--the03-size, clamp(10px, min(1.6vh, 1.15vw), 22px)) / 1.2 var(--nw-data);
   letter-spacing: 0.01em;
   color: #fff;
   cursor: default;
@@ -2324,7 +2324,7 @@
 
 /* A bigger touch screen (a tablet): the corner column steps left of the controller's buttons. */
 @media (min-height: 481px) {
-  html.th-touch-on .nw-corner {
+  html.the03-touch-on .nw-corner {
     right: calc(var(--nw-r) + 272px);
   }
 }
@@ -2461,25 +2461,25 @@
 }
 
 /* ───────────── Fingers or keys ─────────────
- * The touch controller (src/touch) puts `th-touch-on` on <html> while it is showing. Anything that names a key
+ * The touch controller (src/touch) puts `the03-touch-on` on <html> while it is showing. Anything that names a key
  * carries .nw-if-keys and has a twin worded for fingers that carries .nw-if-touch; one or the other shows.
  */
 .nw-if-touch {
   display: none;
 }
 
-html.th-touch-on .nw-if-keys,
-html.th-touch-on .nw-pause-foot {
+html.the03-touch-on .nw-if-keys,
+html.the03-touch-on .nw-pause-foot {
   display: none;
 }
 
-html.th-touch-on .nw-choose-foot.nw-if-touch,
-html.th-touch-on .nw-map-zoom.nw-if-touch,
-html.th-touch-on .nw-map-foot {
+html.the03-touch-on .nw-choose-foot.nw-if-touch,
+html.the03-touch-on .nw-map-zoom.nw-if-touch,
+html.the03-touch-on .nw-map-foot {
   display: flex;
 }
 
-html.th-touch-on .nw-ctl-touch.nw-if-touch {
+html.the03-touch-on .nw-ctl-touch.nw-if-touch {
   display: block;
   margin-bottom: 1.2em;
 }

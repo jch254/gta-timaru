@@ -163,6 +163,7 @@ export const onIce: MissionDef = {
         line(RUSSELL, 'Eyes front. Still kicking, the lot of them. Five hundred, as agreed with Shona.'),
         line(MACK, 'The two by the black V8. Friends of yours?'),
         line(RUSSELL, "Nobody's friends. Easterlies. Christchurch mob — they tax every load on this road now, and they've just priced yours. Don't meet them at night."),
+        line(RUSSELL, 'Half the 03 pays them already. Every wharf, every lay-by, Kaikōura on down. Not my fight.'),
         line(RUSSELL, 'Shona says hang on to the ute till the weekend. She wants it back with the same number of doors.'),
         line(RUSSELL, 'Neville Stroud, the stock agent in Ashburton, is short a driver. Tell him I sent you. Then count your change.'),
       ],

@@ -52,13 +52,22 @@ Remote state is stored in S3. The bucket/key/region are supplied via
 | Variable | Default | Description |
 |---|---|---|
 | `domain` | `603.nz` | Cloudflare zone the game is served from |
-| `site_subdomain` | `timmaz-hard` | Subdomain to serve from (`""` serves at the apex) |
+| `site_subdomain` | `the-03` | Subdomain to serve from (`""` serves at the apex) |
 | `bucket_name` | `timmaz-hard` | S3 bucket name; must be globally unique |
 | `aws_region` | `ap-southeast-2` | Region for the bucket and the CodeBuild project |
 | `codebuild_webhook_branch` | `main` | Branch whose pushes deploy |
 | `manage_dns` | `true` | Whether Terraform manages the Cloudflare DNS record |
 
-With the defaults the game is served at `https://timmaz-hard.603.nz`.
+With the defaults the game is served at `https://the-03.603.nz`. Changing
+`site_subdomain` replaces the ACM certificate and the Cloudflare CNAME and
+re-points the CloudFront alias; nothing answers at the old subdomain
+afterwards.
+
+The game has been renamed THE 03 and the subdomain has moved with it, but the
+other live resources (state key, bucket, SSM parameter, CodeBuild project)
+still carry the previous `timmaz-hard` slug: changing any of them creates new
+resources rather than renaming the old ones, so moving those to the new slug
+is a deliberate migration, not a find-and-replace.
 
 ## First deploy
 

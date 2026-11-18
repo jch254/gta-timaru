@@ -1,6 +1,6 @@
-# Timmaz Hard — design and architecture
+# THE 03 — design and architecture
 
-Working title: **Timmaz Hard** ("Canterbury, 1995"). An original third-person open-world crime sandbox for the browser.
+Title: **THE 03** ("Canterbury, 1995") — the South Island's telephone area code, the place as a local says it. An original third-person open-world crime sandbox for the browser.
 
 All decisions below were made without sign-off so work could proceed; each is cheap to revisit.
 

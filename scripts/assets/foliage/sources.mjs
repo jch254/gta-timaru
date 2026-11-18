@@ -16,7 +16,7 @@ import sharp from 'sharp';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 export const STAGING = path.join(ROOT, 'assets-staging', 'foliage');
-const USER_AGENT = 'TimmazHard-texture-pipeline/1.0 (browser game build script; downloads each CC0 texture once and caches it)';
+const USER_AGENT = 'the-03-texture-pipeline/1.0 (browser game build script; downloads each CC0 texture once and caches it)';
 
 /**
  * @typedef {object} Source

@@ -63,6 +63,14 @@ export const PROP_PHYSICS: Record<string, PropPhysics> = {
   trailer: { box: { hx: 0.75, hz: 1.4, height: 0.95 }, breakSpeed: 7, slow: 0.25, mass: 220 },
   'boat-trailer': { box: { hx: 0.78, hz: 2.2, height: 1.15 }, breakSpeed: 8, slow: 0.3, mass: 320 },
 
+  // Roadside hoardings: big enough to stop a wandering car, a fast one takes the whole thing down.
+  'hoarding-0': { box: { hx: 2.4, hz: 0.16, height: 3.5 }, solidTo: 'vehicles', breakSpeed: 6, slow: 0.3, mass: 320 },
+  'hoarding-1': { box: { hx: 2.4, hz: 0.16, height: 3.5 }, solidTo: 'vehicles', breakSpeed: 6, slow: 0.3, mass: 320 },
+  'hoarding-2': { box: { hx: 2.4, hz: 0.16, height: 3.5 }, solidTo: 'vehicles', breakSpeed: 6, slow: 0.3, mass: 320 },
+  'hoarding-3': { box: { hx: 2.4, hz: 0.16, height: 3.5 }, solidTo: 'vehicles', breakSpeed: 6, slow: 0.3, mass: 320 },
+  'hoarding-4': { box: { hx: 2.4, hz: 0.16, height: 3.5 }, solidTo: 'vehicles', breakSpeed: 6, slow: 0.3, mass: 320 },
+  'hoarding-5': { box: { hx: 2.4, hz: 0.16, height: 3.5 }, solidTo: 'vehicles', breakSpeed: 6, slow: 0.3, mass: 320 },
+
   // Fences: cars go through with a bang; people, bullets and sight are not stopped.
   'picket-fence': { box: { hx: 1.2, hz: 0.06, height: 1.0 }, solidTo: 'vehicles', breakSpeed: 3, slow: 0.05, mass: 22 },
   'farm-fence': { box: { hx: 2, hz: 0.06, height: 1.1 }, solidTo: 'vehicles', breakSpeed: 3.5, slow: 0.06, mass: 25 },

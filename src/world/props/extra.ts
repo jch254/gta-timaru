@@ -521,6 +521,32 @@ export function shopCratesParts(): Painted {
 registerProp('news-billboard', (m) => ({ parts: [{ geometry: painted(newsBillboardParts()), material: streetPaint(m) }], castShadow: false, minor: true }));
 registerProp('shop-crates', (m) => ({ parts: [{ geometry: painted(shopCratesParts()), material: streetPaint(m) }], castShadow: false, minor: true }));
 
+// ───────────────────────────── Roadside hoardings ─────────────────────────────
+
+/** What the paddock-edge hoardings say: invented products and stations, each one talking to the 03. */
+export const HOARDINGS = [
+  { text: 'WEKA MOTOR SPIRIT\nKEEPS THE 03 MOVING', bg: '#f0c33a', fg: '#1c1c1c', style: 'block' },
+  { text: 'PARTYLINE 1017 AM\nTALKBACK FOR THE 03', bg: '#1d2a44', fg: '#f0c33a', style: 'block' },
+  { text: 'SHINGLE FM 93.4\nLOUD ALL OVER THE 03', bg: '#b3261e', fg: '#fff6e0', style: 'block' },
+  { text: 'SNOWLINE ICE CREAM\nA SCOOP IN EVERY TOWN IN THE 03', bg: '#f6f2e6', fg: '#1f6a8a', style: 'script' },
+  { text: 'TUSSOCK TEA\nTHE 03 PUTS THE JUG ON', bg: '#1f4a36', fg: '#f6edd0', style: 'paint' },
+  { text: "YOU'RE IN THE 03 NOW\nTAKE YOUR TIME, EH", bg: '#f2ead6', fg: '#1d2a44', style: 'paint' },
+] as const;
+
+// Plywood on creosoted posts at the paddock edge, the board facing +z at the traffic.
+for (let i = 0; i < HOARDINGS.length; i++) {
+  const ad = HOARDINGS[i];
+  registerProp(`hoarding-${i}`, (m) => ({
+    parts: [
+      {
+        geometry: mergeGeometries([bx(0.18, 3.7, 0.14, -1.75, 1.67, -0.12), bx(0.18, 3.7, 0.14, 1.75, 1.67, -0.12), bx(4.74, 1.94, 0.07, 0, 2.37, -0.04)]),
+        material: m.get('timber', { color: 0x54422f }),
+      },
+      { geometry: new THREE.PlaneGeometry(4.6, 1.8).translate(0, 2.37, 0.005), material: m.sign(ad.text, { bg: ad.bg, fg: ad.fg, style: ad.style, aspect: 2.6 }) },
+    ],
+  }));
+}
+
 // ───────────────────────────── Round 3: yards ─────────────────────────────
 
 registerProp('skip-bin', (m) => {
