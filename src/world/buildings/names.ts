@@ -284,7 +284,7 @@ export const TRADES: readonly Trade[] = [
   {
     id: 'records',
     mix: [2, 0, 4],
-    names: ['SIDE B RECORDS & TAPES', 'SPIN CYCLE RECORDS', 'NEEDLE DROP RECORDS'],
+    names: ['SIDE B RECORDS & TAPES', 'SPIN CYCLE RECORDS', 'NEEDLE DROP RECORDS', '03 RECORDS'],
     tags: ['CDs · TAPES · VINYL', 'CONCERT TICKETS HERE'],
     neon: ['RECORDS'],
   },
@@ -335,14 +335,14 @@ export const TRADES: readonly Trade[] = [
     id: 'realty',
     mix: [2, 2, 4],
     names: ['QUARTER ACRE REALTY', 'SOLD ON IT REAL ESTATE'],
-    tags: ['HOUSES · SECTIONS · FARMS'],
+    tags: ['HOUSES · SECTIONS · FARMS', 'OPEN SATURDAYS · PH 03 365 1903'],
     looks: NAVY,
   },
   {
     id: 'travel',
     mix: [1, 0, 4],
     names: ['LONG HAUL TRAVEL', 'BIG O.E. TRAVEL'],
-    tags: ['FLIGHTS · COACH TOURS · CRUISES'],
+    tags: ['FLIGHTS · COACH TOURS · CRUISES', 'BOOKINGS · PH 03 379 0103'],
   },
   {
     id: 'jeweller',
@@ -417,12 +417,12 @@ export const DEPARTMENT_TAGS = ['DRAPERS · OUTFITTERS · FURNISHERS', 'THE FAMI
 /** Carved into Edwardian parapets. */
 export const BUILDING_NAMES = ["HALLORAN'S BUILDINGS", 'EXCHANGE CHAMBERS', 'PLAINS CHAMBERS', 'MERCANTILE BUILDINGS', 'UNION CHAMBERS', 'TUSSOCK HOUSE', 'A.D. 1906', 'ESTD 1898', '1903', '1911'] as const;
 /** Office block tenants. */
-export const OFFICES = ['PLAINS ASSURANCE', 'SOUTHERN MUTUAL LIFE', "NOR'WEST HOUSE", 'KEA HOUSE', 'TORLESSE TOWER', 'RAKAIA HOUSE', 'PACIFIC & ALPINE INSURANCE', 'CANTERBURY PROVIDENT'] as const;
+export const OFFICES = ['PLAINS ASSURANCE', 'SOUTHERN MUTUAL LIFE', "NOR'WEST HOUSE", 'KEA HOUSE', 'TORLESSE TOWER', 'RAKAIA HOUSE', 'PACIFIC & ALPINE INSURANCE', 'CANTERBURY PROVIDENT', 'THE 03 HERALD'] as const;
 
 export const STOCK_AGENTS = ['DRUMMOND & PEAKE LTD', 'HALLORAN PASTORAL', 'McALISTER STOKES & CO'] as const;
 export const STOCK_TAGS = ['STOCK & STATION AGENTS', 'WOOL · GRAIN · SEEDS · INSURANCE'] as const;
 export const GARAGES = ['MAIN ROAD MOTORS', 'PIT STOP GARAGE', 'BIG END MOTORS', 'CRANK & SUMP SERVICE STATION'] as const;
-export const GARAGE_TAGS = ['WOFs · TYRES · LUBES', 'PETROL · DIESEL · OIL'] as const;
+export const GARAGE_TAGS = ['WOFs · TYRES · LUBES', 'PETROL · DIESEL · OIL', 'BREAKDOWNS · PH 03 688 2141'] as const;
 /** The invented petrol brand. */
 export const FUEL_BRAND = 'WEKA';
 export const GROCERS = ['FOUR WINDS FOODMARKET'] as const;
@@ -452,11 +452,11 @@ export const WORKS = [
 export const FACTORIES = ['PLAINS WOOLLEN MILLS', 'SOUTHERN BOOT & SHOE CO.', 'KOWHAI CONFECTIONERY WORKS', 'PIONEER STOVE & RANGE WORKS', 'NODOFF BEDDING CO.', 'FANTAIL FOODS CANNERY'] as const;
 export const WOOL_STORES = ['SOUTHERN FLEECE WOOL BROKERS', 'PLAINS WOOL & SKIN CO.', 'HIGH COUNTRY WOOL SCOURERS'] as const;
 export const PANEL_BEATERS = ['KNOCK-OUT PANEL & PAINT', 'DING DOCTOR PANELBEATERS', 'STRAIGHT & TRUE PANEL & PAINT', 'BOG & BUFF PANEL SHOP', 'SMASH HITS COLLISION REPAIRS'] as const;
-export const PANEL_TAGS = ['INSURANCE WORK · RUST REPAIRS', 'SPRAY PAINTING · WOFs'] as const;
+export const PANEL_TAGS = ['INSURANCE WORK · RUST REPAIRS', 'SPRAY PAINTING · WOFs', 'FREE QUOTES · PH 03 684 9077'] as const;
 export const TIMBER_YARDS = ['TWO-BY-FOUR TIMBER', 'RIMU & PINE TIMBER YARD', 'PLAINS TIMBER & HARDWARE'] as const;
-export const TIMBER_TAGS = ['FENCING · DECKING · FIREWOOD', 'TRADE & PUBLIC WELCOME'] as const;
+export const TIMBER_TAGS = ['FENCING · DECKING · FIREWOOD', 'TRADE & PUBLIC WELCOME', 'DELIVERIES · PH 03 693 7415'] as const;
 export const CAR_YARDS = ["TRUSTY TREV'S MOTORS", "BARRY'S BARGAIN CARS", 'WHEEL DEALS CAR COURT'] as const;
-export const CAR_TAGS = ['QUALITY USED CARS', 'NO DEPOSIT · EASY TERMS', 'JAPANESE IMPORTS · TRADE-INS WELCOME'] as const;
+export const CAR_TAGS = ['QUALITY USED CARS', 'NO DEPOSIT · EASY TERMS', 'JAPANESE IMPORTS · TRADE-INS WELCOME', 'AFTER HOURS · PH 03 615 8362'] as const;
 
 export const SHIPPERS = ["SOU'WESTER SHIPPING CO.", 'BREAKWATER STEVEDORING CO.', 'PORT & COASTAL CARRIERS', 'BOLLARD & HAWSER SHIP CHANDLERS'] as const;
 export const COOLSTORES = ['FROSTLINE COLD STORAGE', 'SOUTHERN ICE COOLSTORES', 'BLUE ICE COOLSTORES'] as const;
@@ -466,5 +466,13 @@ export const FISH_TAGS = ['WET FISH SALES · ICE · BAIT', 'FRESH OFF THE BOAT']
 
 /** Painted advertisements going ghostly on brick side walls: invented products only. */
 export const GHOST_SIGNS = ['KOWHAI\nBAKING POWDER', 'WEKA\nMOTOR SPIRIT', 'TUSSOCK\nTEA', 'SNOWLINE\nICE CREAM', 'PLAINS\nALES & STOUT', 'FANTAIL\nJAMS', 'NODOFF\nBEDDING', 'RIMU\nSOAP'] as const;
+
+/** Spray-can tags down the service lanes: the area code, worn as a badge. */
+export const TAGS = ['THE 03', '03'] as const;
+/** The tag look: a bright scrawl over a patch the council painted grey last time. */
+export const SPRAY: readonly Look[] = [
+  { bg: '#b9b4a8', fg: '#8a1f1f', style: 'script', border: false },
+  { bg: '#9a968c', fg: '#1d2a44', style: 'script', border: false },
+];
 
 export const FARMS = ['GLENBRAE', 'TUSSOCK DOWNS', 'STONY CREEK', "NOR'WEST DOWNS", 'THE TERRACES', 'LONG PADDOCK', 'KOWHAI FLAT'] as const;

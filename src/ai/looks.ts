@@ -300,6 +300,8 @@ export const BARKS = {
     'Good as gold.',
     'Can’t complain. Well, I could.',
     'Box of birds, thanks.',
+    'Couldn’t pay me to live outside the 03.',
+    'Best fish and chips in the 03, that place.',
   ],
   norwester: ['This nor’wester’s doing my head in.', 'Look at that arch over the Alps, eh.', 'Warm wind today. Washing’ll be dry by lunch.'],
   southerly: ['Southerly’s come through. Told ya it would.', 'Brass monkey weather, this.', 'Should’ve brought a jersey.'],

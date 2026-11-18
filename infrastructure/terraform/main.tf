@@ -157,7 +157,7 @@ module "codebuild_project" {
   source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.19.1"
 
   name               = var.codebuild_project_name
-  description        = "Build Timmaz Hard and deploy it to S3/CloudFront"
+  description        = "Build THE 03 and deploy it to S3/CloudFront"
   codebuild_role_arn = module.codebuild_role.role_arn
   build_docker_image = var.codebuild_build_docker_image
   build_docker_tag   = var.codebuild_build_docker_tag

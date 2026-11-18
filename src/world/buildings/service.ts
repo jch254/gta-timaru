@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { hashInts, Rng } from '../../core/rng';
 
 import { type Mat, type Site, WARM_LIGHT, bigDoor, door, frame, glow, ground, ledge, pane, quad, shade, tone, trim, win, worldX, worldZ } from './kit';
+import { SPRAY, TAGS, board } from './names';
 
 /**
  * The elevations nobody designed: the back of a shop row on its service lane, the flank that shows over a
@@ -133,6 +134,9 @@ export function serviceWall(s: Site, o: ServiceWall) {
       opening(t + r.range(-0.4, 0.4), floor + 2.35, r.pick([0.7, 0.9, 1.2]), 0.7, 0.2, false, 'casement');
     } else if (r.chance(0.2) && s.spare(2)) {
       quad(ws, t, floor + 1.9, 0.02, 1.1, 1.6, infill, 0, true);
+    } else if (back && r.chance(0.03) && s.spare()) {
+      // Somebody's been down the service lane with a spray can.
+      board(ws, r.pick(TAGS), t + r.range(-0.3, 0.3), floor + 1.3, 0.025, 1.7, 3.2, SPRAY);
     }
   }
 

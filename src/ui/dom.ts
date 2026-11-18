@@ -75,9 +75,9 @@ export function hint(parent: HTMLElement, keys: string[], text: string): HTMLEle
 
 /**
  * True while the game is being played by touch. The on-screen controller (src/touch) marks the page with
- * `th-touch-on` whenever it is showing; the stylesheet keys on the same class (`.nw-if-touch`, `.nw-if-keys`),
+ * `the03-touch-on` whenever it is showing; the stylesheet keys on the same class (`.nw-if-touch`, `.nw-if-keys`),
  * so there is one test, and it is theirs.
  */
 export function touchOn(): boolean {
-  return typeof document !== 'undefined' && !!document.documentElement?.classList?.contains('th-touch-on');
+  return typeof document !== 'undefined' && !!document.documentElement?.classList?.contains('the03-touch-on');
 }

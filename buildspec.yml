@@ -1,6 +1,6 @@
 version: 0.2
 
-# Builds Timmaz Hard and deploys it to S3 behind CloudFront.
+# Builds THE 03 and deploys it to S3 behind CloudFront.
 # Triggered by CodeBuild on pushes to the source branch (see infrastructure/).
 
 env:

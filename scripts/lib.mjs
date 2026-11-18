@@ -9,7 +9,7 @@ export const DEV_URL = 'http://localhost:5195/';
 export const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
 
 /** Must match SETTINGS_KEY in src/core/storage.ts (plain node cannot import the TS). */
-export const SETTINGS_KEY = 'timmaz-hard.settings.v2';
+export const SETTINGS_KEY = 'the-03.settings.v2';
 
 /** Hardware rendering in headless Chrome; each script appends its own flags after these. */
 export const GPU_ARGS = ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];

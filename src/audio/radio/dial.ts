@@ -34,7 +34,7 @@ export const STATION_DEFS: readonly StationDef[] = [
   { id: 'drover', name: 'Radio Drover 1206 AM', blurb: 'Country & western for the plains. Stock sale prices on the hour.', genre: 'country & western', kit: COUNTRY_KIT, cycle: MUSIC_CYCLE, music: country },
   { id: 'lowtide', name: 'Low Tide 88.6 FM', blurb: 'Dub and roots from a garage in New Brighton.', genre: 'dub / roots reggae', kit: DUB_KIT, cycle: MUSIC_CYCLE, music: dub },
   { id: 'flatmate', name: 'Flatmate FM 90.9', blurb: 'Student radio. Four-track tapes and borrowed amps.', genre: 'lo-fi indie', kit: INDIE_KIT, cycle: MUSIC_CYCLE, music: indie },
-  { id: 'partyline', name: 'Partyline 1017 AM', blurb: 'Talkback. All our lines are busy: please hold.', genre: 'talkback: hold music and news stings', kit: TALK_KIT, cycle: ['track', 'talk', 'ident', 'track', 'news', 'ad'], music: lounge },
+  { id: 'partyline', name: 'Partyline 1017 AM', blurb: 'Talkback for the 03. All our lines are busy: please hold.', genre: 'talkback: hold music and news stings', kit: TALK_KIT, cycle: ['track', 'talk', 'ident', 'track', 'news', 'ad'], music: lounge },
 ];
 
 export const STATIONS: StationInfo[] = STATION_DEFS.map(({ id, name, blurb }) => ({ id, name, blurb }));

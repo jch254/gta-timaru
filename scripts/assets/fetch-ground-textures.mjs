@@ -33,7 +33,7 @@ import sharp from 'sharp';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const STAGING = path.join(ROOT, 'assets-staging', 'textures', 'polyhaven');
 const OUT = path.join(ROOT, 'src', 'assets', 'textures', 'ground');
-const USER_AGENT = 'TimmazHard-texture-pipeline/1.0 (browser game build script; downloads each CC0 texture once and caches it)';
+const USER_AGENT = 'the-03-texture-pipeline/1.0 (browser game build script; downloads each CC0 texture once and caches it)';
 const FORCE = process.argv.includes('--force');
 
 const ALBEDO_SIZE = 1024;

@@ -199,7 +199,7 @@ export class PauseMenu {
     const main = el('div', 'nw-pause-main', this.root);
     const head = el('div', 'nw-pause-head', main);
     el('div', 'nw-pause-kicker', head, 'Paused');
-    el('div', 'nw-pause-title', head, 'Timmaz Hard');
+    el('div', 'nw-pause-title', head, 'THE 03');
     this.status = new TextCache(el('div', 'nw-pause-status', head));
 
     const body = el('div', 'nw-pause-body', main);

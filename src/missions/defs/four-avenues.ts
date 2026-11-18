@@ -85,6 +85,7 @@ export const fourAvenues: MissionDef = {
       loseReason: 'Beaten to the line. Dazza has stopped answering to his name',
       lines: [
         line(TAMA, "Kia ora. Dazza's new driver? That's Skids on pole — Easterly money says you eat his exhaust, e hoa."),
+        line(TAMA, 'Win it and the whole 03 hears by smoko.'),
         line(TRACEY, 'Keep it off the tram tracks, Timaru.'),
       ],
       cues: [{ at: 45, lines: [line(TRACEY, 'Skids is cutting the park corner! He always cuts the park corner!')] }],

@@ -196,7 +196,7 @@ class Missions implements MissionsApi, System {
     if (this.finaleTimer >= 0) {
       this.finaleTimer -= dt;
       if (this.finaleTimer < 0) {
-        ctx.ui.banner("You've done it", "Rena's money is safe and the southerly has blown through. Canterbury is yours.", 9, 'good');
+        ctx.ui.banner("You've done it", "Rena's money is safe and the southerly has blown through. The 03 is yours.", 9, 'good');
         ctx.ui.toast('Story complete. Every road is still open.', 8);
       }
     }

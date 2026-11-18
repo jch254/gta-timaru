@@ -19,7 +19,7 @@ variable "domain" {
 variable "site_subdomain" {
   description = "Subdomain to serve the game from. Empty string serves at the apex."
   type        = string
-  default     = "timmaz-hard"
+  default     = "the-03"
 }
 
 variable "bucket_name" {
@@ -49,7 +49,7 @@ variable "codebuild_project_name" {
 variable "codebuild_source_location" {
   description = "GitHub repository URL used by the CodeBuild source."
   type        = string
-  default     = "https://github.com/jch254/timmaz-hard.git"
+  default     = "https://github.com/jch254/the-03.git"
 }
 
 variable "codebuild_buildspec" {
