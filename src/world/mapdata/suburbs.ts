@@ -89,7 +89,7 @@ export function buildSuburbs(a: Author, avon: RiverLine) {
   b.road('Port Hills Road', 'street', [[815, -3255], [1050, -3275], [1300, -3330]], { footpaths: false, speed: 60 });
   mark(a, 'addington-station', 'Christchurch Railway Station', [-675, -3518], [-675, -3545]);
   mark(a, 'country-pub', 'The Tannery Arms', [35, -3400], [0, -3400]);
-  a.place('chch-garage', "Dazza's Workshop", [-320, Z.moorhouse + 11.5], [-320, Z.moorhouse], CH, ['safehouse', 'mission']);
+  a.place('chch-garage', "Dazza's Workshop", [-320, Z.moorhouse + 11.5], [-320, Z.moorhouse], CH, ['safehouse', 'mission', 'yard']);
   a.place('chch-panelbeater', 'Sydenham Panel & Paint', [X.durham + 12, -3478], [X.durham, -3478], CH, ['spray']);
   a.rect('sydenham', 'Sydenham', CH, 'industrial', X.park, X.fitz, Z.stAsaph, -3440, 3);
   a.rect('addington', 'Addington', CH, 'villa', -1000, X.park, Z.moorhouse, -3290, 2);

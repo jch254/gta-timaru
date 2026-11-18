@@ -70,8 +70,17 @@ const at = (selector) =>
   }, selector);
 const shown = (id) => game((i) => !!document.querySelector(`.th-b-${i}.th-show`), id);
 const buttons = () => game(() => [...document.querySelectorAll('.th-btn.th-show')].map((n) => n.dataset.th).sort());
+/** An element's centre, waiting out the frame or two between a state change and the overlay showing it. */
+const atSoon = async (selector, ms = 3000) => {
+  const end = Date.now() + ms;
+  for (;;) {
+    const p = await at(selector);
+    if (p || Date.now() > end) return p;
+    await sleep(100);
+  }
+};
 const tap = async (selector) => {
-  const p = await at(selector);
+  const p = await atSoon(selector);
   if (!p) throw new Error('nothing to tap at ' + selector);
   await page.touchscreen.tap(p.x, p.y);
   return p;
@@ -79,7 +88,7 @@ const tap = async (selector) => {
 const tapButton = (id) => tap(`.th-b-${id}.th-show`);
 /** Put a finger down on a button and leave it there. */
 const press = async (id) => {
-  const p = await at(`.th-b-${id}.th-show`);
+  const p = await atSoon(`.th-b-${id}.th-show`);
   if (!p) throw new Error('no button ' + id);
   return page.touchscreen.touchStart(p.x, p.y);
 };

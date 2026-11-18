@@ -20,7 +20,7 @@ import { TUNING } from './tuning';
 const _from = new THREE.Vector3();
 const _to = new THREE.Vector3();
 import { warnOnce } from './warn';
-import type { FailCondition, Line, MissionDef, MissionResult, MissionRuntime, PedDef, SpawnPickupStep, SpawnVehicleStep, Spot, Step, TimerSpec } from './types';
+import type { FailCondition, Line, MissionDef, MissionResult, MissionRuntime, PedDef, ResumePoint, SpawnPickupStep, SpawnVehicleStep, Spot, Step, TimerSpec } from './types';
 
 /** Something a mission spawned (or is waiting to spawn), kept under a handle for later steps. */
 export interface Entity {
@@ -141,6 +141,10 @@ export class MissionRun implements MissionRuntime {
   readonly scratch: StepScratch = { phase: 0, t: 0, n: 0, a: 0, b: 0, flag: false, target: newResolved(), marker: null, data: null };
   /** Seconds left on the step countdown (-1 = none). */
   stepTimer = -1;
+  /** The last checkpoint step passed (for the retry offer when this run fails). */
+  reached: ResumePoint | null = null;
+  /** Set when this run is a retry: it resumes from this checkpoint instead of the top. */
+  private resume: ResumePoint | null = null;
 
   private byName = new Map<string, Entity>();
   private blipIds: string[] = [];
@@ -781,7 +785,7 @@ export class MissionRun implements MissionRuntime {
   private spawnPickup(e: Entity) {
     const def = e.pickupDef!;
     try {
-      e.removePickup = this.ctx.combat.spawnPickup(def.pickup, e.at.x, e.at.z, def.amount);
+      e.removePickup = this.ctx.combat.spawnPickup(def.pickup, e.at.x, e.at.z, def.amount, def.respawn);
       e.state = 'live';
     } catch {
       e.state = 'missing';
@@ -838,13 +842,105 @@ export class MissionRun implements MissionRuntime {
 
   // ───────────── Stepping ─────────────
 
+  /** Make this run a retry that picks up from a checkpoint (call before the first update). */
+  beginAt(resume: ResumePoint | null) {
+    this.resume = resume;
+  }
+
+  /**
+   * Replay the steps before a checkpoint in set-up-only form: spawns, weapons, weather, the clock and
+   * timers land again; drives, talk and fights do not. Enemies a passed eliminate or chase step dealt with
+   * stay dealt with, and a vehicle the mission had the player driving waits at the checkpoint instead of
+   * its original spot.
+   */
+  private fastForward(upTo: number) {
+    const steps = this.def.steps;
+    const dealtWith = new Set<string>();
+    const ridden = new Set<string>();
+    for (let i = 0; i < upTo; i++) {
+      const step = steps[i];
+      if (step.kind === 'eliminate') for (const t of step.targets) dealtWith.add(t);
+      else if (step.kind === 'chase') dealtWith.add(step.target);
+      if ((step.kind === 'enterVehicle' || step.kind === 'loseHeat' || step.kind === 'goTo') && step.vehicle !== undefined) ridden.add(step.vehicle);
+      else if (step.kind === 'deliverVehicle') {
+        // Delivered with a handover: the vehicle is gone (a shed door came down on it). It neither respawns
+        // nor waits at the kerb — the retry resumes on foot, as the player stood after the hand-over.
+        if (step.handover) dealtWith.add(step.vehicle);
+        else ridden.add(step.vehicle);
+      } else if (step.kind === 'spawnVehicle' && step.owned) ridden.add(step.as);
+    }
+    const here = newResolved();
+    if (this.resume) this.resolve(this.resume.at, here);
+    for (let i = 0; i < upTo; i++) {
+      const step = steps[i];
+      switch (step.kind) {
+        case 'spawnVehicle': {
+          if (dealtWith.has(step.as)) break;
+          // Their getaway stands where they stand, not a province away — and they are back at its wheel.
+          const mine = ridden.has(step.as) && here.ok;
+          const at: Spot = mine ? { x: here.x, z: here.z, snap: 'lane', kerb: true } : step.at;
+          const e = this.addVehicle(mine ? { ...step, at } : step);
+          if (mine && e.state === 'live' && e.vehicle) this.ctx.player.warpIntoVehicle(e.vehicle);
+          break;
+        }
+        case 'spawnPeds': {
+          const activate = step.activate ?? TUNING.pedActivate;
+          for (const ped of step.peds) if (!dealtWith.has(ped.as)) this.addPed(ped, activate);
+          break;
+        }
+        case 'spawnPickup':
+          this.addPickup(step, step.as ?? `pickup${i}`);
+          break;
+        case 'giveWeapon': {
+          const { combat, player } = this.ctx;
+          if (combat.weapons.has(step.weapon)) {
+            combat.give(step.weapon, step.ammo);
+            if (step.select) combat.select(step.weapon);
+          }
+          if (step.armour) player.addArmour(step.armour);
+          break;
+        }
+        case 'setWeather':
+          this.ctx.env.setWeather(step.weather, step.transition);
+          break;
+        case 'setTime': {
+          const clock = this.ctx.clock;
+          const h = clock.hour;
+          const w = step.unlessBetween;
+          const inside = w !== undefined && (w[0] <= w[1] ? h >= w[0] && h <= w[1] : h >= w[0] || h <= w[1]);
+          if (!inside) clock.advanceHours((((step.hour - h) % 24) + 24) % 24);
+          break;
+        }
+        case 'startTimer':
+          this.startMissionTimer(step.time);
+          break;
+        case 'stopTimer':
+          this.stopMissionTimer();
+          break;
+        case 'despawn':
+          for (const name of step.handles) {
+            const e = this.entity(name);
+            if (e) this.despawn(e);
+          }
+          break;
+        default:
+          break; // drives, talk, fights and the law are not replayed
+      }
+    }
+  }
+
   update(dt: number) {
     if (this.result !== 'running') return;
     this.elapsed += dt;
     this.processSpawns();
     if (this.alarmRadius >= 0) this.springAmbush();
     this.driveAi(dt);
-    if (this.stepIndex < 0) this.advance(0);
+    if (this.stepIndex < 0) {
+      if (this.resume && this.resume.index > 0) {
+        this.fastForward(this.resume.index);
+        this.advance(this.resume.index);
+      } else this.advance(0);
+    }
     let sdt = dt;
     // Instant steps (spawns, weather, weapons…) complete in the same frame; the guard only stops a runaway definition.
     for (let guard = 0; guard < 64; guard++) {
@@ -1115,6 +1211,8 @@ export class MissionRunner {
   readonly disabled = new Set<string>();
   completed = false;
   run: MissionRun | null = null;
+  /** After a failure: what can be retried, and from where (null resume = from the start). */
+  retry: { id: string; resume: ResumePoint | null } | null = null;
   /** Called whenever any mission's state changes (blips and beacons re-sync from this). */
   onChange: (() => void) | null = null;
   onResult: ((def: MissionDef, result: MissionResult, reason: string) => void) | null = null;
@@ -1203,12 +1301,14 @@ export class MissionRunner {
     return this.run ? (this.summaryOf.get(this.run.def.id) ?? null) : null;
   }
 
-  start(id: string): boolean {
+  start(id: string, resume: ResumePoint | null = null): boolean {
     const def = this.byId.get(id);
     if (!def || this.run || this.stateOf(def) !== 'available') return false;
     const { ctx } = this;
+    this.retry = null;
     this.flushLingering(true);
     const run = (this.run = new MissionRun(ctx, def, this.shared));
+    run.beginAt(resume);
     this.refresh();
     ctx.ui.banner(def.title, def.giver, TUNING.titleSeconds, 'neutral');
     ctx.events.emit('missionStarted', { id });
@@ -1263,6 +1363,7 @@ export class MissionRunner {
       this.refresh();
       ctx.ui.banner(result === 'aborted' ? 'Job abandoned' : "Job's off", reason, TUNING.failSeconds, 'bad');
       ctx.audio.play('missionFail');
+      if (result === 'failed') this.retry = { id: def.id, resume: run.reached };
       ctx.events.emit('missionFailed', { id: def.id, reason });
     }
     try {
@@ -1331,6 +1432,7 @@ export class MissionRunner {
       this.shared.dialogue.clear();
     }
     this.flushLingering();
+    this.retry = null;
     this.done.clear();
     this.completed = false;
     if (data && typeof data === 'object') {

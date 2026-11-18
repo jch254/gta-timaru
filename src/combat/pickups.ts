@@ -116,6 +116,11 @@ export class Pickups {
     return () => this.remove(pickup);
   }
 
+  /** Live, takeable pickups — for the dev tools (the honest playtest grabs kit between fights). */
+  all(): { kind: string; x: number; z: number }[] {
+    return this.list.filter((p) => p.hidden === 0).map((p) => ({ kind: p.kind, x: p.x, z: p.z }));
+  }
+
   private remove(pickup: Pickup) {
     const i = this.list.indexOf(pickup);
     if (i < 0) return;

@@ -1431,3 +1431,112 @@ describe('unlock chain and save', () => {
     expect(changes).toBe(3);
   });
 });
+
+describe('checkpoints and retries', () => {
+  const checkpointed = (): MissionDef[] => [
+    mission(
+      [
+        { kind: 'giveWeapon', weapon: 'pistol', ammo: 12 },
+        { kind: 'spawnVehicle', as: 'ute', spec: 'ute', at: 'smithfield-carpark' },
+        { kind: 'enterVehicle', vehicle: 'ute' },
+        { kind: 'checkpoint', label: 'the works', at: 'smithfield-carpark' },
+        { kind: 'spawnPeds', peds: [{ as: 'goon1', at: 'timaru-port-lockup', behaviour: 'attack', weapon: 'bat' }] },
+        { kind: 'eliminate', targets: ['goon1'] },
+        { kind: 'checkpoint', label: 'the lock-up', at: 'timaru-port-lockup' },
+        { kind: 'deliverVehicle', vehicle: 'ute', to: 'timaru-port-lockup', radius: 8 },
+      ],
+      { failIf: [{ kind: 'vehicleDestroyed', vehicle: 'ute' }] },
+    ),
+  ];
+
+  it('records the last checkpoint passed and offers it with the failure', () => {
+    const s = setup(checkpointed());
+    s.fake.moveTo(40, 5400);
+    s.runner.start('test');
+    s.tick();
+    const run = s.runner.run!;
+    expect(run.reached).toBeNull();
+    s.fake.drive(run.vehicle('ute')!);
+    s.tick();
+    expect(run.reached).toMatchObject({ index: 3, label: 'the works' });
+    run.vehicle('ute')!.applyDamage(9999, null as never);
+    s.tick();
+    expect(s.runner.run).toBeNull();
+    expect(s.runner.retry).toMatchObject({ id: 'test', resume: { index: 3, label: 'the works' } });
+  });
+
+  it('failing before any checkpoint offers a retry from the start', () => {
+    const s = setup(checkpointed());
+    s.fake.moveTo(40, 5400);
+    s.runner.start('test');
+    s.tick();
+    s.runner.run!.vehicle('ute')!.applyDamage(9999, null as never);
+    s.tick();
+    expect(s.runner.retry).toEqual({ id: 'test', resume: null });
+  });
+
+  it('a retry resumes after the checkpoint: set-up replayed, the ride waiting beside the player', () => {
+    const s = setup(checkpointed());
+    s.fake.moveTo(40, 5400);
+    expect(s.runner.start('test', { index: 3, label: 'the works', at: 'smithfield-carpark' })).toBe(true);
+    s.tick();
+    const run = s.runner.run!;
+    // Past the checkpoint, on the eliminate (the spawn steps replayed silently).
+    expect(run.stepIndex).toBe(5);
+    expect(run.reached).toMatchObject({ index: 3, label: 'the works' });
+    expect(s.fake.combat.given).toContainEqual({ id: 'pistol', ammo: 12 });
+    // The ute reappears by the checkpoint with the player back at its wheel.
+    const ute = run.vehicle('ute')!;
+    expect(Math.hypot(ute.position.x - 40, ute.position.z - 5400)).toBeLessThan(60);
+    expect(s.fake.player.vehicle).toBe(ute);
+    // Starting any run clears the standing retry.
+    expect(s.runner.retry).toBeNull();
+  });
+
+  it('enemies dealt with before the checkpoint stay dealt with', () => {
+    const s = setup(checkpointed());
+    s.fake.moveTo(45, 5990);
+    s.runner.start('test', { index: 6, label: 'the lock-up', at: 'timaru-port-lockup' });
+    s.tick();
+    const run = s.runner.run!;
+    expect(run.stepIndex).toBe(7); // straight onto the delivery
+    expect(run.entity('goon1')).toBeNull();
+    expect(run.vehicle('ute')).not.toBeNull();
+  });
+
+  it('a vehicle handed over before the checkpoint stays handed over', () => {
+    const s = setup([
+      mission(
+        [
+          { kind: 'spawnVehicle', as: 'truck', spec: 'farmtruck', at: 'smithfield-carpark' },
+          { kind: 'enterVehicle', vehicle: 'truck' },
+          { kind: 'deliverVehicle', vehicle: 'truck', to: 'timaru-port-lockup', radius: 8, handover: true },
+          { kind: 'checkpoint', label: 'the yard', at: 'timaru-port-lockup' },
+          { kind: 'spawnPeds', peds: [{ as: 'goon1', at: 'timaru-port-lockup', behaviour: 'attack', weapon: 'bat' }] },
+          { kind: 'eliminate', targets: ['goon1'] },
+        ],
+        { failIf: [{ kind: 'vehicleDestroyed', vehicle: 'truck' }] },
+      ),
+    ]);
+    s.fake.moveTo(45, 5990);
+    s.runner.start('test', { index: 3, label: 'the yard', at: 'timaru-port-lockup' });
+    s.tick();
+    const run = s.runner.run!;
+    // The shed door already came down on the truck: the retry starts on foot, nothing respawned to shoot.
+    expect(run.stepIndex).toBe(5);
+    expect(run.vehicle('truck')).toBeNull();
+    expect(s.fake.player.vehicle).toBeNull();
+  });
+
+  it('a load clears the retry', () => {
+    const s = setup(checkpointed());
+    s.fake.moveTo(40, 5400);
+    s.runner.start('test');
+    s.tick();
+    s.runner.run!.vehicle('ute')!.applyDamage(9999, null as never);
+    s.tick();
+    expect(s.runner.retry).not.toBeNull();
+    s.runner.deserialize(null);
+    expect(s.runner.retry).toBeNull();
+  });
+});

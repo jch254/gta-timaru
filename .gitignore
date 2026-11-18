@@ -16,3 +16,7 @@ studiodaw/
 .terraform.lock.hcl
 *.tfplan*
 *.tfstate*
+
+# Local tool state
+.vitest/
+.claude/worktrees/

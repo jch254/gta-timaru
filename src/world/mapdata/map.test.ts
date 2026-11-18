@@ -23,11 +23,11 @@ const PLACES: Record<string, string[]> = {
   'temuka-pub': ['mission'],
   'rangitata-layby': ['mission'],
   'hinds-woolshed': ['mission'],
-  'ashburton-stock-agent': ['mission'],
+  'ashburton-stock-agent': ['mission', 'yard'],
   'ashburton-police': ['police'],
   'ashburton-panelbeater': ['spray'],
   'rakaia-salmon': ['mission'],
-  'chch-garage': ['safehouse', 'mission'],
+  'chch-garage': ['safehouse', 'mission', 'yard'],
   'four-aves-start': ['mission'],
   'cathedral-square': ['mission'],
   'arts-centre': ['mission'],
@@ -344,6 +344,27 @@ describe('authored map', () => {
       if (hit) onRail.push(`${l.district.name} (${l.district.type}) @ ${Math.round(l.x)},${Math.round(l.z)} on ${l.edge.name}`);
     }
     expect(onRail).toEqual([]);
+  });
+
+  it("keeps building plots off 'yard' places (fights and deliveries need the ground open)", () => {
+    const yards = map.places.filter((p) => p.tags.includes('yard'));
+    expect(yards.map((p) => p.id).sort()).toEqual(['ashburton-stock-agent', 'chch-garage']);
+    const lots = [...generateLots(map).values()].flat();
+    const trespassing: string[] = [];
+    for (const y of yards) {
+      for (const l of lots) {
+        const c = Math.cos(l.heading);
+        const sn = Math.sin(l.heading);
+        const dx = y.x - l.x;
+        const dz = y.z - l.z;
+        // Lot frame, as in the railway check. The generator clears a 9 m circle around lot centres, which
+        // guarantees a touch under half that to the rectangle's own edge for the longest diagonal lots.
+        if (Math.abs(dx * sn + dz * c) < l.depth / 2 + 4 && Math.abs(dx * c - dz * sn) < l.width / 2 + 4) {
+          trespassing.push(`${y.id}: lot @ ${Math.round(l.x)},${Math.round(l.z)} on ${l.edge.name}`);
+        }
+      }
+    }
+    expect(trespassing).toEqual([]);
   });
 
   it('writes the preview', async () => {

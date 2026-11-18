@@ -240,6 +240,8 @@ export interface SpawnPickupStep extends StepCommon {
   at: Spot;
   amount?: number;
   activate?: number;
+  /** Seconds until a taken pickup returns — for ground a mission expects to be held through a long fight. */
+  respawn?: number;
 }
 
 export interface EliminateStep extends StepCommon {
@@ -381,6 +383,28 @@ export interface CustomStep extends StepCommon {
   exit?(run: MissionRuntime): void;
 }
 
+/**
+ * A retry point. Failing after one of these offers "have another go" from here instead of from the start,
+ * so a long drive already driven is never driven again. On resume the player appears at `at`, set-up steps
+ * before this one are replayed (spawns, weapons, weather, timers), play steps are skipped, enemies already
+ * dealt with stay dealt with, and a vehicle the mission had the player driving is waiting nearby.
+ */
+export interface CheckpointStep extends StepCommon {
+  kind: 'checkpoint';
+  /** Named in the offer: "Have another go, from the woolshed?" */
+  label: string;
+  /** Where a retry resumes. Place-based (it must not hang off a spawned entity). */
+  at: Spot;
+}
+
+/** Where a failed mission can be picked up again. */
+export interface ResumePoint {
+  /** Index of the checkpoint step (-1 = from the start). */
+  index: number;
+  label: string;
+  at: Spot;
+}
+
 export type Step =
   | GoToStep
   | EnterVehicleStep
@@ -403,7 +427,8 @@ export type Step =
   | StartTimerStep
   | StopTimerStep
   | DespawnStep
-  | CustomStep;
+  | CustomStep
+  | CheckpointStep;
 
 export interface MissionDef {
   id: string;

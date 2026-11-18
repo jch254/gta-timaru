@@ -150,6 +150,57 @@ describe('missions system', () => {
     expect(missions.list()[0].state).toBe('available');
   });
 
+  it('offers another go after a failure; a yes calls off the law and puts the player straight back', async () => {
+    const { fake, missions, tick } = await boot();
+    at(fake, 'timaru-chipshop');
+    missions.start('severance-pay');
+    tick(0.1); // the briefing anchors where it began…
+    // …so walking out to the works breaks its leash and brings the ute into being; wreck it.
+    fake.moveTo(80, 5400);
+    tick(1);
+    const ute = fake.vehicles.all.find((v) => v.spec.id === 'ute')!;
+    ute.applyDamage(9999);
+    tick(0.5);
+    expect(missions.active).toBeNull();
+    // Walk somewhere else; the offer arrives after its grace, and "Go again" is the first option.
+    fake.moveTo(400, 5000);
+    fake.police.setLevel(1);
+    fake.ui.answer = () => 0;
+    tick(TUNING.retryDelay + 0.5);
+    await flush();
+    tick(0.2);
+    await flush();
+    tick(0.2);
+    const offer = fake.ui.chooses.at(-1)!;
+    expect(offer.title).toBe('Have another go?');
+    expect(offer.options[0]).toBe('Go again');
+    // Back at the chip shop (no checkpoint was reached), law flushed off the street, job running again.
+    expect(fake.police.flushed).toBeGreaterThan(0);
+    expect(Math.hypot(fake.player.position.x - 10, fake.player.position.z - 5900)).toBeLessThan(5);
+    expect(missions.active?.id).toBe('severance-pay');
+  });
+
+  it('a no lets the matter rest: no second offer', async () => {
+    const { fake, missions, tick } = await boot();
+    at(fake, 'timaru-chipshop');
+    missions.start('severance-pay');
+    tick(0.1);
+    fake.moveTo(80, 5400);
+    tick(1);
+    fake.vehicles.all.find((v) => v.spec.id === 'ute')!.applyDamage(9999);
+    tick(0.5);
+    fake.ui.answer = () => 1;
+    tick(TUNING.retryDelay + 0.5);
+    await flush();
+    tick(0.2);
+    const offers = fake.ui.chooses.length;
+    expect(offers).toBeGreaterThan(0);
+    tick(TUNING.retryDelay + 1);
+    await flush();
+    expect(fake.ui.chooses.length).toBe(offers);
+    expect(missions.active).toBeNull();
+  });
+
   it('nudges a new game towards Aunty Rena, once', async () => {
     const { fake, missions, tick } = await boot();
     fake.moveTo(10, 5905);

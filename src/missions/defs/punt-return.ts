@@ -7,9 +7,10 @@ const SHED_CREW = handles('shed', 4);
 const ARTS_CREW = ['brick', ...handles('art', 4)];
 
 /**
- * 5. Christchurch, around the Avon. The Easterlies frightened the release papers for Dazza's container out
- * of the shipping office and want paying for them at the Antigua Boat Sheds. Two shoot-outs (the sheds, then
- * the Arts Centre), then get the papers home with half the city's police looking for you.
+ * 5. Christchurch, after dark, around the Avon. The Easterlies frightened the release papers for Dazza's
+ * container out of the shipping office and want paying for them at the Antigua Boat Sheds. Two shoot-outs
+ * (the sheds, then Brick in the Arts Centre quad), then get the papers home with half the city's police
+ * looking for you.
  */
 export const puntReturn: MissionDef = {
   id: 'punt-return',
@@ -33,7 +34,8 @@ export const puntReturn: MissionDef = {
         line(DAZZA, "I'd like you to take this, and a vest, and go and explain that we're not."),
       ],
     },
-    { kind: 'giveWeapon', weapon: 'pistol', ammo: 54, select: true, armour: 50, toast: "Dazza's pistol and a padded vest" },
+    { kind: 'setTime', hour: 21.5, unlessBetween: [20, 4], fade: true },
+    { kind: 'giveWeapon', weapon: 'pistol', ammo: 72, select: true, armour: 100, toast: "Dazza's pistol and a padded vest" },
 
     // The boat sheds: they are expecting a mechanic with an envelope.
     {
@@ -50,13 +52,20 @@ export const puntReturn: MissionDef = {
       marker: false,
       objective: 'Get to the Antigua Boat Sheds on the Avon',
     },
+    // The retry resumes short of the crew, by the health pack: "have another go" must not stand the player
+    // back up inside four drawn pistols (the honest playtest died in nine seconds, three retries straight,
+    // when the resume spot was the crew's own ground).
+    { kind: 'checkpoint', label: 'the boat sheds', at: { ...SHEDS, snap: 'verge', along: -22 } },
     {
       kind: 'setBehaviour',
       peds: SHED_CREW,
       behaviour: 'attack',
       lines: [line(EASTERLY, "That's not Whitlock. Who's the meat worker?"), line(MACK, 'Dazza sends his apologies. And me.')],
     },
-    { kind: 'eliminate', targets: SHED_CREW, objective: 'Deal to the Easterlies at the boat sheds ({n} left)' },
+    // The law sits the shoot-outs themselves out, as at Stroud's yard: an honest playtest had patrol cars
+    // join the quad fight at four lights and once arrest the player mid-fight. The police beat is scripted
+    // right after Brick — loseHeat raises three lights regardless — so nothing is lost but the pile-on.
+    { kind: 'eliminate', targets: SHED_CREW, police: { suspend: true }, objective: 'Deal to the Easterlies at the boat sheds ({n} left)' },
     {
       kind: 'say',
       block: true,
@@ -81,14 +90,22 @@ export const puntReturn: MissionDef = {
       radius: 34,
       marker: false,
       objective: 'Find Brick at the Arts Centre on Worcester Boulevard',
+      cues: [{ at: 20, lines: [line(MACK, 'Stone arches and one working streetlight. If I ran a gang, this is where I\'d stand the big fella too.')] }],
     },
+    { kind: 'checkpoint', label: 'the Arts Centre', at: { ...ARTS, snap: 'verge', along: -24 } },
     {
       kind: 'setBehaviour',
       peds: ARTS_CREW,
       behaviour: 'attack',
       lines: [line(BRICK, "You're the one from Ashburton. Flash said to bring him your hands."), line(MACK, 'He can come and ask for them.')],
     },
-    { kind: 'eliminate', targets: ARTS_CREW, objective: 'Put Brick and his crew down ({n} left)' },
+    {
+      kind: 'eliminate',
+      targets: ARTS_CREW,
+      police: { suspend: true },
+      objective: 'Put Brick and his crew down ({n} left)',
+      cues: [{ at: 14, lines: [line(BRICK, "Still standing? Flash only wants the hands, Tully. The rest is for me.")] }],
+    },
     {
       kind: 'goTo',
       to: { entity: 'brick' },
@@ -101,6 +118,7 @@ export const puntReturn: MissionDef = {
       atLeast: 3,
       holdFor: 20,
       objective: 'Half of Christchurch heard that. Lose the police',
+      toast: 'Break their line of sight and lie low, or buy a respray at the panel and paint shop',
       lines: [line(MACK, "Release papers. Ana's signature is still on them.")],
     },
     {

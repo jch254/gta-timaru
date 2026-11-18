@@ -66,6 +66,10 @@ export function generateLots(map: CompiledMap): Map<number, Lot[]> {
   const cellKey = (x: number, z: number) => (Math.floor(x / CELL) + 1024) * 4096 + (Math.floor(z / CELL) + 1024);
 
   const nearLandmark = (x: number, z: number, r: number) => map.landmarks.some((l: LandmarkPlacement) => Math.hypot(l.x - x, l.z - z) < l.clearRadius + r);
+  // Places tagged 'yard' are fought over or delivered into: the ground around them has to stay open, or the
+  // generated frontage walls the player off from mission peds and parks deliveries a building short of the mark.
+  const yards = map.places.filter((p) => p.tags.includes('yard'));
+  const nearYard = (x: number, z: number, r: number) => yards.some((p) => Math.hypot(p.x - x, p.z - z) < 9 + r);
   const roadClear = (x: number, z: number) => {
     const hit = graph.nearest(x, z, 30);
     return !hit || hit.distance >= hit.edge.width / 2 + (hit.edge.footpaths ? 3.1 : 1.4);
@@ -142,7 +146,7 @@ export function generateLots(map: CompiledMap): Map<number, Lot[]> {
             break;
           }
         }
-        if (!ok || nearLandmark(x, z, Math.max(width, depth) * 0.5) || !free(p)) continue;
+        if (!ok || nearLandmark(x, z, Math.max(width, depth) * 0.5) || nearYard(x, z, Math.max(width, depth) * 0.5) || !free(p)) continue;
 
         const key = cellKey(x, z);
         placed.set(key, [...(placed.get(key) ?? []), p]);

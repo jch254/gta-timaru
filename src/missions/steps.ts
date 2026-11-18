@@ -11,6 +11,7 @@ import { TUNING } from './tuning';
 import { warnOnce } from './warn';
 import type {
   ChaseStep,
+  CheckpointStep,
   CustomStep,
   DeliverVehicleStep,
   DespawnStep,
@@ -498,6 +499,14 @@ const custom: StepHandler<CustomStep> = {
   },
 };
 
+/** Instant: notes that the run got this far, so a failure later offers a retry from here. */
+const checkpoint: StepHandler<CheckpointStep> = {
+  enter(run, step) {
+    run.reached = { index: run.stepIndex, label: step.label, at: step.at };
+  },
+  tick: () => true,
+};
+
 // ───────────────────────────── Racing ─────────────────────────────
 
 interface RaceData {
@@ -844,4 +853,5 @@ export const STEP_HANDLERS: { [K in Step['kind']]: StepHandler<Extract<Step, { k
   stopTimer,
   despawn,
   custom,
+  checkpoint,
 };

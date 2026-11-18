@@ -496,7 +496,10 @@ export interface Place {
   z: number;
   heading: number;
   city: CityId | null;
-  /** Free-form tags: 'hospital', 'police', 'safehouse', 'spawn', 'payphone', 'gunshop', 'spray', 'mission'… */
+  /**
+   * Free-form tags: 'hospital', 'police', 'safehouse', 'spawn', 'payphone', 'gunshop', 'spray', 'mission'…
+   * 'yard' keeps generated lots out of the ground around the point (fights and deliveries happen there).
+   */
   tags: string[];
   /** Te reo Māori name where one is well attested. */
   teReo?: string;
@@ -951,6 +954,11 @@ export interface PoliceApi {
   setLevel(level: number): void;
   addHeat(amount: number): void;
   clear(): void;
+  /**
+   * Clear the heat AND remove every patrol car, officer and roadblock at once. Only for behind-a-fade
+   * moments (a mission resume); `clear()` alone leaves the cars to drive off, still there to re-engage.
+   */
+  flush(): void;
   /** Missions can suspend the law briefly. */
   enabled: boolean;
 }

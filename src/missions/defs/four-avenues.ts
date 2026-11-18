@@ -1,5 +1,5 @@
 import type { MissionDef, SpotObject } from '../types';
-import { cameoCue, DAZZA, line, MACK, onTheRadio, TAMA, TRACEY } from './cast';
+import { cameoCue, DAZZA, FLASH, line, MACK, onTheRadio, TAMA, TRACEY } from './cast';
 
 /**
  * The corners of the four avenues, found by road name. If the names on the map differ, each falls back to
@@ -19,7 +19,8 @@ const GARAGE_KERB: SpotObject = { place: 'chch-garage', snap: 'lane', along: 7, 
 
 /**
  * 4. Christchurch, at night. Win a lap of the four avenues in Dazza's V8 against the Friday-night regulars
- * and the Easterlies' own driver, then lose the police who break up the meet and get the car home.
+ * and Skids, the Easterlies' own driver — with Flash Harkness watching his money — then lose the police who
+ * break up the meet and get the car home.
  */
 export const fourAvenues: MissionDef = {
   id: 'four-avenues',
@@ -40,7 +41,7 @@ export const fourAvenues: MissionDef = {
         line(DAZZA, "So you're the one who left three Easterlies on East Street. Neville rang. He was whispering."),
         line(DAZZA, "I'm Dazza. I fix cars, and on a Friday night I fix who wins."),
         line(DAZZA, "Lap of the four aves tonight. My driver's in Christchurch Hospital with both hands broken. Flash Harkness's idea of a transfer fee."),
-        line(DAZZA, "Harkness runs the Easterlies and he's got money on his own boy. Win it in my V8 and he's out five grand and a lot of face."),
+        line(DAZZA, "Harkness runs the Easterlies, and his boy Skids is on pole. Flash has five grand on him, and he'll be there to watch it come in."),
         line(MACK, 'And if I lose?'),
         line(DAZZA, "Don't."),
       ],
@@ -66,6 +67,7 @@ export const fourAvenues: MissionDef = {
         ]),
       ],
     },
+    { kind: 'checkpoint', label: 'the grid', at: GRID },
     {
       kind: 'race',
       grid: GRID,
@@ -82,10 +84,12 @@ export const fourAvenues: MissionDef = {
       objective: 'Win the lap: Moorhouse, Fitzgerald, Bealey, and home past the park',
       loseReason: 'Beaten to the line. Dazza has stopped answering to his name',
       lines: [
-        line(TAMA, "Kia ora. Dazza's new driver? Hope you've brought more hands than the last one, e hoa."),
+        line(TAMA, "Kia ora. Dazza's new driver? That's Skids on pole — Easterly money says you eat his exhaust, e hoa."),
         line(TRACEY, 'Keep it off the tram tracks, Timaru.'),
       ],
+      cues: [{ at: 45, lines: [line(TRACEY, 'Skids is cutting the park corner! He always cuts the park corner!')] }],
     },
+    { kind: 'checkpoint', label: 'the finish line', at: FINISH },
     {
       kind: 'loseHeat',
       vehicle: 'v8',
@@ -93,8 +97,11 @@ export const fourAvenues: MissionDef = {
       holdFor: 25,
       objective: 'The police have broken up the meet. Lose them',
       returnObjective: "Get back in Dazza's V8",
+      // They know this car, and it has to come home: the respray is the intended way out, so say so.
+      toast: 'They know the V8 and Dazza wants it back. A panel and paint shop can make it a different car',
       lines: [
         line(TAMA, "Ka pai, e hoa! First time Skids has seen anybody's tail-lights."),
+        line(FLASH, "Enjoy it, Timaru. I'm Flash Harkness. You just cost me five grand, and I collect in person."),
         line(TRACEY, 'Blue lights on Deans Ave! Scatter!'),
       ],
     },

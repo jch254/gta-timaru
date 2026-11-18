@@ -66,7 +66,7 @@ Registries: `src/world/landmarks/registry.ts` exports `LANDMARKS` and `src/world
 
 ### Place ids (map places them; missions, police, UI rely on them)
 
-Tags in brackets. Every place must sit on dry land within a few metres of a drivable road unless noted.
+Tags in brackets. Every place must sit on dry land within a few metres of a drivable road unless noted. The `yard` tag keeps generated building plots out of the ground around the point: fights and vehicle deliveries happen there, and a lot built over the spot walls the player off from mission peds and parks deliveries a building short of the mark.
 
 | id | where | tags |
 |---|---|---|
@@ -83,11 +83,11 @@ Tags in brackets. Every place must sit on dry land within a few metres of a driv
 | `temuka-pub` | country pub on King St, Temuka | `mission` |
 | `rangitata-layby` | lay-by north of the Rangitata bridges on SH1 | `mission` |
 | `hinds-woolshed` | woolshed on a gravel road between the Rangitata and Ashburton | `mission` |
-| `ashburton-stock-agent` | stock agent's office, East St, Ashburton | `mission` |
+| `ashburton-stock-agent` | stock agent's office, East St, Ashburton | `mission`, `yard` |
 | `ashburton-police` | Ashburton police station | `police` |
 | `ashburton-panelbeater` | panel & paint shop, Ashburton | `spray` |
 | `rakaia-salmon` | by the big salmon, Rakaia township | `mission` |
-| `chch-garage` | Dazza's workshop, Sydenham (Moorhouse Ave strip) | `safehouse`, `mission` |
+| `chch-garage` | Dazza's workshop, Sydenham (Moorhouse Ave strip) | `safehouse`, `mission`, `yard` |
 | `four-aves-start` | corner of Moorhouse Ave and Deans Ave | `mission` |
 | `cathedral-square` | Cathedral Square | `mission` |
 | `arts-centre` | the Arts Centre, Worcester Blvd | `mission` |

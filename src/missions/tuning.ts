@@ -54,6 +54,13 @@ export const TUNING = {
   passSeconds: 5,
   failSeconds: 4,
   titleSeconds: 3.5,
+  /**
+   * Mint Sauce: how long the Hinds constable sticks to the stock truck before giving it away. Under the 45 s
+   * of resisting that turns one light into two, so the beat stays an escort and never becomes a gunfight.
+   */
+  constableSeconds: 40,
+  /** Seconds between a failure landing (and any respawn finishing) and the "have another go?" offer. */
+  retryDelay: 2.5,
   /** Delay between passing the last mission and the "you've done it" banner. */
   finaleDelay: 7,
 

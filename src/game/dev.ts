@@ -348,6 +348,11 @@ export function installDevTools(game: Game) {
         weapon: ctx.combat.current.id,
       };
     },
+    /** Live world pickups, so the honest playtest can walk over staged kit between fights as a player does. */
+    pickups(): { kind: string; x: number; z: number }[] {
+      const combat = ctx.combat as unknown as { livePickups?: () => { kind: string; x: number; z: number }[] };
+      return combat.livePickups ? combat.livePickups() : [];
+    },
     /** Summary of the mission / objective state for test scripts. */
     mission() {
       const active = ctx.missions.active;
