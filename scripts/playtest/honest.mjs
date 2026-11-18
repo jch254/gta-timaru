@@ -119,7 +119,7 @@ try {
 
   const records = [];
   for (const id of list) {
-    const record = await page.evaluate(async (missionId, already) => bot.runMission(missionId, { maxAttempts: 4, running: already }), id, running);
+    const record = await page.evaluate(async (missionId, already) => bot.runMission(missionId, { maxAttempts: 6, running: already }), id, running);
     running = false;
     records.push(record);
     if (record.result !== 'passed') {

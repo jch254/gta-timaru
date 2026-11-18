@@ -913,7 +913,14 @@ window.bot = (() => {
             `  bot: stand-off ${standoffs} — ${t.name} ${Math.round(t.d)} m away at ${Math.round(t.x)},${Math.round(t.z)}` +
               ` (me ${Math.round(pos().x)},${Math.round(pos().z)}), hostile ${t.hostile}`,
           );
-          await walkTo(t.x, t.z, { radius: 5, timeout: 25 });
+          // A gun that keeps hitting nothing is dry or blocked: rotate the arsenal (the pistol still has
+          // rounds, and fists always work) and get close enough that even a swing reaches. The finale once
+          // stood 4 m from a wedged bat man for half an hour, clicking an empty shotgun.
+          if (standoffs >= 2) dev.tap('KeyE');
+          await walkTo(t.x, t.z, { radius: 2, timeout: 25 });
+          dev.tap('KeyQ');
+          await sleep(300);
+          dev.tap('KeyQ');
         }
       } else standoffs = 0;
     }

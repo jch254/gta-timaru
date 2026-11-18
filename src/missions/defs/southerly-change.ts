@@ -128,15 +128,18 @@ export const southerlyChange: MissionDef = {
     // Last stand. Tip shuts the port gates: no police, no ambulance, nobody until it is over.
     {
       kind: 'spawnPeds',
-      peds: crew('gate', WHARF, [{ weapon: 'pistol' }, { weapon: 'pistol' }, { weapon: 'shotgun' }, { weapon: 'bat', health: 130 }], 30, 5),
+      // Two guns a wave is the measured ceiling for honest stand-and-fight play (each gun lands 15–20
+      // points per six seconds; three converging out-sustain pool plus kit). The waves escalate by the
+      // leader, not the gun count: nobody here, Flash at 260 behind the second.
+      peds: crew('gate', WHARF, [{ weapon: 'pistol' }, { weapon: 'bat' }, { weapon: 'pistol' }, { weapon: 'bat', health: 130 }], 30, 5),
       wait: true,
       police: { clear: true },
     },
     // Holding a wharf against two waves costs more than one vest: the pass fight honestly costs well over
     // half the pool, so kit waits at the gate and again between the waves (the honest playtest reached the
     // wharf on 38–63 health, bare, and died there every attempt).
-    { kind: 'spawnPickup', pickup: 'armour', at: { ...WHARF, snap: 'verge', along: 9 } },
-    { kind: 'spawnPickup', pickup: 'health', at: { ...WHARF, snap: 'verge', along: 12 } },
+    { kind: 'spawnPickup', pickup: 'armour', at: { ...WHARF, snap: 'verge', along: 9 }, respawn: 40 },
+    { kind: 'spawnPickup', pickup: 'health', at: { ...WHARF, snap: 'verge', along: 12 }, respawn: 40 },
     { kind: 'checkpoint', label: 'the wharf gate', at: 'lyttelton-wharf' },
     {
       kind: 'eliminate',
@@ -150,8 +153,8 @@ export const southerlyChange: MissionDef = {
       ],
     },
     // The crane crew's first-aid box and a spare vest, by the gatehouse, before Flash's wave comes through.
-    { kind: 'spawnPickup', pickup: 'health', at: { ...WHARF, snap: 'verge', along: 4 } },
-    { kind: 'spawnPickup', pickup: 'armour', at: { ...WHARF, snap: 'verge', along: 6 } },
+    { kind: 'spawnPickup', pickup: 'health', at: { ...WHARF, snap: 'verge', along: 4 }, respawn: 40 },
+    { kind: 'spawnPickup', pickup: 'armour', at: { ...WHARF, snap: 'verge', along: 6 }, respawn: 40 },
     { kind: 'checkpoint', label: 'the last wave', at: 'lyttelton-wharf' },
     {
       kind: 'spawnPeds',
@@ -161,9 +164,9 @@ export const southerlyChange: MissionDef = {
       peds: [
         // Flash collects in person: a shotgun and 260 points, a boss who has to close rather than a rifle
         // that shreds the whole pool from range — measured honestly, the rifle wave dealt 188 points in six
-        // seconds, more than any kit survives. The crew carries one gun more than the gate wave.
+        // seconds, more than any kit survives. His crew matches the gate wave; he is the escalation.
         { as: 'flash', at: { ...WHARF, snap: 'road', along: -42 }, name: FLASH, kind: 'gang', behaviour: 'stand', weapon: 'shotgun', health: 260, look: { topStyle: 'jacket', top: 0x8a7350, legs: 0x2b2b30, hairStyle: 'mullet', hat: 'none' } },
-        ...crew('last', WHARF, [{ weapon: 'shotgun' }, { weapon: 'pistol' }, { weapon: 'bat' }, { weapon: 'pistol', health: 130 }], -34, -5, 'stand'),
+        ...crew('last', WHARF, [{ weapon: 'pistol' }, { weapon: 'bat' }, { weapon: 'bat' }, { weapon: 'pistol', health: 130 }], -34, -5, 'stand'),
       ],
       wait: true,
       police: { suspend: true },

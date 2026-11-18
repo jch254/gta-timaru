@@ -240,6 +240,8 @@ export interface SpawnPickupStep extends StepCommon {
   at: Spot;
   amount?: number;
   activate?: number;
+  /** Seconds until a taken pickup returns — for ground a mission expects to be held through a long fight. */
+  respawn?: number;
 }
 
 export interface EliminateStep extends StepCommon {

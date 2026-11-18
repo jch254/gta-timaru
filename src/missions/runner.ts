@@ -785,7 +785,7 @@ export class MissionRun implements MissionRuntime {
   private spawnPickup(e: Entity) {
     const def = e.pickupDef!;
     try {
-      e.removePickup = this.ctx.combat.spawnPickup(def.pickup, e.at.x, e.at.z, def.amount);
+      e.removePickup = this.ctx.combat.spawnPickup(def.pickup, e.at.x, e.at.z, def.amount, def.respawn);
       e.state = 'live';
     } catch {
       e.state = 'missing';
