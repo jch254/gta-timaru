@@ -140,7 +140,7 @@ export class FullMap {
 
     // The title cartouche, as printed in the corner of the sheet.
     const head = el('div', 'nw-map-head nw-cartouche', this.root);
-    el('div', 'nw-map-kicker', head, 'THE 03 · Road map · 1995');
+    el('div', 'nw-map-kicker', head, '03 Quest · Road map · 1995');
     el('div', 'nw-map-title', head, 'Canterbury');
     el('div', 'nw-map-reo', head, 'Waitaha');
     this.whereText = new TextCache(el('div', 'nw-map-where', head));

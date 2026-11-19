@@ -68,8 +68,8 @@ const at = (selector) =>
     const r = document.querySelector(s)?.getBoundingClientRect();
     return r && r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height } : null;
   }, selector);
-const shown = (id) => game((i) => !!document.querySelector(`.the03-b-${i}.the03-show`), id);
-const buttons = () => game(() => [...document.querySelectorAll('.the03-btn.the03-show')].map((n) => n.dataset.th).sort());
+const shown = (id) => game((i) => !!document.querySelector(`.q03-b-${i}.q03-show`), id);
+const buttons = () => game(() => [...document.querySelectorAll('.q03-btn.q03-show')].map((n) => n.dataset.th).sort());
 /** An element's centre, waiting out the frame or two between a state change and the overlay showing it. */
 const atSoon = async (selector, ms = 3000) => {
   const end = Date.now() + ms;
@@ -85,10 +85,10 @@ const tap = async (selector) => {
   await page.touchscreen.tap(p.x, p.y);
   return p;
 };
-const tapButton = (id) => tap(`.the03-b-${id}.the03-show`);
+const tapButton = (id) => tap(`.q03-b-${id}.q03-show`);
 /** Put a finger down on a button and leave it there. */
 const press = async (id) => {
-  const p = await atSoon(`.the03-b-${id}.the03-show`);
+  const p = await atSoon(`.q03-b-${id}.q03-show`);
   if (!p) throw new Error('no button ' + id);
   return page.touchscreen.touchStart(p.x, p.y);
 };
@@ -153,7 +153,7 @@ try {
   // ───────────── What a phone gets ─────────────
   let s = await state();
   check('phone default: Low quality, dynamic resolution on', s.quality === 'low' && s.dynamic === true, { quality: s.quality, dynamic: s.dynamic });
-  check('controller is up without being asked', s.touch && (await game(() => !!document.querySelector('.the03-touch.the03-on.the03-play'))));
+  check('controller is up without being asked', s.touch && (await game(() => !!document.querySelector('.q03-touch.q03-on.q03-play'))));
   const viewport = await game(() => document.querySelector('meta[name=viewport]')?.content ?? '');
   check('viewport: no zoom, covers the notch', /user-scalable=no/.test(viewport) && /viewport-fit=cover/.test(viewport), viewport);
   check('page: fixed, no touch scrolling', await game(() => getComputedStyle(document.body).position === 'fixed' && getComputedStyle(document.documentElement).touchAction === 'none'));
@@ -183,7 +183,7 @@ try {
   const walking = await state();
   check('stick: half-way walks', dist(start, walking) > 1 && !walking.sprinting, `${dist(start, walking).toFixed(1)} m, sprinting ${walking.sprinting}`);
   check('stick: drawn where the thumb landed', await game((b) => {
-    const r = document.querySelector('.the03-stick.the03-show')?.getBoundingClientRect();
+    const r = document.querySelector('.q03-stick.q03-show')?.getBoundingClientRect();
     return !!r && Math.abs(r.left + r.width / 2 - b.x) < 3 && Math.abs(r.top + r.height / 2 - b.y) < 3;
   }, base));
   await drag(thumb, { x: base.x, y: base.y - 30 }, { x: base.x, y: base.y - 70 });
@@ -219,7 +219,7 @@ try {
   const stopped = await state();
   await sleep(500);
   check('letting go stops the player', dist(stopped, await state()) < 0.3);
-  check('stick: put away on release', !(await game(() => !!document.querySelector('.the03-stick.the03-show'))));
+  check('stick: put away on release', !(await game(() => !!document.querySelector('.q03-stick.q03-show'))));
 
   // ───────────── Walk to a car and get in ─────────────
   // A parked car is put a few metres ahead, down the camera's line, on a straight piece of road.
@@ -236,7 +236,7 @@ try {
   check('get in: no button until there is something to get into', !(await shown('interact')));
   const walk = await page.touchscreen.touchStart(base.x, base.y);
   await drag(walk, base, { x: base.x, y: base.y - 40 });
-  const near = await until(() => !!document.querySelector('.the03-b-interact.the03-show'), 6000);
+  const near = await until(() => !!document.querySelector('.q03-b-interact.q03-show'), 6000);
   await walk.end();
   check('get in: the USE button appears beside the car', near);
   const promptText = await game(() => document.querySelector('.nw-prompt')?.textContent ?? '');
@@ -271,8 +271,8 @@ try {
   await sleep(200);
   check('steer: centres on release', Math.abs((await state()).steer) < 0.05);
   // Slide the thumb from GO across to BRAKE without lifting it.
-  const gas = await at('.the03-b-gas');
-  const brake = await at('.the03-b-brake');
+  const gas = await at('.q03-b-gas');
+  const brake = await at('.q03-b-brake');
   await drag(go, gas, brake, 6);
   await sleep(200);
   s = await state();
@@ -326,7 +326,7 @@ try {
   }
   s = await state();
   check('next weapon: taps cycle to the pistol', s.weapon === 'pistol', s.weapon);
-  const fireWord = await game(() => document.querySelector('.the03-b-fire')?.textContent);
+  const fireWord = await game(() => document.querySelector('.q03-b-fire')?.textContent);
   check('pistol: fire, aim and reload show', fireWord === 'FIRE' && (await shown('aim')) && (await shown('reload')), fireWord);
   await game(() => {
     window.__shots = 0;
@@ -499,7 +499,7 @@ try {
   await sleep(900);
   s = await state();
   const card = await game(() => {
-    const node = document.querySelector('.the03-turn');
+    const node = document.querySelector('.q03-turn');
     return !!node && getComputedStyle(node).display !== 'none' && node.getBoundingClientRect().height >= window.innerHeight - 1;
   });
   check('portrait: the "turn your phone" card covers the game, which waits', card && s.paused && (await buttons()).length === 0);
@@ -516,10 +516,10 @@ try {
   // ───────────── Keyboard takes over, touch takes it back ─────────────
   await page.keyboard.press('KeyV');
   await sleep(300);
-  check('a key press hides the controller', !(await game(() => !!document.querySelector('.the03-touch.the03-on'))));
+  check('a key press hides the controller', !(await game(() => !!document.querySelector('.q03-touch.q03-on'))));
   await page.touchscreen.tap(Math.round(W * 0.6), Math.round(H * 0.5));
   await sleep(300);
-  check('the next touch brings it back', await game(() => !!document.querySelector('.the03-touch.the03-on.the03-play')));
+  check('the next touch brings it back', await game(() => !!document.querySelector('.q03-touch.q03-on.q03-play')));
 
   // ───────────── A tap on the game must not also arrive as a mouse click ─────────────
   await game(() => {

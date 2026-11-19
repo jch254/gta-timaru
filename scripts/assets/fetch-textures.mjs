@@ -37,7 +37,7 @@ import sharp from 'sharp';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const STAGING = path.join(ROOT, 'assets-staging', 'textures');
 const OUT = path.join(ROOT, 'src', 'assets', 'textures');
-const USER_AGENT = 'the-03-texture-pipeline/1.0 (browser game build script; downloads each CC0 texture once and caches it)';
+const USER_AGENT = '03-quest-texture-pipeline/1.0 (browser game build script; downloads each CC0 texture once and caches it)';
 
 const ALBEDO_SIZE = 1024;
 const NORMAL_SIZE = 1024;

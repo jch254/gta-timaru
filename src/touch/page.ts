@@ -4,7 +4,7 @@
  * drawing surface kept in step with the visible area as the address bar comes and goes or the phone is turned.
  *
  * All of it is done from script so index.html and the main stylesheet stay as they are; the CSS half is in
- * touch.css under `html.the03-page`.
+ * touch.css under `html.q03-page`.
  */
 
 /** `viewport-fit=cover` lets the game run under the notch; the controller keeps itself inside the safe area. */
@@ -31,7 +31,7 @@ function inScroller(target: EventTarget | null): boolean {
 export function prepareTouchPage(): void {
   if (prepared || typeof document === 'undefined') return;
   prepared = true;
-  document.documentElement.classList.add('the03-page');
+  document.documentElement.classList.add('q03-page');
 
   let meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
   if (!meta) {

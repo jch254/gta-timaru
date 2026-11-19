@@ -13,13 +13,13 @@ variable "environment" {
 variable "domain" {
   description = "Cloudflare zone name (apex domain) the game is served from."
   type        = string
-  default     = "603.nz"
+  default     = "03.quest"
 }
 
 variable "site_subdomain" {
   description = "Subdomain to serve the game from. Empty string serves at the apex."
   type        = string
-  default     = "the-03"
+  default     = ""
 }
 
 variable "bucket_name" {
@@ -29,13 +29,13 @@ variable "bucket_name" {
 }
 
 variable "cloudflare_api_token_parameter_name" {
-  description = "SSM Parameter Store name containing the Cloudflare API token."
+  description = "SSM Parameter Store name containing the Cloudflare API token. Terraform creates it as a placeholder; the real token is put by hand."
   type        = string
-  default     = "/timmaz-hard/cloudflare-api-token"
+  default     = "/03-quest/cloudflare-api-token"
 }
 
 variable "manage_dns" {
-  description = "Whether Terraform manages the Cloudflare DNS record for the game."
+  description = "Whether Terraform manages the Cloudflare DNS records for the game (and, served from the apex, the www redirect)."
   type        = bool
   default     = true
 }

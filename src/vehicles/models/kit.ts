@@ -1230,11 +1230,11 @@ function timberGeometry(w: number, h: number, d: number, tone: number): THREE.Bu
 
 // Invented registrations in the two-letters-four-digits format of the day, plus one personalised plate doing the rounds.
 const OLD_PLATES = ['JK4127', 'KD9306', 'LW5571', 'MB2084', 'MX7719', 'LE3662'];
-const NEW_PLATES = ['NA1047', 'NT8825', 'PF3390', 'PY6102', 'RH4476', 'SB7251', 'SU2938', 'TD5814', 'THE03'];
+const NEW_PLATES = ['NA1047', 'NT8825', 'PF3390', 'PY6102', 'RH4476', 'SB7251', 'SU2938', 'TD5814', 'QUEST'];
 
-// Rear-window and bumper stickers: the area code worn as a badge, and the stations that give them away.
+// Rear-window and bumper stickers: the game's own motorway-sign mark, and the stations that give them away.
 const STICKERS = [
-  { text: 'THE 03', bg: '#0f6b47', fg: '#ffffff' },
+  { text: '03 QUEST', bg: '#0f6b47', fg: '#ffffff' },
   { text: 'SHINGLE FM 93.4', bg: '#b3261e', fg: '#fff6e0' },
   { text: 'PARTYLINE 1017 AM', bg: '#1d2a44', fg: '#f0c33a' },
 ] as const;

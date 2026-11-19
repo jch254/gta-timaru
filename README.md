@@ -1,6 +1,6 @@
-# THE 03
+# 03 Quest
 
-An original third-person open-world crime sandbox for the browser, set in a compressed Canterbury, New Zealand, around 1995: pre-earthquake Christchurch and the port town of Timaru, joined by State Highway 1 across the plains. 03 is the South Island's telephone area code: the title is the place, said the way a local says it.
+An original third-person open-world crime sandbox for the browser, set in a compressed Canterbury, New Zealand, around 1995: pre-earthquake Christchurch and the port town of Timaru, joined by State Highway 1 across the plains. 03 is the South Island's telephone area code, and "the 03" is the place the way a local says it. Play it at <https://03.quest>.
 
 Built with Vite, TypeScript, Three.js and Rapier. Client-only: no backend, no accounts, no analytics. The one thing that reaches outside is the car radio, which can play real New Zealand stations live from their own streams ([Live radio](#live-radio)); switch that off and the game is entirely offline. Geometry, sound and the six invented stations' music are generated in code; surface textures and the human figures are CC0 assets, every one of them listed with its source and licence in [ASSETS.md](ASSETS.md).
 
@@ -131,6 +131,6 @@ Both share `scripts/playtest/bot.js`, the honest test player they inject into th
 
 ## Deploying
 
-`infrastructure/` holds the Terraform for a private S3 bucket behind CloudFront, its certificate, the Cloudflare DNS record and a CodeBuild project; `buildspec.yml` is what that project runs on each push to `main`: run the unit tests (a red suite stops everything), apply the Terraform, `pnpm run build`, sync `dist/` to the bucket, invalidate CloudFront. [infrastructure/README.md](infrastructure/README.md) has the settings and the one-off first deploy.
+`infrastructure/` holds the Terraform for a private S3 bucket behind CloudFront, its certificate, the `03.quest` Cloudflare records (www redirects to the apex) and the token parameter they are edited with, and a CodeBuild project; `buildspec.yml` is what that project runs on each push to `main`: run the unit tests (a red suite stops everything), apply the Terraform, `pnpm run build`, sync `dist/` to the bucket, invalidate CloudFront. [infrastructure/README.md](infrastructure/README.md) has the settings, the one-off first deploy and the one-off move from `the-03.603.nz`.
 
 To host it some other way, upload the contents of `dist/`. All asset URLs are relative, so it works from a bucket root or any prefix. Hashed files under `assets/` can be cached forever; serve `index.html` with a short cache lifetime.

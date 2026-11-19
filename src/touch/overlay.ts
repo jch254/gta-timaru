@@ -51,22 +51,22 @@ export class Overlay implements RouterView {
   private mode = '';
 
   constructor(parent: HTMLElement = document.body) {
-    const root = (this.root = el('the03-touch', parent));
-    el('the03-pad', root);
-    this.ghost = el('the03-ghost the03-show', root);
-    this.stickNode = el('the03-stick', root);
-    this.knob = el('the03-knob', this.stickNode);
+    const root = (this.root = el('q03-touch', parent));
+    el('q03-pad', root);
+    this.ghost = el('q03-ghost q03-show', root);
+    this.stickNode = el('q03-stick', root);
+    this.knob = el('q03-knob', this.stickNode);
     for (const id of BUTTON_IDS) {
-      const node = el(`the03-btn the03-b-${id}`, root, WORDS[id]);
+      const node = el(`q03-btn q03-b-${id}`, root, WORDS[id]);
       node.dataset.th = id;
       node.setAttribute('role', 'button');
       node.setAttribute('aria-label', NAMES[id] ?? WORDS[id].replace(/[^A-Za-z ]+/g, ' ').trim());
       this.nodes[id] = node;
     }
-    const turn = el('the03-turn', root);
-    el('the03-turn-phone', turn);
-    el('the03-turn-title', turn, 'Turn your phone sideways');
-    el('the03-turn-text', turn, 'THE 03 is played in landscape. The game is on hold until you do.');
+    const turn = el('q03-turn', root);
+    el('q03-turn-phone', turn);
+    el('q03-turn-title', turn, 'Turn your phone sideways');
+    el('q03-turn-text', turn, '03 Quest is played in landscape. The game is on hold until you do.');
   }
 
   // ───────────── RouterView ─────────────
@@ -91,11 +91,11 @@ export class Overlay implements RouterView {
   stick(on: boolean, baseX: number, baseY: number, state: StickState) {
     if (on !== this.stickOn) {
       this.stickOn = on;
-      this.stickNode.classList.toggle('the03-show', on);
+      this.stickNode.classList.toggle('q03-show', on);
       // The hint has done its job once the stick has been found.
       if (on && this.ghostOn) {
         this.ghostOn = false;
-        this.ghost.classList.remove('the03-show');
+        this.ghost.classList.remove('q03-show');
       }
     }
     if (!on) return;
@@ -103,12 +103,12 @@ export class Overlay implements RouterView {
     this.knob.style.transform = `translate(${state.knobX.toFixed(1)}px, ${state.knobY.toFixed(1)}px)`;
     if (state.sprint !== this.sprint) {
       this.sprint = state.sprint;
-      this.stickNode.classList.toggle('the03-sprint', state.sprint);
+      this.stickNode.classList.toggle('q03-sprint', state.sprint);
     }
   }
 
   button(id: ButtonId, down: boolean) {
-    this.nodes[id].classList.toggle('the03-down', down);
+    this.nodes[id].classList.toggle('q03-down', down);
   }
 
   // ───────────── For the system ─────────────
@@ -125,12 +125,12 @@ export class Overlay implements RouterView {
    * card instead. `car`: the driving layout.
    */
   setMode(on: boolean, play: boolean, portrait: boolean, car: boolean) {
-    const mode = `${on ? ' the03-on' : ''}${play ? ' the03-play' : ''}${portrait ? ' the03-portrait' : ''}${car ? ' the03-car' : ''}`;
+    const mode = `${on ? ' q03-on' : ''}${play ? ' q03-play' : ''}${portrait ? ' q03-portrait' : ''}${car ? ' q03-car' : ''}`;
     if (mode === this.mode) return;
     this.mode = mode;
-    this.root.className = `the03-touch${mode}`;
+    this.root.className = `q03-touch${mode}`;
     // For the HUD's stylesheet: it can move its own pieces out from under the controller.
-    document.documentElement.classList.toggle('the03-touch-on', on && !portrait);
+    document.documentElement.classList.toggle('q03-touch-on', on && !portrait);
   }
 
   /** Show exactly these buttons. Returns the set now showing. */
@@ -138,12 +138,12 @@ export class Overlay implements RouterView {
     for (const id of this.shown) {
       if (ids.includes(id)) continue;
       this.shown.delete(id);
-      this.nodes[id].classList.remove('the03-show', 'the03-down');
+      this.nodes[id].classList.remove('q03-show', 'q03-down');
     }
     for (const id of ids) {
       if (this.shown.has(id)) continue;
       this.shown.add(id);
-      this.nodes[id].classList.add('the03-show');
+      this.nodes[id].classList.add('q03-show');
     }
     return this.shown;
   }
@@ -160,6 +160,6 @@ export class Overlay implements RouterView {
     if (this.hotOn.has(id) === on) return;
     if (on) this.hotOn.add(id);
     else this.hotOn.delete(id);
-    this.nodes[id].classList.toggle('the03-hot', on);
+    this.nodes[id].classList.toggle('q03-hot', on);
   }
 }

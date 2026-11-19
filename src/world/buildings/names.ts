@@ -468,8 +468,8 @@ export const FISH_TAGS = ['WET FISH SALES · ICE · BAIT', 'BLUE COD · WHITEBAI
 /** Painted advertisements going ghostly on brick side walls: invented products only. */
 export const GHOST_SIGNS = ['KOWHAI\nBAKING POWDER', 'WEKA\nMOTOR SPIRIT', 'TUSSOCK\nTEA', 'SNOWLINE\nICE CREAM', 'PLAINS\nALES & STOUT', 'FANTAIL\nJAMS', 'NODOFF\nBEDDING', 'RIMU\nSOAP'] as const;
 
-/** Spray-can tags down the service lanes: the area code, worn as a badge. */
-export const TAGS = ['THE 03', '03'] as const;
+/** Spray-can tags down the service lanes: the game's name and the area code, worn as a badge. */
+export const TAGS = ['03 QUEST', '03'] as const;
 /** The tag look: a bright scrawl over a patch the council painted grey last time. */
 export const SPRAY: readonly Look[] = [
   { bg: '#b9b4a8', fg: '#8a1f1f', style: 'script', border: false },

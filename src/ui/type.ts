@@ -1,6 +1,6 @@
 /**
  * The interface's type system, for lettering drawn on a canvas (the maps, the speedometer). CSS gets the same
- * three stacks from `--the03-display`, `--the03-text` and `--the03-reo` in src/style.css: keep the two in step.
+ * three stacks from `--q03-display`, `--q03-text` and `--q03-reo` in src/style.css: keep the two in step.
  *
  * System faces only; nothing is downloaded. Every stack ends in faces with full macron coverage, so te reo
  * Māori names never fall back letter by letter.

@@ -106,7 +106,7 @@ A second, smaller sheet, `src/assets/foliage/extra.webp` (251 kB), was added in 
 | File | What it is |
 |---|---|
 | `src/assets/ui/` (title photograph, 156 kB) | A screenshot of the game itself, the Bay Hill at dusk, treated as a faded print. Retake with `zsh scripts/title-still.sh` (dev server running). |
-| `public/manifest.webmanifest`, `public/icon-512.png`, `public/apple-touch-icon.png` | Home-screen manifest and icons, drawn for the game. The icons and the favicon are rasterised from `docs/art/the-03-mark.svg` (the THE 03 motorway-sign mark, drawn as paths so no font is needed). |
+| `public/manifest.webmanifest`, `public/icon-512.png`, `public/apple-touch-icon.png` | Home-screen manifest and icons, drawn for the game. The icons and the favicon are rasterised from `docs/art/03-quest-mark.svg` (the 03 Quest motorway-sign mark, drawn as paths so no font is needed) by `node scripts/assets/icons.mjs`. |
 
 ## Character models
 
