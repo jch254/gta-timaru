@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { clamp } from '../core/math';
 import { Rng } from '../core/rng';
-import { NIGHT_HEADLIGHTS, type Actor, type Autopilot, type DamageInfo, type DistrictType, type GameContext, type PedHandle, type RoadEdge, type System, type TrafficApi, type Vehicle } from '../core/types';
+import { NIGHT_HEADLIGHTS, type Actor, type Autopilot, type DamageInfo, type District, type GameContext, type PedHandle, type RoadEdge, type System, type TrafficApi, type Vehicle } from '../core/types';
 import { AutopilotImpl, type PilotWorld } from './autopilot';
 import { JunctionBook } from './junction';
 import { lanePointInto, makePoint, sampleEdge } from './lanes';
@@ -156,7 +156,7 @@ export class TrafficSystem implements TrafficApi, System {
     const { ctx } = this;
     const hit = ctx.world.graph.nearest(x, z, 60, DRIVABLE);
     if (!hit) return null;
-    const id = ctx.vehicles.specs.has(specId) ? specId : this.pickSpec(ctx.world.districtAt(x, z).type, true);
+    const id = ctx.vehicles.specs.has(specId) ? specId : this.pickSpec(ctx.world.districtAt(x, z), true);
     if (!id) return null;
     // Keep left: a point left of a → b belongs to traffic heading a → b.
     const dir = hit.edge.oneway || hit.offset >= 0 ? 1 : -1;
@@ -450,7 +450,7 @@ export class TrafficSystem implements TrafficApi, System {
    * so they would ride themselves), buses (rationed separately) and service vehicles. Buses are not left
    * parked at the kerb either.
    */
-  private pickSpec(district: DistrictType, driven = false): string {
+  private pickSpec(district: District, driven = false): string {
     const specs = this.ctx.vehicles.specs;
     const ok = (id: string) => {
       const spec = specs.get(id);
@@ -459,7 +459,7 @@ export class TrafficSystem implements TrafficApi, System {
       return !(driven && spec.cls === 'bike');
     };
     for (let k = 0; k < 5; k++) {
-      const id = this.ctx.vehicles.pickSpec(district, this.rng);
+      const id = this.ctx.vehicles.pickSpec(district.type, this.rng, district.city);
       if (ok(id)) return id;
     }
     for (const [key, spec] of specs) if (spec.traffic && ok(key)) return key;
@@ -532,7 +532,7 @@ export class TrafficSystem implements TrafficApi, System {
     const district = ctx.world.districtAt(x, z);
     const hour = ctx.clock.hour;
     const wantBus = !this.hasBus && e.cls === 'arterial' && district.city === 'christchurch' && hour > 6.5 && hour < 19 && ctx.vehicles.specs.has('bus') && rng.chance(TRAFFIC.busChance);
-    const specId = wantBus ? 'bus' : this.pickSpec(district.type, true);
+    const specId = wantBus ? 'bus' : this.pickSpec(district, true);
     if (!specId) return;
     const car = this.addDriver(specId, e, dir, s, wantBus ? 0 : lane, wantBus ? TRAFFIC.busAggression : rng.range(0.86, 1.12), ['traffic'], false, seeding ? 0.5 : 0.85);
     if (car && wantBus) {
@@ -556,7 +556,7 @@ export class TrafficSystem implements TrafficApi, System {
     const district = ctx.world.districtAt(hit.x, hit.z);
     const commercial = district.type === 'cbd' || district.type === 'shops' || district.type === 'industrial' || district.type === 'port';
     if (!rng.chance(classWeight * (TRAFFIC.parkDistrict[district.type] ?? 0.5) * parkedTimeFactor(ctx.clock.hour, commercial))) return;
-    const specId = this.pickSpec(district.type);
+    const specId = this.pickSpec(district);
     const spec = ctx.vehicles.specs.get(specId);
     if (!spec) return;
     const s = clamp(hit.s, TRAFFIC.parkClearance, e.length - TRAFFIC.parkClearance);
@@ -620,7 +620,7 @@ export class TrafficSystem implements TrafficApi, System {
       if (!spawnAllowed(p.x, p.z, cam, _pt.x, _pt.z, TRAFFIC.spawnMin, TRAFFIC.spawnMax, 30, TRAFFIC.coneHalfAngle, TRAFFIC.coneFarDistance)) continue;
       if (!ctx.world.isLoaded(_pt.x, _pt.z)) continue;
       const route = index === 0 ? lap : lap.slice(index).concat(lap.slice(0, index));
-      const district = ctx.world.districtAt(_pt.x, _pt.z).type;
+      const district = ctx.world.districtAt(_pt.x, _pt.z);
       const fast = TRAFFIC.racerSpecs.filter((id) => ctx.vehicles.specs.has(id));
       for (let k = 0; k < want; k++) {
         const uk = u - k * TRAFFIC.racerSpacing;

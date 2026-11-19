@@ -681,6 +681,9 @@ export interface PlayerApi extends Actor {
 
 export type VehicleClass = 'sedan' | 'coupe' | 'hatch' | 'wagon' | 'ute' | 'truck' | 'van' | 'bike' | 'bus' | 'police' | 'tram';
 
+/** Engine characters the audio module can voice. */
+export type EngineSound = 'four' | 'six' | 'v6' | 'v8' | 'boxer' | 'turbo' | 'diesel' | 'bike' | 'single' | 'electric';
+
 export interface VehicleSpec {
   id: string;
   /** Invented make and model name, e.g. "Holbrook Chancellor". */
@@ -726,8 +729,13 @@ export interface VehicleSpec {
   value: number;
   /** Relative spawn frequency by district type (missing = 0). */
   spawn: Partial<Record<DistrictType, number>>;
+  /**
+   * Town multipliers on `spawn` (missing = 1): what makes Timaru's traffic differ from Christchurch's.
+   * 'country' is anywhere outside a named town.
+   */
+  spawnBy?: Partial<Record<CityId | 'country', number>>;
   /** Engine sound character for audio. */
-  engineSound: 'four' | 'six' | 'v8' | 'diesel' | 'bike' | 'electric';
+  engineSound: EngineSound;
   /** May appear as ambient traffic / parked. */
   traffic: boolean;
 }
@@ -814,7 +822,8 @@ export interface VehiclesApi {
   remove(vehicle: Vehicle): void;
   nearest(x: number, z: number, maxDistance: number, filter?: (v: Vehicle) => boolean): Vehicle | null;
   /** Random traffic-eligible spec id suited to a district. */
-  pickSpec(district: DistrictType, rng?: { next(): number }): string;
+  /** A traffic spec id for a district, weighted by `spawn` and, when the town is given, by `spawnBy`. */
+  pickSpec(district: DistrictType, rng?: { next(): number }, city?: CityId | null): string;
   /** Seat / unseat helpers used by player, peds and police alike. */
   enter(actor: Actor, vehicle: Vehicle, seat?: number): void;
   exit(actor: Actor): void;
@@ -888,8 +897,12 @@ export interface CombatApi {
   explode(position: THREE.Vector3, radius: number, damage: number, source?: Actor | null): void;
   /** A small mesh of the weapon to attach to a humanoid's hand (`humanoid.setHeld`). Null for fists. */
   createWeaponModel(weaponId: string): THREE.Object3D | null;
-  /** World pickups: 'health' | 'armour' | 'cash' | weapon id. Returns a remover. */
-  spawnPickup(kind: string, x: number, z: number, amount?: number, respawnSeconds?: number): () => void;
+  /**
+   * World pickups: 'health' | 'armour' | 'cash' | weapon id. Returns a remover. `options.ttl` makes it
+   * vanish by itself after that many seconds; `options.drop` marks it as something a body let go of
+   * (counted against the shared drop cap, oldest removed first).
+   */
+  spawnPickup(kind: string, x: number, z: number, amount?: number, respawnSeconds?: number, options?: { ttl?: number; drop?: boolean }): () => void;
   serialize(): unknown;
   deserialize(data: unknown): void;
 }

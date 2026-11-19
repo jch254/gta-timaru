@@ -9,17 +9,20 @@ import { EASTERLY, EASTERLY_LOOK, HINE, line, MACK, RENA, RUSSELL, SHONA } from 
 const AROWHENUA_GATE: SpotObject = { landmark: 'marae', near: 'temuka-pub', edge: 1, snap: 'verge' };
 
 /**
- * 2. Timaru → Arowhenua → Temuka → the Rangitata. Drop Rena's kai at the marae gate, then a run against the
- * clock up SH1 with four chilly bins of off-the-books crayfish in the tray; the law is waiting at the lay-by
- * and has to be lost before the buyer will open his van — and there, Mack learns the Easterlies have been
- * watching the whole hand-over.
+ * 2. Timaru → Arowhenua → Temuka → the Rangitata, on the morning of Sunday 14 May 1995: the country woke to
+ * Black Magic winning the America's Cup 5-0 in San Diego, so the Drover's Rest is full by ten and everyone
+ * in it is wearing red socks, which is why a stranger gets the driving job. Drop Rena's kai at the marae
+ * gate (customary take for the hui, authorised and entirely lawful), then a run against the clock up SH1
+ * with four chilly bins of off-the-books crayfish, sold for cash past the licensed fish receiver; the law
+ * is waiting at the lay-by and has to be lost before the buyer will open his van. And there, Mack learns
+ * the Easterlies have been watching the whole hand-over.
  */
 export const onIce: MissionDef = {
   id: 'on-ice',
   title: 'On Ice',
   giver: RENA,
   initial: 'R',
-  blurb: "Rena has kai to go out to the hui at Arowhenua. After that, Shona at the Drover's Rest in Temuka needs a driver for a load that can't wait and can't be seen. The buyer is parked up past the Rangitata bridges.",
+  blurb: "The morning after the Cup: five nil, and the Drover's Rest is full by ten. Rena has kai to go out to the hui at Arowhenua first. Then Shona in Temuka needs a driver for a load that can't wait and can't be seen. The buyer is parked up past the Rangitata bridges.",
   reward: 500,
   placeId: 'timaru-chipshop',
   requires: ['severance-pay'],
@@ -36,7 +39,7 @@ export const onIce: MissionDef = {
       block: true,
       needs: AROWHENUA_GATE,
       lines: [
-        line(RENA, "First job's for the whānau. There's a hui at Arowhenua tonight and I've been cooking since five."),
+        line(RENA, "First job's for the whānau. There's a hui at Arowhenua tonight and I've been cooking since five. Cup or no Cup, people have to eat."),
         line(RENA, "Chilly bin's by the door. Take it out to the marae and give it to Hine at the gate. Mind your manners, you're not at the works now."),
       ],
     },
@@ -44,9 +47,9 @@ export const onIce: MissionDef = {
       kind: 'say',
       block: true,
       lines: [
-        line(RENA, "Shona at the Drover's Rest in Temuka has paying mahi for you. The kind that doesn't go on a tax return."),
-        line(MACK, 'What kind is that?'),
-        line(RENA, 'The kind that keeps the lights on. Off you go.'),
+        line(RENA, "After that, Shona at the Drover's Rest in Temuka has paying mahi for you. The kind that doesn't go on a tax return."),
+        line(MACK, "A pub with work going? It's ten o'clock on a Sunday morning."),
+        line(RENA, "We won the Cup at breakfast, dear. Five races to nil. There isn't an empty pub between here and the Bluff. Off you go."),
       ],
     },
     {
@@ -56,7 +59,7 @@ export const onIce: MissionDef = {
       radius: 14,
       stop: true,
       objective: "Take Rena's kai out to the hui at Arowhenua marae, south of Temuka",
-      cues: [{ at: 40, lines: [line(MACK, 'Washdyke, Winchester, and the plains going on forever. The whole province smells of cut grass and diesel.')] }],
+      cues: [{ at: 40, lines: [line(MACK, 'Red socks on every second clothesline from Washdyke up. The whole country was awake at six for a yacht race, me included.')] }],
     },
     {
       kind: 'say',
@@ -64,20 +67,23 @@ export const onIce: MissionDef = {
       needs: AROWHENUA_GATE,
       objective: null,
       lines: [
-        line(HINE, 'Kia ora, Mack! Look at the size of you. Last time you were under a table in the wharekai eating all the fried bread.'),
-        line(MACK, "Kia ora, Aunty Hine. Rena sent kai. She said to tell you it's the good chowder."),
-        line(HINE, "Ka pai. Tell her to bring it herself next time. And we heard about the works. You need anything, e hoa, you come here. That's whānau, not charity."),
+        line(HINE, 'Mack! Look at the size of you. Last time I saw you, you were under a table in the wharekai eating all the fried bread.'),
+        line(HINE, "And you're the first thing out of Te Maru this morning that isn't wearing red socks. Did you not stay up for it?"),
+        line(MACK, 'Kia ora, Aunty Hine. I heard it on the wireless. Rena sent kai for the hui. The good chowder, she said to say.'),
+        line(HINE, "Ka pai. All signed off with the rūnanga, this, so stop looking at the road. And we heard about the works, e hoa. You need anything, you come here."),
         line(MACK, 'Cheers, Aunty. I will.'),
+        line(HINE, "That's whānau, not charity. Now away with you, Shona will be three deep at the bar by now."),
       ],
     },
     { kind: 'checkpoint', label: 'Temuka', at: 'temuka-pub' },
     // A tray full of ice chests that can take a knock: it has to survive two bridges and a chase and still
-    // count as "sound". Generously tough on purpose — this is an early job and the fail is for genuinely
+    // count as "sound". Generously tough on purpose: this is an early job and the fail is for genuinely
     // wrecking it, not for a few dents picked up outrunning a tail.
     { kind: 'spawnVehicle', as: 'ute', spec: 'ute', at: { place: 'temuka-pub', snap: 'lane', along: 7, kerb: true }, owned: true, health: 2 },
     { kind: 'spawnVehicle', as: 'chiller', spec: 'van', at: { place: 'rangitata-layby', snap: 'verge', along: 10, out: 2.6 } },
-    // Shona wasn't exaggerating: the law is parked across the road from the pub with its motor running.
-    { kind: 'spawnVehicle', as: 'fisheries', spec: 'police', at: { place: 'temuka-pub', snap: 'lane', along: -18, kerb: true } },
+    // Shona wasn't exaggerating: across the road sits a black and white, an old traffic patrol car, with a
+    // fisheries officer in it. Scenery with no controller; the trafficcar spec reads exactly right for 1995.
+    { kind: 'spawnVehicle', as: 'fisheries', spec: 'trafficcar', at: { place: 'temuka-pub', snap: 'lane', along: -18, kerb: true } },
     {
       kind: 'goTo',
       to: 'temuka-pub',
@@ -89,11 +95,11 @@ export const onIce: MissionDef = {
       block: true,
       objective: null,
       lines: [
-        line(SHONA, "You're Rena's nephew. Good. I need someone who drives like the bank's behind him."),
-        line(SHONA, "Four chilly bins of crays in my ute out front. They didn't come over any wharf with a clipboard on it."),
+        line(SHONA, "You're Rena's nephew. Good. Look at this bar. Five nil, every sock in Temuka is red, and I haven't had a hand free since seven."),
+        line(SHONA, "Four chilly bins of crays in my ute out front. They never met a licensed fish receiver, and they're not about to."),
         line(SHONA, 'Russell is parked at the lay-by north of the Rangitata bridges. He leaves when the ice does.'),
         line(MACK, 'And the law?'),
-        line(SHONA, "See the car over the road? Fisheries, with the Temuka constable keeping him company since lunch. So, briskly."),
+        line(SHONA, "See the black and white over the road? Fisheries, with the Temuka constable keeping him company since opening. So, briskly."),
       ],
     },
     { kind: 'enterVehicle', vehicle: 'ute', objective: "Get in Shona's ute" },
@@ -116,7 +122,8 @@ export const onIce: MissionDef = {
       // lay-by instead (the loseHeat step below), where there is no cargo-health gate to fight.
       lines: [line(MACK, "Right. Four bins, two bridges, and the ice already sweating. Let's go.")],
       cues: [
-        { at: 3, lines: [line(MACK, "Fisheries car's still parked. He'll radio ahead, but he won't catch this.")] },
+        { at: 3, lines: [line(MACK, "Black and white hasn't moved. He'll radio ahead, but he won't catch this.")] },
+        { at: 18, lines: [line('Radio, faintly', 'Five races to nil in San Diego! The oldest cup in sport is coming home, and the whole country is wearing red socks to church!')] },
         { at: 35, lines: [line(MACK, "Rangitata bridges coming up. Bet there's a welcome on the far side.")] },
         { at: 75, lines: [line(MACK, "Hold together, you lot. You're worth more than I am.")] },
       ],
@@ -162,9 +169,9 @@ export const onIce: MissionDef = {
         line(EASTERLY, "That's him. Shona's new driver. Flash will want the name."),
         line(RUSSELL, 'Eyes front. Still kicking, the lot of them. Five hundred, as agreed with Shona.'),
         line(MACK, 'The two by the black V8. Friends of yours?'),
-        line(RUSSELL, "Nobody's friends. Easterlies. Christchurch mob — they tax every load on this road now, and they've just priced yours. Don't meet them at night."),
+        line(RUSSELL, "Nobody's friends. Easterlies, out of Christchurch. They tax every load on this road now, and they've just priced yours. Don't meet them at night."),
         line(RUSSELL, 'Half the 03 pays them already. Every wharf, every lay-by, Kaikōura on down. Not my fight.'),
-        line(RUSSELL, 'Shona says hang on to the ute till the weekend. She wants it back with the same number of doors.'),
+        line(RUSSELL, 'Shona says hang on to the ute for the week. She wants it back with the same number of doors.'),
         line(RUSSELL, 'Neville Stroud, the stock agent in Ashburton, is short a driver. Tell him I sent you. Then count your change.'),
       ],
     },

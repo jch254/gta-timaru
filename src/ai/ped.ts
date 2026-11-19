@@ -49,6 +49,8 @@ export interface PedSetup {
 }
 
 const FEET = PEDS.radius + PEDS.halfHeight;
+/** A dead ped's weapon lies by the body this long (like a cash drop) before it fades. */
+const GUN_DROP_SECONDS = 45;
 const WALKABLE = (e: RoadEdge) => walkable(e);
 const STREET = (e: RoadEdge) => e.drivable && e.footpaths;
 const WALLS = { mask: CollisionGroup.World as number };
@@ -988,7 +990,25 @@ export class Ped implements PedHandle {
     ctx.actors.all.delete(this);
     this.corpseTimer = PEDS.corpseSeconds;
     this.humanoid.setPose('dead');
+    this.dropWeapon();
     ctx.events.emit('actorDied', { actor: this, info });
+  }
+
+  /** Whatever they were armed with is left by the body for anyone quick enough to take it. */
+  private dropWeapon() {
+    const weapon = this.weapon;
+    if (!weapon || !this.weaponId || weapon.kind === 'fists') return;
+    const { ctx, rng } = this.world;
+    const x = this.position.x + rng.range(-0.45, 0.45);
+    const z = this.position.z + rng.range(-0.45, 0.45);
+    if (ctx.world.waterDepthAt(x, z) > 0.2) return;
+    // A few rounds left in it; a melee weapon carries none.
+    const ammo = weapon.kind === 'melee' ? 0 : weapon.kind === 'shotgun' || weapon.kind === 'rifle' ? Math.floor(rng.range(3, 6)) : Math.floor(rng.range(6, 11));
+    try {
+      ctx.combat.spawnPickup(this.weaponId, x, z, ammo, 0, { ttl: GUN_DROP_SECONDS, drop: true });
+    } catch {
+      // Combat unavailable (stub): the weapon vanishes with its owner.
+    }
   }
 
   // ───────────── Errands ─────────────

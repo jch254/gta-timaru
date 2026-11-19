@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
-import type { Actor, GameEvents, Humanoid, PedHandle } from '../core/types';
+import { Rng } from '../core/rng';
+import type { Actor, GameContext, GameEvents, Humanoid, PedHandle, VehicleSpec } from '../core/types';
+import { Vehicles } from '../vehicles';
 import { PedsSystem } from './peds';
 import { buildGraph, crossroads } from './testgraph';
 import { makeSpec, makeTestWorld, type TestWorld } from './testworld';
@@ -684,5 +686,73 @@ describe('scripted pedestrians', () => {
     handles[1].takeDamage({ amount: 999, kind: 'explosion' });
     run(0.2);
     expect(peds.count).toBe(3);
+  });
+});
+
+describe('dropped weapons', () => {
+  it('an armed ped killed on foot leaves their gun by the body, with a few rounds', () => {
+    const { world, peds } = setup();
+    peds.density = 0;
+    const gangster = peds.spawn({ x: 12, z: 40, behaviour: 'attack', weaponId: 'pistol', persistent: true, kind: 'gang' });
+    gangster.takeDamage({ amount: 999, kind: 'bullet', source: world.player });
+    expect(gangster.alive).toBe(false);
+    expect(world.pickups.length).toBe(1);
+    const drop = world.pickups[0];
+    expect(drop.kind).toBe('pistol');
+    expect(Math.hypot(drop.x - 12, drop.z - 40)).toBeLessThan(1.5);
+    expect(drop.amount).toBeGreaterThanOrEqual(6);
+    expect(drop.amount).toBeLessThanOrEqual(10);
+    expect(drop.respawn).toBe(0);
+    expect(drop.options?.drop).toBe(true);
+    expect(drop.options?.ttl).toBeGreaterThan(30);
+    expect(drop.options?.ttl).toBeLessThan(90);
+  });
+
+  it('an unarmed ped drops nothing', () => {
+    const { world, peds } = setup();
+    peds.density = 0;
+    const bystander = peds.spawn({ x: 8, z: 40, behaviour: 'stand' });
+    bystander.takeDamage({ amount: 999, kind: 'bullet', source: world.player });
+    expect(bystander.alive).toBe(false);
+    expect(world.pickups.length).toBe(0);
+  });
+});
+
+describe('town-weighted traffic (vehicles.pickSpec)', () => {
+  const vehiclesWith = (specs: VehicleSpec[]) => {
+    const vehicles = new Vehicles({ scene: new THREE.Scene() } as unknown as GameContext);
+    vehicles.specs = new Map(specs.map((s) => [s.id, s]));
+    return vehicles;
+  };
+
+  it('a spawnBy multiplier of 0 removes the spec in that town, and only there', () => {
+    const v = vehiclesWith([makeSpec('cityonly', { spawnBy: { timaru: 0 } }), makeSpec('anywhere')]);
+    const rng = new Rng(11);
+    for (let i = 0; i < 300; i++) expect(v.pickSpec('shops', rng, 'timaru')).toBe('anywhere');
+    let seen = 0;
+    for (let i = 0; i < 300; i++) if (v.pickSpec('shops', rng, 'christchurch') === 'cityonly') seen++;
+    expect(seen).toBeGreaterThan(60); // about half, loose
+  });
+
+  it('a multiplier of 2 is picked about twice as often as its unmultiplied twin', () => {
+    const v = vehiclesWith([makeSpec('favoured', { spawnBy: { timaru: 2 } }), makeSpec('twin')]);
+    const rng = new Rng(12);
+    const n = 4000;
+    let inTimaru = 0;
+    let inCountry = 0;
+    for (let i = 0; i < n; i++) {
+      if (v.pickSpec('shops', rng, 'timaru') === 'favoured') inTimaru++;
+      if (v.pickSpec('shops', rng, null) === 'favoured') inCountry++;
+    }
+    expect(inTimaru / n).toBeGreaterThan(0.58); // about 2/3, loose bounds
+    expect(inTimaru / n).toBeLessThan(0.75);
+    expect(inCountry / n).toBeGreaterThan(0.42); // about even without the multiplier
+    expect(inCountry / n).toBeLessThan(0.58);
+  });
+
+  it('specs that never spawn in the district are not picked, whatever the town says', () => {
+    const v = vehiclesWith([makeSpec('urban', { spawn: { cbd: 1 }, spawnBy: { country: 4 } }), makeSpec('rural', { spawn: { rural: 1 } })]);
+    const rng = new Rng(13);
+    for (let i = 0; i < 100; i++) expect(v.pickSpec('rural', rng, null)).toBe('rural');
   });
 });

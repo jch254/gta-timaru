@@ -3,9 +3,12 @@ import type { PaneKind } from './body';
 import { AMBER, CHROME, curve, DARK, dice, PLASTIC, RUBBER, STEEL, tint, type Pt } from './kit';
 import { aerial, assemble, bumper, cornerLens, exhaust, Face, fuelFlap, handles, mirrors, scuttle, wipers, type CarPlan } from './parts';
 
-/** Invented firms for the signwriting. `rack` puts a roof rack and a couple of lengths of pipe on top. */
-const FIRMS: { text: string; fg: string; style: 'paint' | 'block' | 'script'; rack?: boolean }[] = [
-  { text: 'WEKA COURIERS', fg: '#b3261e', style: 'block' },
+/**
+ * Invented firms for the signwriting. `rack` puts a roof rack and a couple of lengths of pipe on top;
+ * `band` paints a livery band along the lower flanks (the courier vans, red on white).
+ */
+const FIRMS: { text: string; fg: string; style: 'paint' | 'block' | 'script'; rack?: boolean; band?: number }[] = [
+  { text: 'WEKA COURIERS\nSame Day · 03 377 0909', fg: '#b3261e', style: 'block', band: 0xb3261e },
   { text: "NOR'WEST PLUMBING\n& Drainlaying", fg: '#1d4f91', style: 'paint', rack: true },
   { text: 'PLAINS BAKERY\nFresh Daily', fg: '#7a4a1e', style: 'paint' },
   { text: 'BAY HILL ELECTRICAL', fg: '#1f6a4a', style: 'block' },
@@ -120,6 +123,12 @@ export function buildVan(spec: VehicleSpec, color: number, m: MaterialLibrary): 
       fuelFlap(k, shell, -1.75, 0.8, -1);
 
       if (firm) {
+        // The courier vans wear a livery band along the lower flanks under the signwriting.
+        if (firm.band) {
+          const band = tint(firm.band, 'gloss');
+          shell.band(k, band, 0.5, 0.64, -h + 0.22, 1.62, [1, -1], 0.005, 1);
+          shell.hline(k, band, 0.68, -h + 0.22, 1.62, 0.025, [1, -1], 0.005);
+        }
         // A signwritten panel on each flank, laid back with the body side.
         const sign = m.sign(firm.text, { bg: '#f2efe4', fg: firm.fg, style: firm.style, aspect: 3.7 });
         const lo = cab.flank(-0.75, 0.2, 0.006);
@@ -141,5 +150,5 @@ export function buildVan(spec: VehicleSpec, color: number, m: MaterialLibrary): 
       }
     },
   };
-  return assemble(spec, color, m, `van|${windows}|${firmIndex}`, plan, (k) => k.plates(h + 0.085, 0.47, -h - 0.012, 0.66)).model;
+  return assemble(spec, color, m, `van2|${windows}|${firmIndex}`, plan, (k) => k.plates(h + 0.085, 0.47, -h - 0.012, 0.66)).model;
 }

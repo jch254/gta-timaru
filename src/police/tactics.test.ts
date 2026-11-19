@@ -111,6 +111,16 @@ describe('radio', () => {
     expect(radioLine('lost', 'a', 'b', () => -5)).toBeTruthy();
   });
 
+  it('talks like a 1995 NZ dispatcher', () => {
+    // Offences by their local names, and plain-language RT.
+    expect(radioLine('carStolen', 'Braid One', 'on Stafford St', () => 2)).toBe('All units: vehicle conversion on Stafford St, and the vehicle converted is one of ours.');
+    expect(radioLine('level1', 'Tussock One', 'around Sydenham', () => 1)).toBe('Comms to Tussock One: possible burg around Sydenham. Probably kids. Go and be seen.');
+    expect(radioLine('lost', 'Kea One', 'on Colombo St', () => 1)).toContain('fled on foot');
+    // Never American ten-codes: NZ 10-4 means "repeat", not "OK".
+    const all = events.flatMap((e) => radioLines(e)).join(' ');
+    expect(all).not.toMatch(/10-\d/);
+  });
+
   it('streets are "on", suburbs are "around"', () => {
     expect(whereText('Moorhouse Ave', 'Sydenham')).toBe('on Moorhouse Ave');
     expect(whereText('Sydenham', 'Sydenham')).toBe('around Sydenham');

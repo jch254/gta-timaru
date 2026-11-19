@@ -7,12 +7,15 @@ export type WeaponId = (typeof WEAPON_ORDER)[number];
 /**
  * Weapons as data. `damage` is per pellet; `rate` is trigger pulls per second; `spread` is the cone
  * half-angle in radians before the stance multipliers in TUNING.
+ *
+ * Display names are 1995 Canterbury flavour only (the club target pistol, the duck-season pump, the
+ * farm .22); ids and every number are fixed by the contract and playtest.
  */
 export const WEAPONS: readonly WeaponSpec[] = [
   { id: 'fists', name: 'Fists', kind: 'fists', damage: 14, rate: 2.4, range: 1.5, magazine: 0, reloadTime: 0, spread: 0, pellets: 1, automatic: false, driveBy: false, price: 0 },
   { id: 'bat', name: 'Cricket Bat', kind: 'melee', damage: 32, rate: 1.5, range: 2, magazine: 0, reloadTime: 0, spread: 0, pellets: 1, automatic: false, driveBy: false, price: 45 },
-  { id: 'pistol', name: 'Pistol', kind: 'pistol', damage: 26, rate: 3.6, range: 70, magazine: 9, reloadTime: 1.5, spread: 0.02, pellets: 1, automatic: false, driveBy: true, price: 400 },
-  { id: 'shotgun', name: 'Pump Shotgun', kind: 'shotgun', damage: 13, rate: 1, range: 30, magazine: 5, reloadTime: 2.8, spread: 0.085, pellets: 8, automatic: false, driveBy: false, price: 850 },
+  { id: 'pistol', name: 'Target Pistol', kind: 'pistol', damage: 26, rate: 3.6, range: 70, magazine: 9, reloadTime: 1.5, spread: 0.02, pellets: 1, automatic: false, driveBy: true, price: 400 },
+  { id: 'shotgun', name: 'Duck Gun', kind: 'shotgun', damage: 13, rate: 1, range: 30, magazine: 5, reloadTime: 2.8, spread: 0.085, pellets: 8, automatic: false, driveBy: false, price: 850 },
   { id: 'rifle', name: '.22 Rabbit Rifle', kind: 'rifle', damage: 70, rate: 0.8, range: 240, magazine: 5, reloadTime: 2.6, spread: 0.003, pellets: 1, automatic: false, driveBy: false, price: 1200 },
 ];
 

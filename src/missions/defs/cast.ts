@@ -8,7 +8,7 @@
  * through `withCameo`, `cameoCue` and `cameoRemark` below, so taking a cameo out of ./cameos.ts takes their
  * lines out of the story as well.
  *
- *  Mack Tully      the player. Fourteen years on the chain at Smithfield, laid off by letter.
+ *  Mack Tully      the player. Fourteen seasons on the chain at Smithfield; not called back, by letter.
  *  Aunty Rena      Mack's aunt. Ngāi Tahu, whānau at Arowhenua. Runs the chip shop on the Bay Hill, knows everyone.
  *  Hine            Rena's cousin; runs the kitchen for the hui at Arowhenua.
  *  Jock Ferrier    retired fisherman with a lock-up at Timaru port and no curiosity about paperwork.
@@ -22,6 +22,16 @@
  *  The Easterlies  a New Brighton crew taking a cut of everything that moves on SH1. Named for the cold wind
  *                  that comes in off the sea every afternoon. Run by Flash Harkness, a car dealer; Brick is his
  *                  right hand.
+ *
+ * The story keeps to the real 1995 calendar (docs/RESEARCH.md, "The era"). The six jobs, in order:
+ *  1. Severance Pay     late February 1995: the end of the killing season, in the heatwave (37.0C at Geraldine).
+ *  2. On Ice            Sunday 14 May 1995: the morning after the America's Cup was won 5-0 in San Diego.
+ *  3. Mint Sauce        Saturday 24 June 1995: the Shield match in Ashburton, the World Cup final on TV that night.
+ *  4. The Four Aves     a Friday in early September 1995: the first Mururoa test (Tue 5 Sep) on every radio.
+ *  5. Punt Return       Saturday 23 September 1995: the Shield lost 0-35 at home, Ruapehu erupting the same day.
+ *  6. Southerly Change  Show Day, Friday 10 November 1995: Cup and Show Week, and a real southerly to finish.
+ * Future writers: keep new dialogue inside this calendar, and keep the one collapse it leans on (the meat
+ * group that went under in March 1994, owing the district's farmers) unnamed. Invented names only.
  */
 import type { GameContext, HumanoidLook } from '../../core/types';
 import type { Cue, CustomStep, Line, PedDef, SpotObject } from '../types';

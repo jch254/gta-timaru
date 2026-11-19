@@ -7,16 +7,18 @@ const SHED_CREW = handles('shed', 4);
 const ARTS_CREW = ['brick', ...handles('art', 4)];
 
 /**
- * 5. Christchurch, after dark, around the Avon. The Easterlies frightened the release papers for Dazza's
- * container out of the shipping office and want paying for them at the Antigua Boat Sheds. Two shoot-outs
- * (the sheds, then Brick in the Arts Centre quad), then get the papers home with half the city's police
- * looking for you.
+ * 5. Christchurch, after dark, around the Avon, on Saturday 23 September 1995: the day Canterbury lost the
+ * Shield 0-35 to Auckland at Lancaster Park, with Ruapehu erupting on the same day's news. A bad day for
+ * the whole town, fights in the pubs, the police stretched thin, which is exactly why the Easterlies chose
+ * tonight to squeeze. They frightened the release papers for Dazza's container out of the shipping office
+ * and want paying for them ("taxing" is the word) at the Antigua Boat Sheds. Two shoot-outs (the sheds,
+ * then Brick in the Arts Centre quad), then get the papers home with half the city's police looking for you.
  */
 export const puntReturn: MissionDef = {
   id: 'punt-return',
   title: 'Punt Return',
   giver: DAZZA,
-  blurb: "The Easterlies have the release papers for Dazza's container and want five thousand for them tonight, at the Antigua Boat Sheds on the Avon. Dazza would rather you went and explained that he isn't paying.",
+  blurb: "The Easterlies have the release papers for Dazza's container and want five thousand for them tonight, at the Antigua Boat Sheds on the Avon. The town lost the Shield today and the police have their hands full. Dazza would rather you went and explained that he isn't paying.",
   reward: 3200,
   placeId: 'chch-garage',
   requires: ['four-avenues'],
@@ -29,7 +31,8 @@ export const puntReturn: MissionDef = {
       lines: [
         line(DAZZA, "There's a container landing at Lyttelton this week. Forty rebuilt engines out of Osaka. Every cent I've got, and a silent partner's."),
         line(DAZZA, 'Ana at the shipping office holds the release papers. Yesterday two Easterlies told her they knew which school her tamariki go to.'),
-        line(DAZZA, "She handed the papers over. I'd have done the same. Now Harkness wants five grand for them, tonight, at the boat sheds on the Avon."),
+        line(DAZZA, "She handed them over. I'd have done the same. Now Harkness wants five grand for them, tonight, at the boat sheds on the Avon. He calls it taxing."),
+        line(DAZZA, "Shield gone nil to thirty-five, Ruapehu all over the news, and every cop in town hauling drunks out of pub fights. He picked tonight on purpose."),
         line(MACK, "And you'd like me to pay him."),
         line(DAZZA, "I'd like you to take this, and a vest, and go and explain that we're not."),
       ],
@@ -51,6 +54,7 @@ export const puntReturn: MissionDef = {
       radius: 30,
       marker: false,
       objective: 'Get to the Antigua Boat Sheds on the Avon',
+      cues: [{ at: 12, lines: [line('Radio, faintly', 'Nil to thirty-five at Lancaster Park this afternoon, and the Shield goes north. And Ruapehu has put ash twelve kilometres into the sky.')] }],
     },
     // The retry resumes short of the crew, by the health pack: "have another go" must not stand the player
     // back up inside four drawn pistols (the honest playtest died in nine seconds, three retries straight,
@@ -64,7 +68,7 @@ export const puntReturn: MissionDef = {
     },
     // The law sits the shoot-outs themselves out, as at Stroud's yard: an honest playtest had patrol cars
     // join the quad fight at four lights and once arrest the player mid-fight. The police beat is scripted
-    // right after Brick — loseHeat raises three lights regardless — so nothing is lost but the pile-on.
+    // right after Brick (loseHeat raises three lights regardless), so nothing is lost but the pile-on.
     { kind: 'eliminate', targets: SHED_CREW, police: { suspend: true }, objective: 'Deal to the Easterlies at the boat sheds ({n} left)' },
     {
       kind: 'say',
@@ -131,7 +135,8 @@ export const puntReturn: MissionDef = {
       kind: 'say',
       lines: [
         line(DAZZA, "All there. I'll ring Ana and tell her she can stop looking over her shoulder."),
-        line(DAZZA, "Harkness will come himself now. And you'd better meet the silent partner. She's on the bus up from Timaru."),
+        line(DAZZA, 'Harkness will come himself now. Five grand is carpet money. His takings wash through that new casino, the Avon Palace. First in the country.'),
+        line(DAZZA, "And you'd better meet the silent partner. She's on the bus up from Timaru."),
         line(MACK, 'She.'),
         line(DAZZA, "Don't make me say it, mate."),
       ],

@@ -388,8 +388,8 @@ class Combat implements CombatApi, System {
     return this.models.held(weaponId);
   }
 
-  spawnPickup(kind: string, x: number, z: number, amount?: number, respawnSeconds?: number): () => void {
-    return this.pickups.spawn(kind, x, z, amount, respawnSeconds);
+  spawnPickup(kind: string, x: number, z: number, amount?: number, respawnSeconds?: number, options?: { ttl?: number; drop?: boolean }): () => void {
+    return this.pickups.spawn(kind, x, z, amount, respawnSeconds, options?.ttl ?? Infinity, options?.drop ?? false);
   }
 
   /** Live, takeable pickups — a dev-tools aid, not part of the contract. */

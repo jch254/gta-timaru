@@ -18,6 +18,8 @@ const PROBE_REACH = 2.2;
 const PROBE_EVERY = 3;
 /** Headings tried, in order, when the way ahead is blocked (radians off the wanted heading). */
 const DODGE = [0.7, 1.4];
+/** A fallen officer's gun lies by the body this long (like a cash drop) before it fades. */
+const GUN_DROP_SECONDS = 45;
 
 const UNIFORM = { topStyle: 'uniform', top: 0x8fb0d8, legs: 0x1b2438, shoes: 0x101014, hat: 'police', hatColor: 0x1b2438 } as const;
 const LOOKS: HumanoidLook[] = [
@@ -290,8 +292,26 @@ export class Officer implements Actor {
     this.setDrawn(false);
     this.rig.setPose('dead');
     ctx.actors.all.delete(this);
+    this.dropWeapon();
     ctx.events.emit('actorDied', { actor: this, info });
     this.host.copDied(this, info);
+  }
+
+  /**
+   * The officer's gun is left by the body for anyone game enough to take it. A fresh pickup model by
+   * weapon id, nothing to do with the borrowed held model (that goes back through `returnWeapon`).
+   */
+  private dropWeapon() {
+    const { ctx, rng } = this.host;
+    const x = this.position.x + rng.range(-0.45, 0.45);
+    const z = this.position.z + rng.range(-0.45, 0.45);
+    if (ctx.world.waterDepthAt(x, z) > 0.2) return;
+    const ammo = this.weaponId === 'shotgun' ? rng.int(3, 5) : rng.int(6, 10);
+    try {
+      ctx.combat.spawnPickup(this.weaponId, x, z, ammo, 0, { ttl: GUN_DROP_SECONDS, drop: true });
+    } catch {
+      // Combat unavailable (stub): nothing is left behind.
+    }
   }
 
   /** Remove from the world for good. Safe to call twice. */

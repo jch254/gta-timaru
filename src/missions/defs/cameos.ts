@@ -100,6 +100,7 @@ export const CAMEOS: readonly CameoDef[] = [
       'Kia ora! Lovely to see you. I have opened a fountain, a footbridge and a fête today, and it is barely lunchtime.',
       'Isn’t this city marvellous? Mind the ribbon, dear. I haven’t cut that one yet.',
       'If it stands still in Christchurch for a fortnight, I will turn up with the big scissors and declare it open.',
+      'Have you ridden the new tram? I declared it open in February and I have been back eleven times since, purely for quality control.',
       'Do come to the flower show. I am opening it. I am also judging the marrows, which is the dangerous part.',
       'You look as though you could use a good day. Have this one, with the compliments of the council.',
     ],
@@ -162,7 +163,7 @@ export const CAMEOS: readonly CameoDef[] = [
   {
     id: 'pete-blackwell',
     name: 'Skipper Pete Blackwell',
-    about: 'Yachtsman, home from winning the Cup, on the waterfront at Lyttelton in his lucky red socks.',
+    about: 'Yachtsman, home since the five-nil Cup win in May 1995, on the waterfront at Lyttelton in his lucky red socks.',
     look: { skin: 0xd8a888, hair: 0x8a6a3a, hairStyle: 'short', top: 0x1e2a44, topStyle: 'jacket', legs: 0xe6dfc8, shorts: true, shoes: 0x6a4a2c, socks: 0xc8201e, hat: 'none', height: 1.04, bulk: 1.05 },
     // The harbour side of Norwich Quay, a hundred metres along from the wharf gate, with the port behind him.
     at: { place: 'lyttelton-wharf', dx: 102, dz: -50, snap: 'verge', road: 'norwich', turn: -Math.PI / 2 },
@@ -179,7 +180,7 @@ export const CAMEOS: readonly CameoDef[] = [
   {
     id: 'jim-hickory',
     name: 'Jim Hickory',
-    about: 'The six o’clock television weatherman, up on the Summit Road by the transmitter, reading the sky.',
+    about: 'The six o’clock television weatherman, up on the Summit Road by the transmitter, reading the sky. 1995 gave him plenty: the big September snow, then a wet spring.',
     look: { skin: 0xe2b090, hair: 0x9a968e, hairStyle: 'short', top: 0x6a5a48, topStyle: 'jacket', legs: 0x3a3f48, shoes: 0x2a1a12, hat: 'none', height: 1, bulk: 1.06 },
     // The roadside below the Sugarloaf transmitter, facing the road.
     at: { landmark: 'sugarloaf-tower', snap: 'verge', road: 'summit', out: 3, turn: -Math.PI / 2 },
@@ -196,6 +197,7 @@ export const CAMEOS: readonly CameoDef[] = [
     lines: [
       'I do this for the whole country at six o’clock. Up here I just do it for me.',
       'People blame me for the weather. I only read it out. Take it up with the Tasman Sea.',
+      'That September snow put forty-five centimetres on Tekapo. I said “significant falls” the night before, and I have never been sorrier to be right.',
       'The trick is to wave an arm at the map with confidence. The isobars do the rest.',
       'Southerly, nor’wester, easterly off the sea. Canterbury gets all three before lunch and calls it a nice day.',
     ],
@@ -233,11 +235,11 @@ export const CAMEOS: readonly CameoDef[] = [
     lines: [
       'Jim Boulder. Good to meet you. Firm handshake, that. You’ll have done an honest day’s work or two.',
       'I was a farmer long before I was a politician. The sheep were the tougher crowd, and they never once asked for a recount.',
-      'Election’s next year, so you’ll be seeing a lot of me. I’d apologise, but it’s in the job description.',
+      'Everybody asks me when the election will be. When I call it, and not a day before. A farmer never names the day he starts shearing, either.',
       'Mid Canterbury. Best soil in the country, and people who tell you exactly what they think of you.',
       'No speeches today, I promise. A cup of tea at the hall and a look at the new irrigation scheme.',
     ],
-    oi: 'Oi! Steady on. The election isn’t till next year!',
+    oi: 'Oi! Steady on. I have been kicked by professionals!',
   },
   {
     id: 'ted-hillsborough',

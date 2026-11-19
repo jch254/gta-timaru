@@ -7,7 +7,7 @@ import type { CityId } from './types';
  */
 export const CITY_TE_REO: Partial<Record<CityId, string>> = {
   christchurch: 'Ōtautahi',
-  timaru: 'Te Tihi-o-Maru',
+  timaru: 'Te Maru',
   lyttelton: 'Ōhinehou',
   ashburton: 'Hakatere',
   temuka: 'Te Umu Kaha',

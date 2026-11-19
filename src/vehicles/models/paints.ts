@@ -9,4 +9,6 @@ export const METALLIC: ReadonlySet<number> = new Set([
   0x1b4fa8, 0x14463a, 0x4b2060, 0x8a8f96, 0xaeb4ba, 0x1b6f76, 0x38245a, 0x1f3f8f,
   // Hatch, ute, bike.
   0x86a9c6, 0xaab0b4, 0x4f9d8f, 0x8c908d, 0x1f49a8,
+  // 1995 roster: coupe gunmetal, sigma cinnamon, accord champagne, import pearl and dark grey.
+  0x3f4448, 0x8c5a33, 0xcfc29e, 0xe9e6d8, 0x4c5257,
 ]);

@@ -12,12 +12,12 @@ import type { Mixer } from './mixer';
 import { ENGINE_BASE_RPM, renderEngineLoop, renderGravelLoop, type EngineKind } from './sfx-render';
 
 /** Engine level by type. The bike's two cylinders make a sparser, peakier loop, so it needs more gain for the same loudness. */
-const ENGINE_GAIN: Record<Vehicle['spec']['engineSound'], number> = { four: 0.45, six: 0.48, v8: 0.56, diesel: 0.52, bike: 0.75, electric: 0.3 };
+const ENGINE_GAIN: Record<Vehicle['spec']['engineSound'], number> = { four: 0.45, six: 0.48, v6: 0.5, v8: 0.56, boxer: 0.5, turbo: 0.47, diesel: 0.52, bike: 0.75, single: 0.72, electric: 0.3 };
 
 /** The exhaust-pulse loop for an engine type and rev band (same seed every time, so it can be pre-rendered). */
 export const renderEngine = (kind: EngineKind, band: 0 | 1): Float32Array => renderEngineLoop(kind, band, new Rng(band ? 0xbeef : 0xc0ffee));
 export const renderGravel = (): Float32Array => renderGravelLoop(new Rng(0x6ea7e1));
-export const ENGINE_KINDS: readonly EngineKind[] = ['four', 'six', 'v8', 'diesel', 'bike'];
+export const ENGINE_KINDS: readonly EngineKind[] = ['four', 'six', 'v6', 'v8', 'boxer', 'turbo', 'diesel', 'bike', 'single'];
 
 /** How loose the ground is, 0 (sealed) .. 1 (metal road). */
 export function looseness(surface: GroundSurface): number {
@@ -166,6 +166,19 @@ export class VehicleAudio {
       sources.push(hum, whine);
     } else {
       const k: EngineKind = kind;
+      if (k === 'turbo') {
+        // Turbo spool: a soft sawtooth whistle above the engine, pitched and faded with the revs in update().
+        whine = ac.createOscillator();
+        whine.type = 'sawtooth';
+        whine.frequency.value = 900;
+        whineGain = gain();
+        const whineBand = filter('bandpass', 2400, 2.5);
+        whine.connect(whineBand);
+        whineBand.connect(whineGain);
+        whineGain.connect(engine);
+        whine.start();
+        sources.push(whine);
+      }
       // Both loops start on the same firing stroke and are always bent by the same ratio, so their exhaust
       // pulses stay lined up and the cross-fade between them sounds like one engine, not two.
       const rpm = this.gearbox.rpm;
@@ -261,6 +274,12 @@ export class VehicleAudio {
       g.engine.gain.setTargetAtTime(power * level * (0.2 + 0.25 * revs + 0.3 * this.load), now, K);
       g.intakeBand.frequency.setTargetAtTime(320 + 1500 * revs, now, K);
       g.intake.gain.setTargetAtTime(power * (0.05 + 0.32 * this.load * (0.3 + 0.7 * revs)), now, K);
+      if (g.whine && g.whineGain) {
+        // Turbo spool follows revs and load: silent off boost, a rising whistle as it comes on.
+        const boost = Math.min(1, Math.max(0, revs - 0.15) * 1.3) * this.load;
+        g.whine.frequency.setTargetAtTime(700 + 2600 * revs, now, K);
+        g.whineGain.gain.setTargetAtTime(power * 0.1 * boost * boost, now, K);
+      }
     } else if (g.hum && g.whine && g.whineGain) {
       const f = speed / Math.max(1, v.spec.topSpeed);
       g.hum.frequency.setTargetAtTime(50 + 70 * f, now, K);
@@ -293,7 +312,7 @@ export class VehicleAudio {
 
     // Lift off hard at high revs and the big engines pop on the overrun.
     const kind = v.spec.engineSound;
-    if (changed === 0 && (kind === 'v8' || kind === 'bike') && this.prevThrottle > 0.7 && throttle < 0.1 && revs > 0.55 && this.rng.chance(0.35)) {
+    if (changed === 0 && (kind === 'v8' || kind === 'bike' || kind === 'turbo') && this.prevThrottle > 0.7 && throttle < 0.1 && revs > 0.55 && this.rng.chance(0.35)) {
       this.backfire(v, this.rng.range(0.08, 0.3));
     }
     this.prevThrottle = throttle;

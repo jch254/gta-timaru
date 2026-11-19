@@ -33,7 +33,12 @@ export const PLACE_IDS = [
   'lyttelton-wharf',
 ] as const;
 
-export const VEHICLE_IDS = ['statesman', 'v8sedan', 'coupe', 'hatch', 'wagon', 'ute', 'farmtruck', 'van', 'bike', 'police', 'bus'] as const;
+export const VEHICLE_IDS = [
+  'statesman', 'v8sedan', 'coupe', 'hatch', 'wagon', 'ute', 'farmtruck', 'van', 'bike', 'police', 'bus',
+  // Added with the 1995 roster (docs/CONTRACT.md).
+  'trafficcar', 'taxi', 'kingswood', 'valiant', 'cortina', 'mini', 'triumph', 'corolla', 'corona', 'sigma',
+  'accord', 'datsun', 'leone', 'hothatch', 'import', 'lada', 'landrover', 'stocktruck', 'farmbike',
+] as const;
 
 export const WEAPON_IDS = ['fists', 'bat', 'pistol', 'shotgun', 'rifle'] as const;
 

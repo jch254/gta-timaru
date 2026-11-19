@@ -86,8 +86,14 @@ export class Pickups {
     }
     if (this.inMarae(x, z)) {
       // Marae are places of respect: nothing to grab there (docs/CONTRACT.md addendum).
-      console.warn(`combat: pickup "${kind}" at ${x.toFixed(0)}, ${z.toFixed(0)} is inside a marae and was not placed`);
+      // A body's drop just quietly fails; a scripted placement is worth a warning.
+      if (!drop) console.warn(`combat: pickup "${kind}" at ${x.toFixed(0)}, ${z.toFixed(0)} is inside a marae and was not placed`);
       return () => undefined;
+    }
+    if (drop && this.drops >= TUNING.maxCashDrops) {
+      // At the drop cap (cash and dropped weapons alike): the oldest drop makes way.
+      const oldest = this.list.find((p) => p.drop);
+      if (oldest) this.remove(oldest);
     }
     // A turntable so weapon models can be offset and still spin about the pickup's centre.
     const holder = new THREE.Group();
@@ -137,10 +143,6 @@ export class Pickups {
     const x = actor.position.x + (Math.random() - 0.5) * 0.8;
     const z = actor.position.z + (Math.random() - 0.5) * 0.8;
     if (ctx.world.waterDepthAt(x, z) > 0.2 || this.inMarae(x, z)) return;
-    if (this.drops >= TUNING.maxCashDrops) {
-      const oldest = this.list.find((p) => p.drop);
-      if (oldest) this.remove(oldest);
-    }
     const amount = TUNING.cashDropMin + Math.floor(Math.random() * (TUNING.cashDropMax - TUNING.cashDropMin + 1));
     this.spawn('cash', x, z, actor.kind === 'gang' ? amount * 2 : amount, 0, TUNING.cashDropSeconds, true);
   }
