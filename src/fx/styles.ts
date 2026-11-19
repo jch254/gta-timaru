@@ -45,10 +45,14 @@ export const EMBER = particleStyle({ lifeMin: 0.8, lifeMax: 1.7, size0: 0.1, siz
 /** Recycling rings: each kind of stain has its own budget. */
 export const DecalRing = { Blood: 0, Hole: 1, Scorch: 2, Pock: 3, Skid: 4 } as const;
 /** Ring sizes, indexed by DecalRing. */
-export const DECAL_CAPACITY: readonly number[] = [40, 60, 12, 40, 220];
+export const DECAL_CAPACITY: readonly number[] = [64, 60, 12, 40, 220];
 
 export const DECAL_BLOOD_SPATTER: DecalStyle = { ring: DecalRing.Blood, tint: [0.42, 0.02, 0.02], alpha: 0.9, life: 60, fade: 10, grow: 0.25, growFrom: 0.4, soft: 0.1, irregular: 0.6, speckle: 0.9, lift: 0.03 };
 export const DECAL_BLOOD_POOL: DecalStyle = { ring: DecalRing.Blood, tint: [0.3, 0.012, 0.012], alpha: 0.93, life: 60, fade: 12, grow: 14, growFrom: 0.12, soft: 0.07, irregular: 0.3, speckle: 0, lift: 0.035 };
+/** Where a tyre went over someone: a streak along the road. */
+export const DECAL_BLOOD_SMEAR: DecalStyle = { ring: DecalRing.Blood, tint: [0.34, 0.014, 0.014], alpha: 0.88, life: 60, fade: 10, grow: 0.3, growFrom: 0.5, soft: 0.3, irregular: 0.45, speckle: 0.6, lift: 0.03 };
+/** Splashed across the panel of the car that hit them; rides on it, sitting tight to the paint. */
+export const DECAL_BLOOD_CAR: DecalStyle = { ring: DecalRing.Blood, tint: [0.4, 0.02, 0.02], alpha: 0.9, life: 50, fade: 10, grow: 0, growFrom: 1, soft: 0.12, irregular: 0.6, speckle: 0.9, lift: 0.01 };
 export const DECAL_HOLE: DecalStyle = { ring: DecalRing.Hole, tint: [0.1, 0.1, 0.1], alpha: 0.9, life: 45, fade: 6, grow: 0, growFrom: 1, soft: 0.45, irregular: 0.35, speckle: 0, lift: 0.012 };
 export const DECAL_SCUFF: DecalStyle = { ring: DecalRing.Hole, tint: [0.3, 0.28, 0.25], alpha: 0.6, life: 30, fade: 6, grow: 0, growFrom: 1, soft: 0.6, irregular: 0.5, speckle: 0.5, lift: 0.025 };
 export const DECAL_SCORCH: DecalStyle = { ring: DecalRing.Scorch, tint: [0.07, 0.06, 0.055], alpha: 0.86, life: 90, fade: 15, grow: 0.35, growFrom: 0.5, soft: 0.75, irregular: 0.45, speckle: 0.6, lift: 0.04 };

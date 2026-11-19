@@ -116,9 +116,10 @@ class Combat implements CombatApi, System {
       this.swinging = false;
       this.kickPitch = this.kickYaw = 0;
     });
-    // Deaths the victim's own system reports a moment after the hit still count against the player.
+    // Deaths the victim's own system reports a moment after the hit still count against the player, and so does
+    // running someone down (the pedestrian and police systems deal those blows, naming the driver).
     ctx.events.on('actorDied', ({ actor, info }) => {
-      if (info.source === ctx.player && (info.kind === 'bullet' || info.kind === 'melee' || info.kind === 'explosion')) this.reportKill(actor);
+      if (info.source === ctx.player && (info.kind === 'bullet' || info.kind === 'melee' || info.kind === 'explosion' || info.kind === 'vehicle')) this.reportKill(actor);
     });
   }
 

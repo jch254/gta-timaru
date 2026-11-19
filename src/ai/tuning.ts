@@ -285,6 +285,25 @@ export const PEDS = {
   hitSpeed: 4,
   hitDamageFrom: 3,
   hitDamageScale: 9,
+  /** Thrown by a hit: up into the air at (closing − throwFrom) × throwLift m/s, capped; spun round by up to throwSpin rad/s. */
+  throwFrom: 6,
+  throwLift: 0.3,
+  throwLiftMax: 6,
+  throwSpin: 5,
+  /** The car feels it: it gives up this many kg's worth of its momentum, but never more than joltMax m/s. */
+  hitMass: 40,
+  joltMax: 0.9,
+  /**
+   * Run over where they lie (knocked flat, or already dead): any vehicle rolling faster than runOverSpeed does
+   * (runOverDamage + speed × runOverScale) × (mass / runOverMass, clamped 0.5..2), at most once per runOverGap seconds.
+   */
+  runOverSpeed: 2,
+  runOverDamage: 30,
+  runOverScale: 6,
+  runOverMass: 1200,
+  runOverGap: 0.45,
+  /** …and bounces over them: an upward kick of this many m/s at the wheel that went over. */
+  runOverBump: 0.35,
   downSeconds: [3, 5.5] as const,
   corpseSeconds: 25,
   /** Everyone on the street (and every ambient driver) starts with this much health. */
@@ -304,6 +323,9 @@ export const PEDS = {
   engageRange: 24,
   /** Barks: at most one line every this many seconds, for everyone. */
   barkGap: 4.5,
+  /** Screams: a panicking crowd lets one out at most this often, and a fresh fright screams this often. */
+  screamGap: 0.45,
+  screamChance: 0.6,
   lingerRadius: 2.3,
   lingerSeconds: 3.2,
   bumpRadius: 0.75,

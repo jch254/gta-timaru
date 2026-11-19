@@ -5,7 +5,7 @@ import type { Actor, GameContext, GameEvents, Humanoid, PedHandle, VehicleSpec }
 import { Vehicles } from '../vehicles';
 import { PedsSystem } from './peds';
 import { buildGraph, crossroads } from './testgraph';
-import { makeSpec, makeTestWorld, type TestWorld } from './testworld';
+import { makeSpec, makeTestWorld, type FakeVehicle, type TestWorld } from './testworld';
 import { TrafficSystem } from './traffic';
 import { PEDS, TRAFFIC } from './tuning';
 
@@ -410,7 +410,10 @@ describe('pedestrians', () => {
     world.ctx.vehicles.enter(world.player, car, 0);
     car.controls.throttle = 0;
     (car as unknown as { speed: number }).speed = 9;
-    run(3);
+    // The driver stops dead the moment they hit someone.
+    run(3, () => {
+      if (damaged.length) (car as unknown as { speed: number }).speed = 0;
+    });
     expect(damaged.length).toBeGreaterThanOrEqual(1);
     expect(damaged[0].actor).toBe(victim);
     expect(damaged[0].info.kind).toBe('vehicle');
@@ -418,7 +421,7 @@ describe('pedestrians', () => {
     expect(crimes.filter((c) => c.type === 'hitAndRun').length).toBe(1);
     expect(crimes[0].victim).toBe(victim);
     expect(world.sounds).toContain('bodyHit');
-    // 9 m/s is survivable: they get up again.
+    // 9 m/s is survivable if the car stops: they get up again.
     expect(victim.alive).toBe(true);
     expect(victim.health).toBeLessThan(100);
     expect(died.length).toBe(0);
@@ -441,6 +444,96 @@ describe('pedestrians', () => {
     run(8);
     expect(victim.group.parent).toBeNull();
     PEDS.dodgeChance = dodgeChance;
+  });
+
+  it('a car that keeps going runs over whoever it knocked flat: they do not get up', () => {
+    const { world, peds, traffic, run } = setup();
+    const crimes = record(world, 'crime');
+    const died = record(world, 'actorDied');
+    const hits = record(world, 'vehicleHitActor');
+    peds.density = 0;
+    traffic.density = 0;
+    const dodgeChance = PEDS.dodgeChance;
+    PEDS.dodgeChance = 0;
+    try {
+      const victim = peds.spawn({ x: 2.4, z: 60, behaviour: 'stand', persistent: true });
+      const car = world.ctx.vehicles.spawn('statesman', 2.4, 40, 0)! as FakeVehicle;
+      world.ctx.vehicles.enter(world.player, car, 0);
+      run(4, () => ((car as unknown as { speed: number }).speed = 9));
+      // Struck first, then the wheels went over them.
+      expect(hits[0]).toMatchObject({ actor: victim, vehicle: car, under: false });
+      expect(hits.filter((h) => h.under && h.actor === victim).length).toBeGreaterThanOrEqual(1);
+      expect(victim.alive).toBe(false);
+      expect(died.length).toBe(1);
+      expect(died[0].info.kind).toBe('vehicle');
+      expect(died[0].info.source).toBe(world.player);
+      // One report for the lot.
+      expect(crimes.filter((c) => c.type === 'hitAndRun').length).toBe(1);
+      // The car felt it, and so did the driver.
+      expect(car.impulses.some((i) => i.z < 0)).toBe(true); // the hit, against its travel
+      expect(car.impulses.some((i) => i.y > 0)).toBe(true); // the bump going over
+      expect(world.player.shakes.length).toBeGreaterThanOrEqual(2);
+    } finally {
+      PEDS.dodgeChance = dodgeChance;
+    }
+  });
+
+  it('a hard hit throws the body up and on down the road, where it comes to rest', () => {
+    const { world, peds, traffic, run } = setup();
+    peds.density = 0;
+    traffic.density = 0;
+    const dodgeChance = PEDS.dodgeChance;
+    PEDS.dodgeChance = 0;
+    try {
+      const victim = peds.spawn({ x: 2.4, z: 60, behaviour: 'stand', persistent: true });
+      const car = world.ctx.vehicles.spawn('statesman', 2.4, 30, 0)!;
+      car.driver = world.player;
+      let highest = 0;
+      let stopped = false;
+      run(6, () => {
+        // Brakes hard once they have killed someone, and stays stopped.
+        if (!victim.alive) stopped = true;
+        (car as unknown as { speed: number }).speed = stopped ? 0 : 22;
+        highest = Math.max(highest, victim.group.position.y - victim.position.y);
+      });
+      expect(victim.alive).toBe(false);
+      expect(highest).toBeGreaterThan(0.5); // through the air
+      expect(victim.position.z).toBeGreaterThan(70); // well down the road from where they stood
+      expect(victim.velocity.length()).toBe(0); // and still now
+      expect(victim.group.position.y).toBeCloseTo(victim.position.y, 5); // lying on the ground
+      const at = victim.position.clone();
+      run(2);
+      expect(victim.position.distanceTo(at)).toBe(0);
+    } finally {
+      PEDS.dodgeChance = dodgeChance;
+    }
+  });
+
+  it('traffic rolls over a body lying in the road: a thump and a jolt, but the dead stay dead', () => {
+    const { world, peds, traffic, run } = setup();
+    const damaged = record(world, 'actorDamaged');
+    const crimes = record(world, 'crime');
+    const hits = record(world, 'vehicleHitActor');
+    peds.density = 0;
+    traffic.density = 0;
+    const body = peds.spawn({ x: 2.4, z: 60, heading: 0, behaviour: 'stand', persistent: true });
+    body.takeDamage({ amount: 999, kind: 'bullet', source: null });
+    expect(body.alive).toBe(false);
+    const before = damaged.length;
+    const car = world.ctx.vehicles.spawn('statesman', 2.4, 45, 0)! as FakeVehicle;
+    car.driver = world.player;
+    run(3, () => ((car as unknown as { speed: number }).speed = 8));
+    const under = hits.filter((h) => h.actor === body && h.under);
+    expect(under.length).toBeGreaterThanOrEqual(1);
+    expect(under.length).toBeLessThanOrEqual(3); // front wheels and back, not every frame
+    expect(car.impulses.some((i) => i.y > 0)).toBe(true);
+    expect(damaged.length).toBe(before);
+    expect(crimes.length).toBe(0);
+    // Too slow to count: creeping along on top of them.
+    const slow = world.ctx.vehicles.spawn('statesman', 2.4, 59, 0)!;
+    const count = hits.length;
+    run(2, () => ((slow as unknown as { speed: number }).speed = 1));
+    expect(hits.length).toBe(count);
   });
 
   it('most jump clear of a car bearing down on them', () => {

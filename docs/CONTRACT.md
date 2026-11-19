@@ -158,9 +158,9 @@ Defined in `GameEvents` (`src/core/types.ts`). Who emits what:
 
 - Player: `crime` (`carTheft`, `carjacking`), `playerDied`, `playerRespawned`, `zoneChanged`, `moneyChanged`, `actorDamaged`/`actorDied` for itself.
 - Vehicles: `vehicleEntered`, `vehicleExited`, `vehicleCrash`, `vehicleDamaged`, `vehicleDestroyed`, `horn`.
-- Combat: `gunshot`, `impact`, `weaponChanged`, `pickup`, and `crime` (`gunfire`, `assault`, `murder`, `copAssault`, `copKilled`, `vehicleDamage`) when the offender is the player.
-- Pedestrians / traffic: `actorDamaged`, `actorDied` for their actors; `crime` `hitAndRun` when the player's vehicle hits a pedestrian.
-- Police: `wantedChanged`, `playerBusted`, and `crime` (`recklessDriving`) when the player speeds in sight of a patrol.
+- Combat: `gunshot`, `impact`, `weaponChanged`, `pickup`, and `crime` (`gunfire`, `assault`, `murder`, `copAssault`, `copKilled`, `vehicleDamage`) when the offender is the player. A death is `murder` (`copKilled` for an officer) whatever the player did it with: a gun, a swing, a blast, or a car (combat hears the `actorDied` from whichever system dealt the blow).
+- Pedestrians / traffic: `actorDamaged`, `actorDied` for their actors; `crime` `hitAndRun` when the player's vehicle hits a pedestrian (or runs over one lying in the road); `vehicleHitActor` whenever a vehicle strikes a pedestrian, or rolls over one who is down, alive or dead (`under`). Effects (blood) and audio (the crunch) listen for it.
+- Police: `wantedChanged`, `playerBusted`, and `crime` (`recklessDriving`) when the player speeds in sight of a patrol; `vehicleHitActor` when a car strikes an officer.
 - Missions: `missionStarted`, `missionCompleted`, `missionFailed`.
 - Lead (game loop / atmosphere): `hourChanged`, `weatherChanged`, `qualityChanged`, `pausedChanged` (UI emits this too when it pauses).
 

@@ -180,7 +180,7 @@ describe.each([48000, 44100])('unlocked at %i Hz', (rate) => {
     w.run(0.2);
     const ac = w.ac();
     const before = ac.byKind.bufferSource ?? 0;
-    const ids = Object.keys(SOUNDS).filter((id) => !['footGravel', 'footGrass', 'footSand', 'footWet', 'impactWorld', 'impactMetal', 'backfire', 'carPass', 'wantedUp', 'wantedClear', 'static', 'radioOff', 'gull', 'bellbird', 'chirp', 'morepork'].includes(id)) as SfxId[];
+    const ids = Object.keys(SOUNDS).filter((id) => !['pain', 'deathCry', 'crunch', 'footGravel', 'footGrass', 'footSand', 'footWet', 'impactWorld', 'impactMetal', 'backfire', 'carPass', 'wantedUp', 'wantedClear', 'static', 'radioOff', 'gull', 'bellbird', 'chirp', 'morepork'].includes(id)) as SfxId[];
     expect(ids.length).toBe(32);
     let i = 0;
     w.run(8, (t) => {
@@ -353,6 +353,7 @@ describe.each([48000, 44100])('unlocked at %i Hz', (rate) => {
       () => w.events.emit('wantedChanged', { level: 2, previous: 1 }),
       () => w.events.emit('wantedChanged', { level: 0, previous: 2 }),
       () => w.events.emit('actorDamaged', { actor: ped, info: { amount: 10, kind: 'vehicle' } }),
+      () => w.events.emit('vehicleHitActor', { actor: ped, vehicle: car, speed: 9, under: true }),
       () => w.events.emit('actorDied', { actor: ped, info: { amount: 10, kind: 'bullet' } }),
       () => w.events.emit('weaponChanged', { weaponId: 'pistol' }),
       () => w.events.emit('vehicleEntered', { actor: ped, vehicle: car, stolen: false, ejected: null }),

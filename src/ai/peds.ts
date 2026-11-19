@@ -116,11 +116,11 @@ export class PedsSystem implements PedsApi, System {
     const onFoot = !player.vehicle && player.alive;
     const cam = ctx.camera.position;
 
-    // Vehicles moving fast enough to hurt someone or to be worth jumping clear of.
+    // Vehicles moving fast enough to hurt someone, to roll over a body, or to be worth jumping clear of.
     const fast = this.fast;
     fast.length = 0;
     const vehicles = ctx.vehicles.all;
-    const threshold = Math.min(PEDS.hitSpeed, PEDS.dodgeSpeed);
+    const threshold = Math.min(PEDS.hitSpeed, PEDS.dodgeSpeed, PEDS.runOverSpeed);
     for (let i = 0; i < vehicles.length; i++) {
       const v = vehicles[i];
       if (v.velocity.x * v.velocity.x + v.velocity.z * v.velocity.z > threshold * threshold) fast.push(v);
@@ -132,8 +132,9 @@ export class PedsSystem implements PedsApi, System {
     for (let i = peds.length - 1; i >= 0; i--) {
       const ped = peds[i];
       if (!ped.removed && !ped.alive) {
-        // A body lies where it fell for a while, then is cleared away.
+        // A body lies where it fell for a while (traffic still rolls over it), then is cleared away.
         ped.update(dt);
+        if (fast.length) this.rollOver(ped);
         if (ped.corpseTimer <= 0) ped.dispose();
       }
       if (ped.removed) {
@@ -185,6 +186,10 @@ export class PedsSystem implements PedsApi, System {
 
   /** Hits, and near misses worth jumping away from. */
   private vehicleDanger(ped: Ped, dt: number, lookAhead: boolean) {
+    if (!ped.standing) {
+      this.rollOver(ped);
+      return;
+    }
     const fast = this.fast;
     const p = ped.position;
     for (let k = 0; k < fast.length; k++) {
@@ -209,6 +214,30 @@ export class PedsSystem implements PedsApi, System {
       if (lookAhead && speed > PEDS.dodgeSpeed) {
         const ahead = f * (v.speed >= 0 ? 1 : -1) - v.spec.length / 2;
         if (ahead > 0 && ahead < speed * PEDS.dodgeHorizon && Math.abs(l) < v.spec.width / 2 + PEDS.dodgeMargin) ped.dodge(v, l);
+      }
+    }
+  }
+
+  /** Someone lying in the road, knocked flat or dead: any wheels that go over them. */
+  private rollOver(ped: Ped) {
+    if (!ped.rollable) return;
+    const p = ped.position;
+    // The body lies back from where the feet are.
+    const bx = p.x - Math.sin(ped.heading) * 0.7;
+    const bz = p.z - Math.cos(ped.heading) * 0.7;
+    const fast = this.fast;
+    for (let k = 0; k < fast.length; k++) {
+      const v = fast[k];
+      const speed = Math.hypot(v.velocity.x, v.velocity.z);
+      if (speed < PEDS.runOverSpeed || Math.abs(p.y - v.position.y) > 2) continue;
+      const dx = bx - v.position.x;
+      const dz = bz - v.position.z;
+      const sin = Math.sin(v.heading);
+      const cos = Math.cos(v.heading);
+      // (A body is half a metre across: a wheel near the edge still finds it.)
+      if (Math.abs(dx * cos - dz * sin) < v.spec.width / 2 + 0.25 && Math.abs(dx * sin + dz * cos) < v.spec.length / 2) {
+        ped.runOver(v, speed);
+        return;
       }
     }
   }
@@ -286,7 +315,7 @@ export class PedsSystem implements PedsApi, System {
 
   private scream(ped: Ped) {
     const { ctx } = this;
-    if (ctx.clock.elapsed - this.lastScream < 1.6) return;
+    if (ctx.clock.elapsed - this.lastScream < PEDS.screamGap) return;
     this.lastScream = ctx.clock.elapsed;
     ctx.audio.play('scream', { at: ped.position, pitch: ped.female ? 1.15 : 0.85 });
   }

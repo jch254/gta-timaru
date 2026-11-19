@@ -103,6 +103,20 @@ describe('sound effect library', () => {
     expect(win(0.2, 0.3)).toBeGreaterThan(win(0.13, 0.18));
   });
 
+  it('cries sound like people: a scream is high and long, a hurt yelp short, a dying groan low', () => {
+    const len = (id: SoundId): number => renderSound(id, 0).length / SR;
+    // Voice pitch, measured a little way in (past the attack).
+    const pitch = (id: SoundId): number => pitchOf(renderSound(id, 0), SR, 120, 900, Math.floor(0.12 * SR), 2048);
+    expect(pitch('scream')).toBeGreaterThan(380);
+    expect(pitch('pain')).toBeGreaterThan(160);
+    expect(pitch('pain')).toBeLessThan(pitch('scream'));
+    expect(pitch('deathCry')).toBeLessThan(pitch('scream'));
+    for (let v = 0; v < SOUNDS.scream.variants; v++) expect(renderSound('scream', v).length / SR, `scream#${v}`).toBeGreaterThan(0.55);
+    expect(len('pain')).toBeLessThan(len('scream'));
+    // Run over: mostly a low thud.
+    expect(lowEnergy(renderSound('crunch', 0), SR, 210)).toBeGreaterThan(lowEnergy(renderSound('pain', 0), SR, 210));
+  });
+
   it('horns are pitched where car horns live', () => {
     const horn = renderSound('horn', 0);
     const f = pitchOf(horn, SR, 80, 700, 6000, 8000);
