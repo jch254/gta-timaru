@@ -794,7 +794,7 @@ export function renderRainLoop(r: Rng): Float32Array {
   return normalize(b, 0.8);
 }
 
-export type EngineKind = 'four' | 'six' | 'v8' | 'diesel' | 'bike';
+export type EngineKind = 'four' | 'six' | 'v6' | 'v8' | 'boxer' | 'turbo' | 'diesel' | 'bike' | 'single';
 
 interface EngineVoice {
   cylinders: number;
@@ -814,6 +814,16 @@ const ENGINES: Record<EngineKind, EngineVoice> = {
   v8: { cylinders: 8, res: [88, 172], tau: [0.014, 0.006], noise: [0.24, 0.4], amps: [1, 0.58, 0.95, 0.52, 1, 0.62, 0.88, 0.5], offsets: [0, 0.08, 0, -0.06, 0, 0.07, 0, -0.05], knock: 0 },
   diesel: { cylinders: 4, res: [96, 165], tau: [0.012, 0.007], noise: [0.3, 0.45], amps: [1, 0.85, 0.95, 0.8], offsets: [0, 0.02, 0, -0.02], knock: 0.55 },
   bike: { cylinders: 2, res: [185, 345], tau: [0.007, 0.003], noise: [0.34, 0.5], amps: [1, 0.8], offsets: [0, -0.14], knock: 0 },
+  // Between the six and the v8: a 60-degree V6 fires evenly but breathes through shared manifolds, so
+  // adjacent pulses lean on each other a little.
+  v6: { cylinders: 6, res: [105, 200], tau: [0.011, 0.005], noise: [0.2, 0.36], amps: [1, 0.88, 0.97, 0.86, 0.99, 0.9], offsets: [0, 0.03, 0, -0.03, 0, 0.03], knock: 0 },
+  // Flat four with unequal exhaust header lengths: the classic offbeat thrum.
+  boxer: { cylinders: 4, res: [118, 225], tau: [0.011, 0.005], noise: [0.24, 0.4], amps: [1, 0.68, 0.96, 0.66], offsets: [0, 0.11, 0, 0.1], knock: 0 },
+  // Turbocharged four: the turbine soaks the pulse energy, so the note is softer and hissier; the live
+  // graph adds the spool whine on top.
+  turbo: { cylinders: 4, res: [135, 240], tau: [0.007, 0.0035], noise: [0.34, 0.52], amps: [1, 0.93, 0.97, 0.91], offsets: [0, 0.01, 0, -0.01], knock: 0 },
+  // One big cylinder: a fat thump every second revolution and silence in between.
+  single: { cylinders: 1, res: [150, 290], tau: [0.02, 0.009], noise: [0.3, 0.45], amps: [1], offsets: [0], knock: 0 },
 };
 
 /** RPM each loop is rendered at; playbackRate = rpm / base. */

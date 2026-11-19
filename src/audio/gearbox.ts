@@ -32,6 +32,10 @@ export const GEARBOXES: Record<VehicleSpec['engineSound'], GearboxSpec> = {
   v8: { ratios: [0.3, 0.5, 0.74, 1.08], idle: 650, redline: 5800, shiftTime: 0.25, inertia: 8 },
   diesel: { ratios: [0.2, 0.36, 0.56, 0.8, 1.1], idle: 600, redline: 3800, shiftTime: 0.4, inertia: 5 },
   bike: { ratios: [0.24, 0.4, 0.56, 0.74, 0.92, 1.1], idle: 1200, redline: 9500, shiftTime: 0.14, inertia: 14 },
+  v6: { ratios: [0.29, 0.5, 0.75, 1.08], idle: 750, redline: 5600, shiftTime: 0.26, inertia: 8 },
+  boxer: { ratios: [0.25, 0.44, 0.65, 0.87, 1.1], idle: 800, redline: 6000, shiftTime: 0.24, inertia: 9 },
+  turbo: { ratios: [0.27, 0.46, 0.67, 0.89, 1.1], idle: 900, redline: 7200, shiftTime: 0.18, inertia: 11 },
+  single: { ratios: [0.22, 0.4, 0.6, 0.82, 1.08], idle: 1100, redline: 8000, shiftTime: 0.16, inertia: 12 },
   electric: { ratios: [1.05], idle: 0, redline: 6000, shiftTime: 0, inertia: 10 },
 };
 

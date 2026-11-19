@@ -539,7 +539,7 @@ export function hotel(s: Site, o: HotelStyle) {
   // Dado of dark paint (or tiles) along the bar front.
   if (s.spare()) box(s, 0, -0.4, front + 0.03, w - 0.2, 1.3, 0.08, dark);
   if (s.spare()) quad(s, x0 + (w * (doorBay + 0.5)) / bays, 3.05, front + 0.11, 1.5, 0.5, signMat(s, s.fx.pick(PUB_NEON), 3, NEON));
-  if (s.fx.chance(0.5) && s.spare()) board(s, 'TAB', x1 - 0.9, 3.05, front + 0.07, 0.9, 2, [{ bg: '#1d2a44', fg: '#f0c33a', style: 'block' }]);
+  if (s.fx.chance(0.5) && s.spare()) board(s, 'TOTE', x1 - 0.9, 3.05, front + 0.07, 0.9, 2, [{ bg: '#1d2a44', fg: '#f0c33a', style: 'block' }]);
   if (s.spare(2)) downpipe(s, x1 - 0.14, front, vy === null ? 0 : vy + 0.6, top - 0.1, 0);
   clutter(s, ['bench', 'bin', 'board'], PUB_BOARDS, x0, x1, front, vy, fz);
   if (s.near) lamp(s, 0, 2.8, front + 1.2, 0xffd9a0, 130, 12);

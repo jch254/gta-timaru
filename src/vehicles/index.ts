@@ -1,9 +1,12 @@
 import * as THREE from 'three';
 import { Rng } from '../core/rng';
-import type { Actor, DistrictType, GameContext, System, Vehicle, VehicleSpec, VehiclesApi } from '../core/types';
+import type { Actor, CityId, DistrictType, GameContext, System, Vehicle, VehicleSpec, VehiclesApi } from '../core/types';
 import { VEHICLE_MODELS } from './models';
 import { VEHICLE_SPECS } from './specs';
 import { VehicleImpl } from './vehicle';
+
+/** Traffic weight of a spec: `spawn` per district, multiplied by `spawnBy` per town (0 removes it there). */
+const weightOf = (spec: VehicleSpec, district: DistrictType, town: CityId | 'country'): number => (spec.traffic ? (spec.spawn[district] ?? 0) * (spec.spawnBy?.[town] ?? 1) : 0);
 
 /** Owns every vehicle: spawning, stepping, seating and the player's headlights. */
 export class Vehicles implements VehiclesApi, System {
@@ -55,17 +58,21 @@ export class Vehicles implements VehiclesApi, System {
     return best;
   }
 
-  pickSpec(district: DistrictType, rng: { next(): number } = this.rng): string {
-    const options = VEHICLE_SPECS.filter((s) => s.traffic && (s.spawn[district] ?? 0) > 0);
-    if (!options.length) return VEHICLE_SPECS[0].id;
+  pickSpec(district: DistrictType, rng: { next(): number } = this.rng, city?: CityId | null): string {
+    const town = city ?? 'country';
     let total = 0;
-    for (const s of options) total += s.spawn[district]!;
+    for (const s of this.specs.values()) total += weightOf(s, district, town);
+    if (total <= 0) return VEHICLE_SPECS[0].id;
     let r = rng.next() * total;
-    for (const s of options) {
-      r -= s.spawn[district]!;
+    let last = VEHICLE_SPECS[0].id;
+    for (const s of this.specs.values()) {
+      const w = weightOf(s, district, town);
+      if (w <= 0) continue;
+      last = s.id;
+      r -= w;
       if (r <= 0) return s.id;
     }
-    return options[0].id;
+    return last;
   }
 
   enter(actor: Actor, vehicle: Vehicle, seat = 0) {

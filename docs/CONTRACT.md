@@ -46,19 +46,48 @@ Registries: `src/world/landmarks/registry.ts` exports `LANDMARKS` and `src/world
 
 ### Vehicle spec ids (`VehicleSpec.id`)
 
-| id | class | what |
+Thirty ids since the Canterbury-1995 roster pass. The original eleven keep their ids (missions, saves, dev
+tools and playtests use them); each now stands for one specific real vehicle, recorded with years and source
+in a comment on its spec and in docs/RESEARCH.md. Names in the game stay invented.
+
+| id | class | stands for (real vehicle, never named in game) |
 |---|---|---|
-| `statesman` | sedan | big Australian-style six-cylinder sedan (exists; keep id) |
-| `v8sedan` | sedan | big Australian-style V8 sedan, the boy racer's choice |
-| `coupe` | coupe | Japanese import sports coupe |
-| `hatch` | hatch | small Japanese hatchback |
-| `wagon` | wagon | family station wagon |
-| `ute` | ute | farm / tradie ute |
-| `farmtruck` | truck | farm truck with stock crate |
-| `van` | van | delivery van |
-| `bike` | bike | motorbike |
-| `police` | police | police patrol car |
-| `bus` | bus | city bus |
+| `statesman` | sedan | Holden Commodore VN six, 1988 to 1991 |
+| `v8sedan` | sedan | Ford Falcon XD/XE 5.0 V8, 1979 to 1984, the boy racer's and the gang's car |
+| `coupe` | coupe | Nissan Skyline R32 GTS-t, 1989 to 1993, used import |
+| `hatch` | hatch | Ford Laser KA/KB, 1981 to 1985 |
+| `wagon` | wagon | Ford Falcon XF wagon, 1984 to 1988 |
+| `ute` | ute | Toyota Hilux fourth generation, 1983 to 1988 |
+| `farmtruck` | truck | Bedford TK with a timber stock crate, 1960s to 1970s |
+| `van` | van | Toyota Hiace H50, 1982 to 1989 |
+| `bike` | bike | Suzuki GSX-R750 class sports bike, 1985 on |
+| `police` | police | Holden Commodore VR patrol car, 1993 to 1995, white with the blue chequer band |
+| `bus` | bus | MAN SL202, 1986 to 1990, red with a white band |
+| `trafficcar` | police | Mitsubishi V3000 ex-traffic car, 1988 to 1992, black and white, Police door graphics |
+| `taxi` | sedan | Ford Falcon XF as a cab, white, door decal and roof sign |
+| `kingswood` | sedan | Holden HQ to HZ Kingswood, 1971 to 1980 |
+| `valiant` | sedan | Chrysler Valiant, early to mid 1970s |
+| `cortina` | sedan | Ford Cortina Mk IV/V, 1976 to 1983 |
+| `mini` | hatch | Mini, 1960s to 1970s |
+| `triumph` | sedan | Triumph 2500, Nelson-assembled, to 1979 |
+| `corolla` | hatch | Toyota Corolla AE80/AE82, 1983 to 1987 |
+| `corona` | sedan | Toyota Corona T140, 1982 to 1987 |
+| `sigma` | sedan | Mitsubishi Sigma (NZ Galant), 1980 to 1987 |
+| `accord` | sedan | Honda Accord third generation, 1985 to 1989, Nelson-assembled |
+| `datsun` | sedan | Datsun 120Y, 1973 to 1978 |
+| `leone` | wagon | Subaru Leone 4WD wagon, 1979 to 1984 |
+| `hothatch` | hatch | Mazda Familia BF turbo 4WD, 1985 to 1989, used import |
+| `import` | sedan | Toyota Cresta/Mark II GX71, 1984 to 1988, used import with guard mirrors |
+| `lada` | sedan | Lada Riva, 1980s, Dairy Board trade |
+| `landrover` | ute | Land Rover Series III, 1971 to 1985 |
+| `stocktruck` | truck | Hino-class cab-over with multi-deck stock crate, late 1980s |
+| `farmbike` | bike | Honda XR200 class farm bike |
+
+`VEHICLE_SPECS` is composed from three files so lanes do not collide: `specs.ts` (Australian and British cars
+and the patrol cars), `specs-cars.ts` (the other cars), `specs-working.ts` (utes, vans, trucks, bus, bikes).
+`VEHICLE_MODELS` likewise from `models/cars.ts`, `models/compact.ts`, `models/working.ts`.
+`VehicleSpec.spawnBy` multiplies `spawn` per town (`CityId` or `'country'`), so Timaru's mix differs from
+Christchurch's. Engine sounds: `four | six | v6 | v8 | boxer | turbo | diesel | bike | single | electric`.
 
 ### Weapon ids (`WeaponSpec.id`)
 

@@ -1,6 +1,10 @@
 /**
  * Police radio chatter. Every line is spoken by the dispatcher ("Comms"); call signs and the Armed
  * Response Section are invented, place names come from the map. Pure text, unit-tested.
+ *
+ * The register is plain-language NZ RT, 1995: "copy", "roger" sparingly, offences by their local names
+ * (a burg, a vehicle conversion, a driver fled on foot). Never American ten-codes: in the NZ system
+ * 10-4 means "repeat your last", so writing it for "OK" would be wrong twice over.
  */
 
 export type RadioEvent =
@@ -27,7 +31,7 @@ export const VAN_CALL_SIGN = 'Hawk One';
 const LINES: Record<RadioEvent, readonly string[]> = {
   level1: [
     '{unit}, bit of a carry-on reported {where}. Pop round and have a look.',
-    '{unit}, complaint {where}. Probably nothing. Go and be seen.',
+    'Comms to {unit}: possible burg {where}. Probably kids. Go and be seen.',
     '{unit}, someone {where} reckons a bloke is up to no good. Have a nosey.',
   ],
   level2: [
@@ -52,11 +56,11 @@ const LINES: Record<RadioEvent, readonly string[]> = {
   ],
   lost: [
     '{unit} has lost him {where}. He cannot have gone far. Famous last words.',
-    'No eyes on him. Last seen {where}. Check the side streets.',
+    'Driver has fled on foot {where}. Check the side streets and the back sections.',
     'Anyone see where he went? Last seen {where}. Anyone at all?',
   ],
-  spotted: ['{unit} has him again {where}.', 'There he is, {where}. {unit} is on him.', 'Eyes on, {where}. Do not lose him twice.'],
-  stepDown: ['Nothing seen {where}. Scale it back a notch.', 'Trail is going cold {where}. Keep half an eye out.', 'No sign of him. A couple of you can head back in.'],
+  spotted: ['{unit} has him again {where}. Copy that.', 'There he is, {where}. {unit} is on him.', 'Eyes on, {where}. Do not lose him twice.'],
+  stepDown: ['Roger, nothing seen {where}. Scale it back a notch.', 'Trail is going cold {where}. Keep half an eye out.', 'No sign of him. A couple of you can head back in.'],
   allClear: [
     'He has gone to ground. Stand down, everyone. Paperwork by Friday.',
     'Lost him. Stand down. He will turn up, they always do.',
@@ -67,7 +71,7 @@ const LINES: Record<RadioEvent, readonly string[]> = {
   carStolen: [
     '{unit}… please tell me you still have your patrol car. {unit}?',
     'He has pinched a patrol car {where}. The sergeant is going to love this.',
-    'Be advised: the offender is now driving one of ours. Yes, really.',
+    'All units: vehicle conversion {where}, and the vehicle converted is one of ours.',
   ],
   gunDrawn: ['He is waving a firearm about {where}. Mind yourselves.', '{unit}, back off a touch. He has pulled a gun {where}.'],
 };

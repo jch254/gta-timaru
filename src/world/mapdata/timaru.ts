@@ -105,10 +105,10 @@ export function buildTimaru(a: Author, rail: Pt[]) {
   b.rail('Port Siding', [[586, 5010], [606, 5046], [630, 5066], [656, 5074]], 'siding');
 
   // ── Districts.
-  a.rect('timaru-cbd', 'Timaru Central', TI, 'cbd', 405, 500, 4890, 5110, 6, 'Te Tihi-o-Maru');
-  a.rect('stafford', 'Timaru Central', TI, 'shops', 405, 548, 4790, 5300, 5, 'Te Tihi-o-Maru');
+  a.rect('timaru-cbd', 'Timaru Central', TI, 'cbd', 405, 500, 4890, 5110, 6, 'Te Maru');
+  a.rect('stafford', 'Timaru Central', TI, 'shops', 405, 548, 4790, 5300, 5, 'Te Maru');
   a.rect('bay-hill', 'The Bay Hill', TI, 'shops', 420, 580, 4722, 4800, 5);
-  a.rect('timaru-central', 'Timaru Central', TI, 'township', 290, 405, 4790, 5400, 4, 'Te Tihi-o-Maru');
+  a.rect('timaru-central', 'Timaru Central', TI, 'township', 290, 405, 4790, 5400, 4, 'Te Maru');
   a.rect('caroline-bay-park', 'Caroline Bay', TI, 'park', 470, 614, 4430, 4700, 5);
   a.rect('caroline-bay', 'Caroline Bay', TI, 'beach', 614, 800, 4360, 4830, 5);
   a.rect('waterfront', 'Timaru Waterfront', TI, 'beach', 556, 624, 4790, 5300, 6);

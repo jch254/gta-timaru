@@ -6,8 +6,14 @@ import { VEHICLE_SPECS } from '../specs';
 import { VEHICLE_MODELS } from './index';
 import { METALLIC } from './paints';
 
-/** The eleven ids fixed by docs/CONTRACT.md. */
-const CONTRACT_IDS = ['statesman', 'v8sedan', 'coupe', 'hatch', 'wagon', 'ute', 'farmtruck', 'van', 'bike', 'police', 'bus'];
+/** The original eleven ids, which missions, saves, dev tools and playtests have used since the first build. */
+const ORIGINAL_IDS = ['statesman', 'v8sedan', 'coupe', 'hatch', 'wagon', 'ute', 'farmtruck', 'van', 'bike', 'police', 'bus'];
+/** The nineteen added when the roster became specific 1995 cars. With the eleven, the ids fixed by docs/CONTRACT.md. */
+const ADDED_IDS = [
+  'trafficcar', 'taxi', 'kingswood', 'valiant', 'cortina', 'mini', 'triumph', 'corolla', 'corona', 'sigma',
+  'accord', 'datsun', 'leone', 'hothatch', 'import', 'lada', 'landrover', 'stocktruck', 'farmbike',
+];
+const CONTRACT_IDS = [...ORIGINAL_IDS, ...ADDED_IDS];
 
 /** Real marques and model names that must never appear in a vehicle name. */
 const REAL_NAMES = [
@@ -18,6 +24,20 @@ const REAL_NAMES = [
   'mitsubishi', 'lancer', 'galant', 'mirage', 'sigma', 'subaru', 'legacy', 'impreza', 'leone', 'brumby',
   'suzuki', 'swift', 'isuzu', 'daihatsu', 'charade', 'yamaha', 'kawasaki', 'ducati', 'triumph', 'norton', 'bsa', 'harley',
   'bedford', 'leyland', 'austin', 'morris', 'mini', 'hillman', 'vauxhall', 'rover', 'jaguar', 'commer', 'bristol', 'hino', 'fuso', 'volvo', 'scania', 'man', 'mack',
+  // Added with the 1995 roster: every marque and model the research turned up (docs/RESEARCH.md, docs/research/).
+  'belmont', 'premier', 'berlina', 'calais', 'royale', 'barina', 'gemini', 'rodeo', 'jackaroo', 'camira', 'sunbird', 'chevette', 'viva', 'victor', 'cresta', 'velox',
+  'ltd', 'zephyr', 'zodiac', 'anglia', 'prefect', 'consul', 'capri', 'sierra', 'econovan', 'fiesta', 'granada', 'xr6', 'xr8',
+  'crown', 'cressida', 'mark', 'chaser', 'tercel', 'sprinter', 'levin', 'trueno', 'liteace', 'townace', 'surf', 'mr2', 'carina', 'soarer', 'tiara', 'toyopet',
+  'sentra', 'micra', 'march', 'vanette', 'urvan', 'homy', 'stanza', 'violet', 'maxima', 'gloria', 'cedric', 'prince', 'fairlady', 'terrano', 'safari',
+  'city', 'legend', 'crx', 'ballade', 'quint', 'concerto', 'luce', 'cosmo', 'astina', 'eunos', 'titan', 'proceed',
+  'colt', 'eterna', 'chariot', 'starion', 'pajero', 'delica', 'canter', 'verada', 'magna', 'tredia', 'cordia', 'v3000', 'geneva', 'diamante',
+  'omega', 'brat', 'justy', 'rex', 'sambar', 'alto', 'carry', 'cultus', 'vitara', 'jimny', 'samurai', 'mira', 'rocky', 'bighorn', 'forward', 'elf',
+  'hunter', 'avenger', 'imp', 'minx', 'humber', 'sunbeam', 'singer', 'rootes', 'talbot', 'marina', 'allegro', 'minor', 'oxford', 'cambridge', 'princess', 'metro', 'maestro', 'montego',
+  'wolseley', 'riley', 'mg', 'standard', 'vanguard', 'herald', 'dolomite', 'stag', 'daimler', 'sovereign', 'bentley', 'reliant', 'lotus', 'landrover', 'defender', 'range',
+  'beetle', 'golf', 'passat', 'opel', 'kadett', 'simca', 'trabant', 'volga', 'moskvich', 'niva', 'riva', 'zhiguli', 'zastava', 'yugo', 'alfa', 'lancia', 'ferrari',
+  'acco', 'international', 'kenworth', 'freightliner', 'ud', 'erf', 'foden', 'thames', 'karrier', 'aec', 'daf', 'iveco', 'hess', 'designline', 'ritchies', 'intercity', 'newmans',
+  'vincent', 'velocette', 'matchless', 'ariel', 'enfield', 'bonneville', 'commando', 'sportster', 'katana', 'ninja', 'goldwing', 'vespa', 'lambretta', 'bultaco', 'husqvarna', 'ktm',
+  'massey', 'ferguson', 'fordson', 'deere', 'case', 'fiat', 'zetor', 'kubota', 'nuffield', 'steyr', 'studebaker', 'rambler', 'plymouth', 'buick', 'cadillac', 'mercury', 'lincoln', 'jeep', 'amc',
   'chrysler', 'valiant', 'dodge', 'chevrolet', 'pontiac', 'bmw', 'mercedes', 'audi', 'volkswagen', 'vw', 'kombi', 'porsche', 'fiat', 'peugeot', 'renault', 'citroen', 'saab', 'lada', 'skoda',
 ];
 
@@ -26,13 +46,13 @@ const REAL_NAMES = [
  * lamps, number plates and four wheels. Signwriting, beacons, the truck's timber, the bus's blind and the
  * diced bumper sticker beside the rear plate are extra.
  */
-const MESH_BUDGET: Record<string, number> = { police: 14, van: 12, farmtruck: 12, bus: 13 };
+const MESH_BUDGET: Record<string, number> = { police: 14, van: 12, farmtruck: 12, bus: 13, trafficcar: 14, taxi: 13, stocktruck: 13, landrover: 12, import: 12 };
 /**
  * And beyond `LOD_RANGE`, where the wheels are part of the body: paint, glass, trim, head lamps, tail
  * lamps. The patrol car keeps its two beacons, the van its signwriting, the truck its timber, the bus its
  * blind and name.
  */
-const FAR_MESH_BUDGET: Record<string, number> = { police: 7, van: 6, farmtruck: 6, bus: 7 };
+const FAR_MESH_BUDGET: Record<string, number> = { police: 7, van: 6, farmtruck: 6, bus: 7, trafficcar: 7, taxi: 6, stocktruck: 7, landrover: 6, import: 6 };
 
 /** A model's meshes as drawn up close, or from beyond the level-of-detail range. */
 const drawn = (model: VehicleModel, distant: boolean) =>
@@ -92,7 +112,8 @@ describe('vehicle roster', () => {
     if ((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.VEHICLE_COUNTS) console.log('\n' + rows.join('\n'));
   });
 
-  it('has exactly the eleven contract ids, once each', () => {
+  it('has exactly the thirty contract ids, once each, the original eleven among them', () => {
+    for (const id of ORIGINAL_IDS) expect(VEHICLE_SPECS.some((s) => s.id === id), id).toBe(true);
     expect(VEHICLE_SPECS.map((s) => s.id).sort()).toEqual([...CONTRACT_IDS].sort());
   });
 
@@ -120,7 +141,9 @@ describe('vehicle roster', () => {
       if (spec.wheelCount !== 2) expect(spec.track + spec.wheelWidth, label).toBeLessThanOrEqual(spec.width);
       expect(9.81 / (4 * spec.suspensionStiffness), label).toBeLessThan(spec.suspensionTravel);
       for (const weight of Object.values(spec.spawn)) expect(weight, label).toBeGreaterThan(0);
-      expect(spec.traffic, label).toBe(spec.id !== 'police');
+      // Patrol cars (the white town car and the black and white ex-traffic car) are never ambient traffic.
+      expect(spec.traffic, label).toBe(spec.cls !== 'police');
+      for (const weight of Object.values(spec.spawnBy ?? {})) expect(weight, label).toBeGreaterThanOrEqual(0);
       if (spec.traffic) expect(Object.keys(spec.spawn).length, label).toBeGreaterThan(0);
     }
     const by = new Map(VEHICLE_SPECS.map((s) => [s.id, s]));
@@ -128,6 +151,8 @@ describe('vehicle roster', () => {
     expect(by.get('hatch')!.drive).toBe('fwd');
     expect(by.get('bike')!.wheelCount).toBe(2);
     expect(Object.keys(by.get('police')!.spawn)).toEqual([]);
+    expect(by.get('trafficcar')!.cls).toBe('police');
+    expect(Object.keys(by.get('trafficcar')!.spawn)).toEqual([]);
     expect(Object.keys(by.get('bus')!.spawn).sort()).toEqual(['cbd', 'shops']);
     expect(by.get('bike')!.health).toBeLessThan(by.get('hatch')!.health);
     expect(by.get('bus')!.mass).toBeGreaterThan(by.get('farmtruck')!.mass);
@@ -189,7 +214,7 @@ describe('vehicle roster', () => {
       });
 
       it('stays inside the render budget', () => {
-        const heavy = spec.id === 'bus' || spec.id === 'farmtruck';
+        const heavy = spec.id === 'bus' || spec.id === 'farmtruck' || spec.id === 'stocktruck';
         for (const model of models) {
           const near = drawn(model, false);
           const far = drawn(model, true);

@@ -1,6 +1,9 @@
 /**
  * The dial: six invented Canterbury stations, what each one plays, and the order things go to air.
- * Station names were chosen to sound like mid-90s provincial radio without matching any real station.
+ * Station names were chosen to sound like mid-90s provincial radio without matching any real station,
+ * and the shapes echo the researched 1995 dial (docs/research/05): a talkback AM that also carries the
+ * races, a classic-rock FM that swallowed a rival at the turn of the decade, a country AM with stock
+ * sale prices, student radio, and something local to Timaru. Ids are save-referenced: never change them.
  */
 import { hashInts } from '../../core/rng';
 import type { Kit } from './kit';
@@ -29,12 +32,12 @@ export type ItemKind = 'track' | 'break' | 'ident' | 'ad' | 'talk' | 'news';
 const MUSIC_CYCLE: readonly ItemKind[] = ['track', 'break'];
 
 export const STATION_DEFS: readonly StationDef[] = [
-  { id: 'shingle', name: 'Shingle FM 93.4', blurb: 'Pub rock for the province. Loud guitars, warm jugs.', genre: 'classic / pub rock', kit: ROCK_KIT, cycle: MUSIC_CYCLE, music: rock },
-  { id: 'strobe', name: 'Strobe 99.3 FM', blurb: 'Synths and drum machines, all night, every night.', genre: 'synth-pop / dance', kit: DANCE_KIT, cycle: MUSIC_CYCLE, music: dance },
-  { id: 'drover', name: 'Radio Drover 1206 AM', blurb: 'Country & western for the plains. Stock sale prices on the hour.', genre: 'country & western', kit: COUNTRY_KIT, cycle: MUSIC_CYCLE, music: country },
+  { id: 'shingle', name: 'Shingle FM 93.4', blurb: 'Pub rock for the province. Swallowed Radio Gorge in 1990 and kept the records.', genre: 'classic / pub rock', kit: ROCK_KIT, cycle: MUSIC_CYCLE, music: rock },
+  { id: 'strobe', name: 'Strobe 98.1 FM', blurb: 'Synths and drum machines, all night, every night. Rave safe, eh.', genre: 'synth-pop / dance', kit: DANCE_KIT, cycle: MUSIC_CYCLE, music: dance },
+  { id: 'drover', name: 'Radio Drover 1206 AM', blurb: 'Country & western from a shed in Washdyke. Stock sale prices on the hour.', genre: 'country & western', kit: COUNTRY_KIT, cycle: MUSIC_CYCLE, music: country },
   { id: 'lowtide', name: 'Low Tide 88.6 FM', blurb: 'Dub and roots from a garage in New Brighton.', genre: 'dub / roots reggae', kit: DUB_KIT, cycle: MUSIC_CYCLE, music: dub },
-  { id: 'flatmate', name: 'Flatmate FM 90.9', blurb: 'Student radio. Four-track tapes and borrowed amps.', genre: 'lo-fi indie', kit: INDIE_KIT, cycle: MUSIC_CYCLE, music: indie },
-  { id: 'partyline', name: 'Partyline 1017 AM', blurb: 'Talkback for the 03. All our lines are busy: please hold.', genre: 'talkback: hold music and news stings', kit: TALK_KIT, cycle: ['track', 'talk', 'ident', 'track', 'news', 'ad'], music: lounge },
+  { id: 'flatmate', name: 'Flatmate FM 90.9', blurb: 'Student radio from up the varsity. Four-track tapes and borrowed amps.', genre: 'lo-fi indie', kit: INDIE_KIT, cycle: MUSIC_CYCLE, music: indie },
+  { id: 'partyline', name: 'Partyline 1017 AM', blurb: 'Talkback and the races for the 03. All our lines are busy: please hold.', genre: 'talkback: hold music, racing and news stings', kit: TALK_KIT, cycle: ['track', 'talk', 'ident', 'track', 'news', 'ad'], music: lounge },
 ];
 
 export const STATIONS: StationInfo[] = STATION_DEFS.map(({ id, name, blurb }) => ({ id, name, blurb }));

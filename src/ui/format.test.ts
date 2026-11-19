@@ -125,8 +125,8 @@ describe('places and misc', () => {
   it('builds the location lines without repeats, with te reo names alongside', () => {
     expect(locationLines('Colombo Street', 'Central City', 'christchurch')).toEqual({ title: 'Colombo Street', sub: 'Central City · Christchurch · Ōtautahi', teReo: '' });
     expect(locationLines('Sydenham', 'Sydenham', 'christchurch')).toEqual({ title: 'Sydenham', sub: 'Christchurch · Ōtautahi', teReo: '' });
-    expect(locationLines('Timaru', 'Timaru', 'timaru')).toEqual({ title: 'Timaru', sub: 'Te Tihi-o-Maru', teReo: '' });
-    expect(locationLines('Stafford Street', 'Timaru', 'timaru')).toEqual({ title: 'Stafford Street', sub: 'Timaru · Te Tihi-o-Maru', teReo: '' });
+    expect(locationLines('Timaru', 'Timaru', 'timaru')).toEqual({ title: 'Timaru', sub: 'Te Maru', teReo: '' });
+    expect(locationLines('Stafford Street', 'Timaru', 'timaru')).toEqual({ title: 'Stafford Street', sub: 'Timaru · Te Maru', teReo: '' });
     expect(locationLines('Seaview Road', 'New Brighton', 'newbrighton')).toEqual({ title: 'Seaview Road', sub: 'New Brighton', teReo: '' });
   });
 

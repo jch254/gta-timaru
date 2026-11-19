@@ -287,9 +287,23 @@ export class Force implements OfficerHost {
     return best;
   }
 
-  private policeSpec(): string | null {
+  /**
+   * The patrol spec. In town it is the white town car; out on the open road (no town, or a rural
+   * district) about half the units are the black and white ex-traffic car, when that spec exists.
+   */
+  private policeSpec(x?: number, z?: number): string | null {
     const specs = this.ctx.vehicles.specs;
-    return specs.has('police') ? 'police' : specs.has('statesman') ? 'statesman' : null;
+    if (!specs.has('police')) return specs.has('trafficcar') ? 'trafficcar' : specs.has('statesman') ? 'statesman' : null;
+    if (x !== undefined && z !== undefined && specs.has('trafficcar')) {
+      const district = this.ctx.world.districtAt(x, z);
+      if ((district.city === null || district.type === 'rural') && this.rng.chance(0.5)) return 'trafficcar';
+    }
+    return 'police';
+  }
+
+  /** Spec-appropriate livery: patrol cars keep their own paint; a borrowed sedan is painted white. */
+  private liveryOf(specId: string): number | undefined {
+    return this.ctx.vehicles.specs.get(specId)?.cls === 'police' ? undefined : WHITE;
   }
 
   private weaponFor(seat: number, van: boolean): CopWeapon {
@@ -310,19 +324,21 @@ export class Force implements OfficerHost {
 
   private spawnUnit(role: Role, van: boolean): boolean {
     const { ctx, rng } = this;
-    const specId = van ? 'van' : this.policeSpec();
-    if (!specId || !ctx.vehicles.specs.has(specId)) return false;
+    if (!van && !this.policeSpec()) return false;
     const spot = this.findSpawn();
     if (!spot) {
       this.spawnFails++;
       return false;
     }
+    // The spec is picked where the car appears, so open-road units differ from town ones.
+    const specId = van ? 'van' : this.policeSpec(spot.x, spot.z);
+    if (!specId || !ctx.vehicles.specs.has(specId)) return false;
     let vehicle: Vehicle | null = null;
     try {
       vehicle = ctx.vehicles.spawn(specId, spot.x, spot.z, spot.heading, {
         controller: 'police',
         tags: van ? ['police', 'armed-response'] : ['police'],
-        color: van ? NAVY : specId === 'police' ? undefined : WHITE,
+        color: van ? NAVY : this.liveryOf(specId),
       });
     } catch {
       vehicle = null;
@@ -958,9 +974,7 @@ export class Force implements OfficerHost {
     if (intel.playerOnFoot || !intel.seen || intel.playerSpeed < T.roadblockMinSpeed) return false;
     const road = intel.targetRoad;
     if (!road || road.distance > road.edge.width / 2 + 3) return false;
-    const specId = this.policeSpec();
-    const spec = specId ? ctx.vehicles.specs.get(specId) : undefined;
-    if (!specId || !spec) return false;
+    if (!this.policeSpec()) return false;
     const guards = Math.min(2, MAX_ON_FOOT - intel.onFoot);
     if (guards < 1) return false;
 
@@ -976,6 +990,13 @@ export class Force implements OfficerHost {
     const pp = ctx.player.position;
     const d = Math.hypot(c.x - pp.x, c.z - pp.z);
     if (d < 140 || d > T.roadblockRemove - 40) return false;
+    // Each car's spec is picked where the block stands, so an open-road block may mix both patrol cars.
+    const specIdA = this.policeSpec(c.x, c.z);
+    const specIdB = this.policeSpec(c.x, c.z);
+    const specA = specIdA ? ctx.vehicles.specs.get(specIdA) : undefined;
+    const specB = specIdB ? ctx.vehicles.specs.get(specIdB) : undefined;
+    if (!specIdA || !specA || !specIdB || !specB) return false;
+    const spec = specA.length >= specB.length ? specA : specB;
 
     // (ax, az): the way the player will be travelling; (lx, lz): across the road, to the left of that.
     const ax = c.tx * w.dir;
@@ -993,9 +1014,9 @@ export class Force implements OfficerHost {
     if (d < 230 && this.view.visible(c.x, c.y + 1, c.z)) return false; // do not pop into view up close
 
     const heading = Math.atan2(lx, lz);
-    const first = this.spawnBlockCar(specId, x1, z1, heading);
+    const first = this.spawnBlockCar(specIdA, x1, z1, heading);
     if (!first) return false;
-    const second = this.spawnBlockCar(specId, x2, z2, heading);
+    const second = this.spawnBlockCar(specIdB, x2, z2, heading);
     if (!second) {
       ctx.vehicles.remove(first);
       return false;
@@ -1023,7 +1044,7 @@ export class Force implements OfficerHost {
   private spawnBlockCar(specId: string, x: number, z: number, heading: number): Vehicle | null {
     let v: Vehicle | null = null;
     try {
-      v = this.ctx.vehicles.spawn(specId, x, z, heading, { controller: 'none', tags: ['police', 'roadblock'], color: specId === 'police' ? undefined : WHITE });
+      v = this.ctx.vehicles.spawn(specId, x, z, heading, { controller: 'none', tags: ['police', 'roadblock'], color: this.liveryOf(specId) });
     } catch {
       v = null;
     }

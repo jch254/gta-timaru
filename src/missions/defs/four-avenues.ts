@@ -18,15 +18,18 @@ const GRID: SpotObject = { place: 'four-aves-start', snap: 'lane', road: 'moorho
 const GARAGE_KERB: SpotObject = { place: 'chch-garage', snap: 'lane', along: 7, kerb: true };
 
 /**
- * 4. Christchurch, at night. Win a lap of the four avenues in Dazza's V8 against the Friday-night regulars
- * and Skids, the Easterlies' own driver — with Flash Harkness watching his money — then lose the police who
- * break up the meet and get the car home.
+ * 4. Christchurch, a Friday night in early September 1995. The first Mururoa test (Tuesday the 5th) is on
+ * every radio and the town is angry about it; the Easterlies' legitimate face is Flash Harkness's car yard,
+ * wound-back used imports ("clocked" was the period word, and a Customs inspector put it at 30 percent of
+ * them). Win a lap of the four avenues in Dazza's V8 against the Friday-night regulars and Skids, the
+ * Easterlies' own driver (with Flash Harkness watching his money), then lose the police who break up the
+ * meet and get the car home.
  */
 export const fourAvenues: MissionDef = {
   id: 'four-avenues',
   title: 'The Four Aves',
   giver: DAZZA,
-  blurb: "Dazza fixes cars by day and, on Fridays, who wins. His driver is in hospital and Flash Harkness has money on his own boy tonight. Win the lap of the four avenues in Dazza's V8.",
+  blurb: "Dazza fixes cars by day and, on Fridays, who wins. His driver is in hospital, Flash Harkness has money on his own boy, and the whole town is too busy being furious about Mururoa to watch the back streets. Win the lap of the four avenues in Dazza's V8.",
   reward: 2000,
   placeId: 'chch-garage',
   requires: ['mint-sauce'],
@@ -41,7 +44,8 @@ export const fourAvenues: MissionDef = {
         line(DAZZA, "So you're the one who left three Easterlies on East Street. Neville rang. He was whispering."),
         line(DAZZA, "I'm Dazza. I fix cars, and on a Friday night I fix who wins."),
         line(DAZZA, "Lap of the four aves tonight. My driver's in Christchurch Hospital with both hands broken. Flash Harkness's idea of a transfer fee."),
-        line(DAZZA, "Harkness runs the Easterlies, and his boy Skids is on pole. Flash has five grand on him, and he'll be there to watch it come in."),
+        line(DAZZA, "Harkness runs the Easterlies out of a car yard. Clocked imports: speedos wound halfway back to new on the boat over. His boy Skids is on pole."),
+        line(DAZZA, "Flash has five grand on Skids tonight, and he'll be there to watch it come in."),
         line(MACK, 'And if I lose?'),
         line(DAZZA, "Don't."),
       ],
@@ -59,12 +63,13 @@ export const fourAvenues: MissionDef = {
       stop: true,
       objective: 'Line up on Moorhouse Ave, by the Deans Ave corner',
       lines: [line(MACK, 'Pulls left under brakes, he says. He might have led with that.')],
-      // The Mayor, on the car radio (a cameo).
+      // The Mayor, on the car radio (a cameo), then the news everybody is angry about.
       cues: [
         ...cameoCue('nicky-roe', 9, (mayor) => [
-          line(onTheRadio(mayor), 'And so it gives me enormous pleasure to declare the Friday night market in the Square open. Drive home safely, everyone!'),
+          line(onTheRadio(mayor), 'And it gives me enormous pleasure to declare the Friday night market open. Seven months I have had the new tram, and I still wave at it. Safe home!'),
           line(MACK, 'Will do, Your Worship.'),
         ]),
+        { at: 24, lines: [line('Radio, faintly', "Paris has confirmed a second test will follow Tuesday's blast at Mururoa. Wellington has already called our ambassador home.")] },
       ],
     },
     { kind: 'checkpoint', label: 'the grid', at: GRID },
@@ -84,8 +89,9 @@ export const fourAvenues: MissionDef = {
       objective: 'Win the lap: Moorhouse, Fitzgerald, Bealey, and home past the park',
       loseReason: 'Beaten to the line. Dazza has stopped answering to his name',
       lines: [
-        line(TAMA, "Kia ora. Dazza's new driver? That's Skids on pole — Easterly money says you eat his exhaust, e hoa."),
+        line(TAMA, "Kia ora. Dazza's new driver? That's Skids on pole. Easterly money says you eat his exhaust, e hoa."),
         line(TAMA, 'Win it and the whole 03 hears by smoko.'),
+        line(TRACEY, "Whole town's been in a filthy mood since Mururoa on Tuesday. Good night to be loud."),
         line(TRACEY, 'Keep it off the tram tracks, Timaru.'),
       ],
       cues: [{ at: 45, lines: [line(TRACEY, 'Skids is cutting the park corner! He always cuts the park corner!')] }],

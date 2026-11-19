@@ -143,8 +143,8 @@ export const TRADES: readonly Trade[] = [
     corner: 3,
     names: ['KOWHAI DAIRY', 'SUNRISE DAIRY', 'FANTAIL DAIRY', 'BLUE GATE DAIRY', 'HILLTOP DAIRY', 'THE LOLLY JAR', 'HAPPY DAYS DAIRY', 'DAWN TO DUSK DAIRY'],
     local: 'DAIRY',
-    tags: ['MILK · BREAD · PAPERS', 'ICE CREAMS · LOLLIES · PIES', 'OPEN 7 DAYS'],
-    boards: ['ICE\nCREAM', 'HOT\nPIES', 'MILK &\nBREAD'],
+    tags: ['MILK · BREAD · PAPERS', 'ICE CREAMS · LOLLIES · PIES', 'SCRATCH & WIN · OPEN 7 DAYS'],
+    boards: ['ICE\nCREAM', 'PIES\n$2', 'MILK &\nBREAD'],
     street: ['cone', 'board', 'bin', 'crates', 'phone'],
     light: 0.55,
   },
@@ -155,14 +155,14 @@ export const TRADES: readonly Trade[] = [
     names: ['THE BATTERED COD', 'OH MY COD', 'THE GOLDEN FRYER', 'THE SALTY SCOOP', 'SCOOP & SHAKE', "NEPTUNE'S BASKET", 'THE CHIP INN'],
     tags: ['FISH & CHIPS', 'BURGERS · HOT DOGS · SHAKES', 'FRESH BLUE COD DAILY'],
     neon: ['FISH & CHIPS', 'OPEN'],
-    boards: ['FISH &\nCHIPS', 'SCOOP\n$1'],
+    boards: ['FISH &\nCHIPS', 'SCOOP\n$1', 'WHITEBAIT\nIN SEASON'],
     street: ['board', 'bin', 'bench'],
     light: 0.85,
   },
   {
     id: 'takeaways',
     mix: [5, 3, 2],
-    names: ['MIDNIGHT MUNCHIES', 'THE HUNGRY WEKA', "BIG AL'S BURGER BAR", 'LUCKY STAR TAKEAWAYS', 'THE BURGER SHED', 'PIE IN THE SKY'],
+    names: ['THE PIE CART', 'THE HUNGRY WEKA', "BIG AL'S BURGER BAR", 'LUCKY STAR TAKEAWAYS', 'THE BURGER SHED', 'PIE IN THE SKY'],
     tags: ['BURGERS · CHIPS · SHAKES', 'CHINESE & EUROPEAN MEALS', 'OPEN LATE'],
     neon: ['TAKEAWAYS', 'OPEN', 'BURGERS'],
     boards: ['OPEN\nLATE', 'BURGER\n$3'],
@@ -191,7 +191,7 @@ export const TRADES: readonly Trade[] = [
   {
     id: 'butcher',
     mix: [5, 5, 1],
-    names: ['PRIME CUTS BUTCHERY', 'THE CHOP SHOP', 'PLAINS BUTCHERY', 'HALLORAN FAMILY BUTCHER', 'SNARLERS & CHOPS', 'TOP PADDOCK MEATS'],
+    names: ['GLEESON & SONS BUTCHERS', 'THE CHOP SHOP', 'PLAINS BUTCHERY', 'HALLORAN FAMILY BUTCHER', 'SNARLERS & CHOPS', 'TOP PADDOCK MEATS'],
     tags: ['SMALLGOODS · HOMEKILL', 'SAUSAGES OUR SPECIALTY', 'CANTERBURY LAMB'],
     looks: RED_WHITE,
     boards: ['SNAGS\n$4 KG', 'LAMB\nCHOPS'],
@@ -200,7 +200,7 @@ export const TRADES: readonly Trade[] = [
   {
     id: 'chemist',
     mix: [5, 4, 3],
-    names: ['CORNER CHEMIST', 'THE DISPENSARY', "TREGEAR'S PHARMACY", 'PESTLE & MORTAR', 'BRIGHT & WELL PHARMACY'],
+    names: ['CORNER CHEMIST', 'THE DISPENSARY', "TREGEAR'S PHARMACY", 'PESTLE & MORTAR', 'QUINN & DAUGHTERS CHEMISTS'],
     local: 'PHARMACY',
     tags: ['PRESCRIPTIONS · COSMETICS', 'PHOTOS IN 1 HOUR', 'FILMS DEVELOPED HERE'],
     looks: APOTHECARY,
@@ -224,12 +224,13 @@ export const TRADES: readonly Trade[] = [
     street: ['postbox', 'phone', 'bench'],
   },
   {
+    // Racing bets only in 1995: gallops, trots and the dogs. Sports betting came later.
     id: 'tab',
     mix: [3, 2, 2],
-    names: ['TAB'],
+    names: ['TOTE AGENCY'],
     tags: ['RACING · TROTS · DOGS', 'GALLOPS · HARNESS · GREYHOUNDS'],
     looks: BETTING,
-    boards: ['TAB\nOPEN'],
+    boards: ['TOTE\nOPEN', 'SAT\nGALLOPS'],
     street: ['bin', 'board'],
   },
   {
@@ -312,7 +313,7 @@ export const TRADES: readonly Trade[] = [
   {
     id: 'tearooms',
     mix: [4, 5, 5],
-    names: ['THE WHISTLING KETTLE', 'DEVONSHIRE TEAROOMS', 'THE CHEESE ROLL CAFE', 'THE LAMINGTON TEAROOMS', 'STARLIGHT MILK BAR', 'CUPPA & CAKE'],
+    names: ['THE WHISTLING KETTLE', 'DEVONSHIRE TEAROOMS', 'AORAKI TEAROOMS', 'THE LAMINGTON TEAROOMS', 'STARLIGHT MILK BAR', 'CUPPA & CAKE'],
     tags: ['MORNING TEAS · LUNCHES', 'CHEESE ROLLS · SCONES · SAVOURIES', 'MILKSHAKES · THICKSHAKES · SPIDERS'],
     looks: SCRIPTY,
     boards: ['CUPPA\n& SCONE', 'HOT\nLUNCH'],
@@ -374,7 +375,7 @@ export const TRADES: readonly Trade[] = [
   {
     id: 'farmsupplies',
     mix: [0, 4, 0],
-    names: ['FARM & STATION SUPPLIES', 'THE GUMBOOT DEPOT', 'TOP DRESSING & SEED CO.'],
+    names: ['CANTERBURY GRAIN & SEED', 'THE GUMBOOT DEPOT', 'TOP DRESSING & SEED CO.'],
     tags: ['DRENCH · FENCING · DOG TUCKER', 'SEEDS · GRAIN · FERTILISER'],
     looks: TRADE,
     street: ['crates'],
@@ -410,8 +411,8 @@ export const PUB_TAGS = ['PUBLIC BAR · BOTTLE STORE', 'COLD BEER · HOT PIES ·
 export const PUB_NEON = ['PUBLIC BAR', 'BOTTLE STORE', 'COLD BEER'] as const;
 export const PUB_BOARDS = ['JUG\nNIGHT', 'PUB\nLUNCH', 'COLD\nBEER'] as const;
 
-export const BANKS = ['PLAINS & PROVINCIAL BANK', 'SOUTHERN PASTORAL BANK', 'BANK OF AORAKI', 'THE TUSSOCK SAVINGS BANK'] as const;
-export const CINEMAS = ['THE PALLADIUM', 'STARLIGHT CINEMA', 'THE EMPRESS', 'THE GAIETY'] as const;
+export const BANKS = ['CANTERBURY PERMANENT BUILDING SOCIETY', 'SOUTHERN PASTORAL BANK', 'BANK OF AORAKI', 'THE TUSSOCK SAVINGS BANK'] as const;
+export const CINEMAS = ['THE PLAZA', 'STARLIGHT CINEMA', 'THE EMPRESS', 'THE GAIETY'] as const;
 export const DEPARTMENT_STORES = ["PEMBERTON'S", 'HOLLINGWORTH & LOW', "TREGEAR'S", "FAIRWEATHER'S", 'McCRORIE & SONS'] as const;
 export const DEPARTMENT_TAGS = ['DRAPERS · OUTFITTERS · FURNISHERS', 'THE FAMILY DEPARTMENT STORE', 'MANCHESTER · CHINA · HABERDASHERY'] as const;
 /** Carved into Edwardian parapets. */
@@ -419,15 +420,15 @@ export const BUILDING_NAMES = ["HALLORAN'S BUILDINGS", 'EXCHANGE CHAMBERS', 'PLA
 /** Office block tenants. */
 export const OFFICES = ['PLAINS ASSURANCE', 'SOUTHERN MUTUAL LIFE', "NOR'WEST HOUSE", 'KEA HOUSE', 'TORLESSE TOWER', 'RAKAIA HOUSE', 'PACIFIC & ALPINE INSURANCE', 'CANTERBURY PROVIDENT', 'THE 03 HERALD'] as const;
 
-export const STOCK_AGENTS = ['DRUMMOND & PEAKE LTD', 'HALLORAN PASTORAL', 'McALISTER STOKES & CO'] as const;
+export const STOCK_AGENTS = ['DRUMMOND & PEAKE LTD', 'HARGREAVES & DAUGHTERS', 'McALISTER STOKES & CO'] as const;
 export const STOCK_TAGS = ['STOCK & STATION AGENTS', 'WOOL · GRAIN · SEEDS · INSURANCE'] as const;
 export const GARAGES = ['MAIN ROAD MOTORS', 'PIT STOP GARAGE', 'BIG END MOTORS', 'CRANK & SUMP SERVICE STATION'] as const;
 export const GARAGE_TAGS = ['WOFs · TYRES · LUBES', 'PETROL · DIESEL · OIL', 'BREAKDOWNS · PH 03 688 2141'] as const;
 /** The invented petrol brand. */
 export const FUEL_BRAND = 'WEKA';
-export const GROCERS = ['FOUR WINDS FOODMARKET'] as const;
+export const GROCERS = ['HALF CROWN GROCER'] as const;
 export const GROCER_TAGS = ['GROCERIES · FRUIT · FROZENS', "THIS WEEK'S SPECIALS"] as const;
-export const HALLS = ['MEMORIAL HALL', 'PUBLIC HALL', 'DISTRICT HALL', 'BAND ROOMS'] as const;
+export const HALLS = ['MEMORIAL HALL', 'DISTRICT HALL', "WORKINGMEN'S CLUB", "RETURNED MEN'S CLUB", 'BAND ROOMS'] as const;
 export const CHURCH_HALLS = ["ST. AIDAN'S HALL", "ST. COLUMBA'S PARISH HALL", 'ALL SAINTS HALL', 'GOSPEL HALL'] as const;
 /** The invented ice-cream brand on the tin sign outside every dairy. */
 export const ICE_CREAM = 'SNOWLINE\nICE CREAM';
@@ -462,7 +463,7 @@ export const SHIPPERS = ["SOU'WESTER SHIPPING CO.", 'BREAKWATER STEVEDORING CO.'
 export const COOLSTORES = ['FROSTLINE COLD STORAGE', 'SOUTHERN ICE COOLSTORES', 'BLUE ICE COOLSTORES'] as const;
 export const TANK_FARMS = ['WEKA PETROLEUM · BULK DEPOT', 'COASTAL BULK LIQUIDS', 'TALLOW & MOLASSES TERMINAL'] as const;
 export const FISHERIES = ['BLUE COD FISHERIES LTD', 'SOUTHERN TRAWLERS CO-OP', 'STORMY PETREL FISHING CO.', 'HOKI & LING SEAFOODS'] as const;
-export const FISH_TAGS = ['WET FISH SALES · ICE · BAIT', 'FRESH OFF THE BOAT'] as const;
+export const FISH_TAGS = ['WET FISH SALES · ICE · BAIT', 'BLUE COD · WHITEBAIT IN SEASON'] as const;
 
 /** Painted advertisements going ghostly on brick side walls: invented products only. */
 export const GHOST_SIGNS = ['KOWHAI\nBAKING POWDER', 'WEKA\nMOTOR SPIRIT', 'TUSSOCK\nTEA', 'SNOWLINE\nICE CREAM', 'PLAINS\nALES & STOUT', 'FANTAIL\nJAMS', 'NODOFF\nBEDDING', 'RIMU\nSOAP'] as const;

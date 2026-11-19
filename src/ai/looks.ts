@@ -28,6 +28,9 @@ const SNEAKERS = [0xe8e8e4, 0xd0d0cc, 0x2a2a2e, 0xb8b0a0];
 const BOOTS = [0x4a3626, 0x3a2a1c, 0x2a2420];
 const GUMBOOTS = 0x15171a;
 const DRESS_SHOES = [0x121214, 0x2a1a12];
+// Faded black band tees (the band is invented; think the Shingle FM playlist) and black jeans.
+const BAND_TEES = [0x141416, 0x1e1c20, 0x2a282c, 0x241a1e];
+const BLACK_JEANS = [0x17181c, 0x242228];
 // Limited palettes: patterned tops are cached per colour.
 const BUSH_SHIRTS = [0xb3261e, 0x1f4a8a, 0x2f6a3a];
 const JERSEYS = [0xb3261e, 0x1d3a8a, 0x1c6b3a, 0xd9a400, 0x7a1f2a, 0x303034];
@@ -44,43 +47,46 @@ const CAPS = [0x25304a, 0xb3261e, 0x1c6b3a, 0x202024, 0xe8e8e4, 0xd9a400];
 const BEANIES = [0x202024, 0x7a1f2a, 0x25304a, 0x2f5a3f, 0xb3261e];
 const BRIMS = [0xc8b890, 0x8a7a5a, 0xe8e0c8, 0x4a4436];
 
-export type Outfit = 'stubbies' | 'bush' | 'jersey' | 'shell' | 'school' | 'hivis' | 'farmer' | 'suit' | 'office' | 'casual' | 'nana' | 'surfie';
+export type Outfit = 'stubbies' | 'bush' | 'jersey' | 'shell' | 'school' | 'hivis' | 'farmer' | 'suit' | 'office' | 'casual' | 'nana' | 'surfie' | 'bogan';
 
 /** What people wear, by where they are. */
 const OUTFIT_WEIGHTS: Record<DistrictType, Partial<Record<Outfit, number>>> = {
-  cbd: { suit: 3, office: 4, casual: 4, shell: 1.5, jersey: 1, stubbies: 1, school: 1.5, nana: 1.5, bush: 0.5 },
-  shops: { casual: 4, stubbies: 2.5, shell: 2, jersey: 1.5, nana: 2.5, school: 2, office: 1.5, bush: 1, suit: 0.5 },
-  villa: { casual: 3, stubbies: 2.5, jersey: 1.5, nana: 2, school: 2, shell: 1.5, bush: 1, office: 1 },
-  statehouse: { stubbies: 3, casual: 2.5, jersey: 2.5, shell: 2, school: 2, bush: 1.5, nana: 1.5, hivis: 0.5 },
-  industrial: { hivis: 5, bush: 3, stubbies: 2, casual: 1, jersey: 1 },
-  port: { hivis: 5, bush: 3, stubbies: 1.5, casual: 1 },
-  township: { farmer: 2.5, bush: 2.5, stubbies: 2.5, casual: 2.5, jersey: 2, nana: 2, school: 1.5, hivis: 1, shell: 0.5 },
-  park: { casual: 3, shell: 2.5, stubbies: 2, jersey: 1.5, school: 1.5, nana: 1.5 },
+  cbd: { suit: 3, office: 4, casual: 4, shell: 1.5, jersey: 1, stubbies: 1, school: 1.5, nana: 1.5, bush: 0.5, bogan: 0.5 },
+  shops: { casual: 4, stubbies: 2.5, shell: 2, jersey: 1.5, nana: 2.5, school: 2, office: 1.5, bush: 1, suit: 0.5, bogan: 1 },
+  villa: { casual: 3, stubbies: 2.5, jersey: 1.5, nana: 2, school: 2, shell: 1.5, bush: 1, office: 1, bogan: 0.5 },
+  statehouse: { stubbies: 3, casual: 2.5, jersey: 2.5, shell: 2, school: 2, bush: 1.5, nana: 1.5, hivis: 0.5, bogan: 2 },
+  industrial: { hivis: 5, bush: 3, stubbies: 2, casual: 1, jersey: 1, bogan: 1 },
+  port: { hivis: 5, bush: 3, stubbies: 1.5, casual: 1, bogan: 0.5 },
+  township: { farmer: 2.5, bush: 2.5, stubbies: 2.5, casual: 2.5, jersey: 2, nana: 2, school: 1.5, hivis: 1, shell: 0.5, bogan: 1 },
+  park: { casual: 3, shell: 2.5, stubbies: 2, jersey: 1.5, school: 1.5, nana: 1.5, bogan: 1 },
   rural: { farmer: 5, bush: 3, hivis: 2, stubbies: 2 },
-  beach: { surfie: 4, stubbies: 3.5, casual: 2, nana: 1, shell: 1 },
+  beach: { surfie: 4, stubbies: 3.5, casual: 2, nana: 1, shell: 1, bogan: 0.5 },
 };
 
-const OUTFITS: Outfit[] = ['stubbies', 'bush', 'jersey', 'shell', 'school', 'hivis', 'farmer', 'suit', 'office', 'casual', 'nana', 'surfie'];
+const OUTFITS: Outfit[] = ['stubbies', 'bush', 'jersey', 'shell', 'school', 'hivis', 'farmer', 'suit', 'office', 'casual', 'nana', 'surfie', 'bogan'];
 
 export function pickOutfit(rng: Rand, district: DistrictType, hour: number, weekday: boolean): Outfit {
   const weights = OUTFIT_WEIGHTS[district] ?? OUTFIT_WEIGHTS.villa;
   // School uniforms only around the school day; suits and offices keep business hours.
+  // Bogans own the night: once the shops shut, the boy racers come out.
   const school = weekday && hour >= 7.5 && hour <= 16.5;
   const business = weekday && hour >= 7 && hour <= 18.5;
+  const late = hour >= 20.5 || hour < 5;
   let total = 0;
-  for (const o of OUTFITS) total += weightOf(weights, o, school, business);
+  for (const o of OUTFITS) total += weightOf(weights, o, school, business, late);
   let r = rng.next() * total;
   for (const o of OUTFITS) {
-    r -= weightOf(weights, o, school, business);
+    r -= weightOf(weights, o, school, business, late);
     if (r <= 0) return o;
   }
   return 'casual';
 }
 
-function weightOf(weights: Partial<Record<Outfit, number>>, o: Outfit, school: boolean, business: boolean): number {
+function weightOf(weights: Partial<Record<Outfit, number>>, o: Outfit, school: boolean, business: boolean, late: boolean): number {
   const w = weights[o] ?? 0;
   if (o === 'school') return school ? w : 0;
   if (o === 'suit' || o === 'office') return business ? w : w * 0.15;
+  if (o === 'bogan') return late ? w * 2.5 : w;
   return w;
 }
 
@@ -208,6 +214,15 @@ export function randomLook(rng: Rand, ctx: LookContext): HumanoidLook {
       look.shoes = pick(rng, JANDALS);
       if (!old) look.hairStyle = chance(rng, 0.5) ? 'long' : look.hairStyle;
       break;
+    case 'bogan':
+      // Black band tee or singlet, black jeans, boots; a mullet more often than not.
+      look.topStyle = chance(rng, 0.25) ? 'singlet' : 'tee';
+      look.top = pick(rng, BAND_TEES);
+      look.shorts = false;
+      look.legs = chance(rng, 0.6) ? pick(rng, BLACK_JEANS) : pick(rng, JEANS);
+      look.shoes = chance(rng, 0.55) ? pick(rng, BOOTS) : pick(rng, [0x2a2a2e, 0x1a1a1c]);
+      if (!old) look.hairStyle = female ? pick(rng, ['long', 'long', 'mullet'] as const) : pick(rng, ['mullet', 'mullet', 'long'] as const);
+      break;
     case 'casual':
       look.topStyle = chance(rng, 0.25) ? 'jacket' : 'tee';
       look.top = look.topStyle === 'jacket' ? pick(rng, [0x3a3a40, 0x4a3a2c, 0x25304a, 0x6a2f2f, 0x2f4a36]) : pick(rng, TEES);
@@ -289,7 +304,9 @@ export const BARKS = {
     'Kia ora.',
     'Kia ora, e hoa.',
     'Ka pai.',
-    'Chur.',
+    'Hard case, that fella.',
+    'Bit of a dag, your mate.',
+    'She’s a hard road, eh.',
     'Off to get some kai.',
     'Back to the mahi, eh.',
     'Ka kite.',
@@ -307,12 +324,12 @@ export const BARKS = {
   southerly: ['Southerly’s come through. Told ya it would.', 'Brass monkey weather, this.', 'Should’ve brought a jersey.'],
   fog: ['Can’t see the Port Hills for the fog.', 'Proper pea-souper this morning.'],
   morning: ['Mōrena.', 'Morning.', 'Up with the sparrows, eh.'],
-  night: ['Bit late to be wandering about, eh.', 'Pubs are shut, mate. Go home.', 'Mind how you go.'],
+  night: ['Bit late to be wandering about, eh.', 'Pubs are shut, mate. Go home.', 'Mind how you go.', 'Bloody boy racers, all hours.'],
   flee: ['Leg it!', 'Crikey!', 'Get down!', 'Somebody ring the cops!', 'Run for it!', 'Strewth!', 'Auē!'],
   cower: ['Don’t hurt me!', 'Take it easy, mate!', 'I didn’t see nothing!'],
   hijacked: ['Oi! That’s my car!', 'Give it back, ya egg!', 'Mum’s gonna kill me!', 'I’ve only just got her warranted!', 'Bring it back with a full tank, eh!'],
-  fight: ['Right, you asked for it.', 'Come here, ya egg!', 'Have a go, then!', 'You picked the wrong bloke.'],
-  hit: ['Learn to drive, ya muppet!', 'My hip!', 'You could’ve killed me!', 'Indicate next time!'],
+  fight: ['Right, you asked for it.', 'Come here, ya egg!', 'Have a go, then!', 'You picked the wrong bloke.', 'Carry on and you’ll get a rark-up.'],
+  hit: ['Learn to drive, ya muppet!', 'My hip!', 'You could’ve killed me!', 'Indicate next time!', 'Ya bloody hoon!'],
   theft: ['Oi! That’s not yours!', 'I saw that!', 'Cheeky beggar.'],
 } as const;
 

@@ -129,7 +129,7 @@ describe('loops for continuous layers', () => {
     expect(Math.abs(b[0] - b[b.length - 1])).toBeLessThanOrEqual(worst);
   };
 
-  it.each(['four', 'six', 'v8', 'diesel', 'bike'] as EngineKind[])('%s engine loops are seamless and the right length', (kind) => {
+  it.each(['four', 'six', 'v6', 'v8', 'boxer', 'turbo', 'diesel', 'bike', 'single'] as EngineKind[])('%s engine loops are seamless and the right length', (kind) => {
     for (const band of [0, 1] as const) {
       const b = renderEngineLoop(kind, band, new Rng(5));
       expect(b.every(Number.isFinite)).toBe(true);

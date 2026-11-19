@@ -201,7 +201,7 @@ function makeGraph(): RoadGraph {
 
 // ───────────── Stand-in vehicles ─────────────
 
-const SPEC = (id: string, seats: number): VehicleSpec => ({ id, name: id, cls: id === 'police' ? 'police' : id === 'van' ? 'van' : 'sedan', model: 'sedan', length: 4.85, width: 1.84, height: 1.42, mass: 1450, wheelRadius: 0.33, wheelWidth: 0.22, wheelbase: 2.8, track: 1.54, wheelCount: 4, engineForce: 7800, topSpeed: 50, reverseSpeed: 12, drive: 'rwd', brakeForce: 1, steerLock: 0.58, grip: 1, rearGripBias: 0.9, suspensionStiffness: 28, suspensionDamping: 1, suspensionTravel: 0.22, comDrop: 0.35, seats, health: 100, colors: [0x111111, 0x222222, 0x333333], value: 1000, spawn: {}, engineSound: 'six', traffic: true });
+const SPEC = (id: string, seats: number): VehicleSpec => ({ id, name: id, cls: id === 'police' || id === 'trafficcar' ? 'police' : id === 'van' ? 'van' : 'sedan', model: 'sedan', length: 4.85, width: 1.84, height: 1.42, mass: 1450, wheelRadius: 0.33, wheelWidth: 0.22, wheelbase: 2.8, track: 1.54, wheelCount: 4, engineForce: 7800, topSpeed: 50, reverseSpeed: 12, drive: 'rwd', brakeForce: 1, steerLock: 0.58, grip: 1, rearGripBias: 0.9, suspensionStiffness: 28, suspensionDamping: 1, suspensionTravel: 0.22, comDrop: 0.35, seats, health: 100, colors: [0x111111, 0x222222, 0x333333], value: 1000, spawn: {}, engineSound: 'six', traffic: true });
 
 class ToyVehicle implements Vehicle {
   readonly group = new THREE.Group();
@@ -278,6 +278,7 @@ interface Town {
   shots: { shooter: Actor; weaponId: string; origin: THREE.Vector3; direction: THREE.Vector3; from: THREE.Vector3 }[];
   heard: { type: keyof GameEvents; payload: unknown }[];
   pressed: Set<string>;
+  pickups: { kind: string; x: number; z: number; amount?: number; respawn?: number; options?: { ttl?: number; drop?: boolean } }[];
   saveSlices: Map<string, { serialize: () => unknown; deserialize: (d: unknown) => void }>;
   /** Scripted player motion, called every step. */
   script: ((dt: number) => void) | null;
@@ -293,7 +294,7 @@ interface Town {
 const CITY: District = { id: 'test', name: 'Testville', city: 'christchurch', type: 'cbd' };
 const RURAL: District = { id: 'plains', name: 'Canterbury Plains', city: null, type: 'rural' };
 
-function makeTown(options: { specs?: string[]; armed?: boolean } = {}): Town {
+function makeTown(options: { specs?: string[]; armed?: boolean; country?: boolean } = {}): Town {
   const physics = makePhysics();
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(58, 16 / 9, 0.35, 26000);
@@ -308,7 +309,8 @@ function makeTown(options: { specs?: string[]; armed?: boolean } = {}): Town {
     { id: 'test-police', name: 'Testville police station', x: -400, z: 10, heading: 0, city: 'christchurch', tags: ['police'] },
     { id: 'test-spray', name: 'Panel & paint', x: 404, z: 400, heading: 0, city: 'christchurch', tags: ['spray'] },
   ];
-  const inTown = (x: number, z: number) => Math.abs(x) <= GRID * BLOCK + 50 && Math.abs(z) <= GRID * BLOCK + 50;
+  // `country` pretends the whole grid is open road (rural, no town), for the patrol-variety tests.
+  const inTown = (x: number, z: number) => !options.country && Math.abs(x) <= GRID * BLOCK + 50 && Math.abs(z) <= GRID * BLOCK + 50;
 
   const all = new Set<Actor>();
   let nextActor = 1;
@@ -327,6 +329,7 @@ function makeTown(options: { specs?: string[]; armed?: boolean } = {}): Town {
     shots: [] as Town['shots'],
     heard: [] as Town['heard'],
     pressed: new Set<string>(),
+    pickups: [] as Town['pickups'],
     saveSlices: new Map(),
     script: null,
   } as unknown as Town;
@@ -492,6 +495,10 @@ function makeTown(options: { specs?: string[]; armed?: boolean } = {}): Town {
       },
       createWeaponModel: () => new THREE.Object3D(),
       disarm() {},
+      spawnPickup(kind: string, x: number, z: number, amount?: number, respawn?: number, options?: { ttl?: number; drop?: boolean }) {
+        town.pickups.push({ kind, x, z, amount, respawn, options });
+        return () => undefined;
+      },
     },
     traffic: {
       density: 1,
@@ -750,6 +757,14 @@ describe('police system, end to end in a toy town', () => {
     victim.takeDamage(hit);
     expect(victim.alive).toBe(false);
     expect(count(town, 'actorDied')).toBe(1);
+    // The fallen officer's sidearm is left by the body as a timed drop.
+    expect(town.pickups.length).toBe(1);
+    expect(town.pickups[0].kind).toBe('pistol');
+    expect(Math.hypot(town.pickups[0].x - victim.position.x, town.pickups[0].z - victim.position.z)).toBeLessThan(1.5);
+    expect(town.pickups[0].amount).toBeGreaterThanOrEqual(6);
+    expect(town.pickups[0].amount).toBeLessThanOrEqual(10);
+    expect(town.pickups[0].respawn).toBe(0);
+    expect(town.pickups[0].options?.drop).toBe(true);
     expect(town.ctx.actors.all.has(victim)).toBe(false);
     expect(town.police.level).toBe(3);
     // Nobody else reports the killing, so the police count it themselves a moment later.
@@ -919,6 +934,32 @@ describe('police system, end to end in a toy town', () => {
     expect(cars.every((v) => v.spec.id === 'statesman')).toBe(true);
     town.events.emit('playerRespawned', { reason: 'died' });
     expectClean(town);
+  });
+
+  it('on the open road the black and white ex-traffic car joins the chase; town units stay the white car', () => {
+    // The whole grid reads as open country: about half the dispatched cars should be the old traffic car.
+    const country = makeTown({ specs: ['statesman', 'police', 'van', 'trafficcar'], country: true });
+    country.police.setLevel(4);
+    const seen = new Set<string>();
+    country.step(50, () => {
+      if (country.police.level < 4) country.police.setLevel(4);
+      for (const v of country.policeCars()) seen.add(v.spec.id);
+      expectSane(country);
+    });
+    expect(seen.has('trafficcar')).toBe(true);
+    expect(seen.has('police')).toBe(true);
+    expect(seen.has('statesman')).toBe(false);
+
+    // In town, even with the spec available, every unit is the white patrol car.
+    const town = makeTown({ specs: ['statesman', 'police', 'van', 'trafficcar'] });
+    town.police.setLevel(4);
+    const inTown = new Set<string>();
+    town.step(30, () => {
+      if (town.police.level < 4) town.police.setLevel(4);
+      for (const v of town.policeCars()) inTown.add(v.spec.id);
+    });
+    expect(inTown.has('police')).toBe(true);
+    expect(inTown.has('trafficcar')).toBe(false);
   });
 
   it('heat is lost out of sight: the level steps down, units drift off and vanish', () => {

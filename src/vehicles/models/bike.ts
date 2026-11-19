@@ -1,18 +1,16 @@
 import * as THREE from 'three';
 import type { MaterialLibrary, VehicleModel, VehicleSpec } from '../../core/types';
-import { ALLOY, AMBER, CHROME, DARK, HEAD, Kit, LENS, PAINT, PLASTIC, RED_LENS, RUBBER, STEEL, TAIL, tint, type Pt, type Surface, type V3 } from './kit';
+import { ALLOY, CHROME, DARK, HEAD, Kit, LENS, PAINT, RED_LENS, RUBBER, SMOKED, STEEL, TAIL, tint, type Pt, type Surface, type V3 } from './kit';
 import { CHERISHED, stanceOf, weather } from './parts';
 
 /** Steering-head rake (radians from vertical). The fork runs from the front axle up this line. */
 const RAKE = 0.45;
 
 const TYRE = tint(0x121212, 'rubber');
-const ENGINE = tint(0x5c5f63, 'alloy');
-const CASE = tint(0x9a9da1, 'alloy');
-const VINYL = tint(0x161617, 'satin');
+const CASE = tint(0x8b8e92, 'alloy');
 
 /** Ring of points about the x axis. */
-function ring(k: Kit, surface: Surface, profile: Pt[], segments: number, group: string): void {
+export function ring(k: Kit, surface: Surface, profile: Pt[], segments: number, group: string): void {
   const rows: V3[][] = [];
   for (let s = 0; s <= segments; s++) {
     const a = (s / segments) * Math.PI * 2;
@@ -25,7 +23,7 @@ function ring(k: Kit, surface: Surface, profile: Pt[], segments: number, group: 
  * Cast motorcycle wheel, symmetrical so it can spin and steer about its centre: a round-shouldered tyre,
  * an alloy rim with five spokes, a hub and a brake disc each side.
  */
-function bikeWheel(k: Kit, radius: number, width: number, discs: number): THREE.Mesh {
+export function bikeWheel(k: Kit, radius: number, width: number, discs: number): THREE.Mesh {
   return k.mesh(`bikewheel|${radius}|${width}|${discs}`, (w) => {
     const rt = width / 2;
     const rim = radius - rt * 1.45;
@@ -51,7 +49,7 @@ function bikeWheel(k: Kit, radius: number, width: number, discs: number): THREE.
 }
 
 /** Arc of sheet metal over a wheel (a mudguard), in the frame it is drawn in. */
-function guard(k: Kit, surface: Surface, cy: number, cz: number, radius: number, a0: number, a1: number, halfWidth: number): void {
+export function guard(k: Kit, surface: Surface, cy: number, cz: number, radius: number, a0: number, a1: number, halfWidth: number): void {
   const rows: V3[][] = [];
   for (let i = 0; i <= 8; i++) {
     const t = a0 + ((a1 - a0) * i) / 8;
@@ -70,80 +68,125 @@ function guard(k: Kit, surface: Surface, cy: number, cz: number, radius: number,
   k.grid(DARK, rows, { out: [0, cy, cz], inward: true });
 }
 
+const WHITE = tint(0xf2f1ea, 'gloss');
+const VINYL = tint(0x161617, 'satin');
+
 /**
- * Naked 750: steel cradle frame, air-cooled four leaning forward in it, four-into-one pipe, twin shocks.
- * The fork, guard, lamp, clocks and bars hang off `steerPivot`, which turns about the raked steering
- * axis through the front axle. Returns `wheels` as [front, rear].
+ * Race-replica 750: a full fairing over the four, twin lamps in the nose, a smoked screen, clip-ons low on
+ * the fork, the tail cowled. The upper bodywork takes the paint; the belly runs white like the brochure.
+ * The fork, guard, clip-ons and clocks hang off `steerPivot`, which turns about the raked steering axis
+ * through the front axle. Returns `wheels` as [front, rear].
  */
 export function buildBike(spec: VehicleSpec, color: number, m: MaterialLibrary): VehicleModel {
   const k = new Kit(m, color, undefined, false, weather(CHERISHED), stanceOf(spec));
   const r = spec.wheelRadius;
   const a = spec.wheelbase / 2;
   // The rider's hips sit 0.4 m above the seat position, hands 0.5 m ahead of it and 0.72 m up.
-  const seat = { x: -0.001, y: 0.44, z: -0.26 };
-  const seatTop = seat.y + 0.33;
+  const seat = { x: -0.001, y: 0.44, z: -0.24 };
+  const seatTop = seat.y + 0.32;
 
   const body = (c: Kit) => {
-    const frame = tint(0x141416, 'satin');
-    // Frame: backbone, twin downtubes into a cradle, seat rails and stays.
-    const head: V3 = [0, r + Math.cos(RAKE) * 0.66, a - Math.sin(RAKE) * 0.66];
-    c.tube(frame, head, [0, 0.76, -0.12], 0.028, 6, true);
-    c.tube(frame, [0, head[1] + 0.07, head[2] - 0.035], [0, head[1] - 0.1, head[2] + 0.05], 0.034, 8);
+    const frame = tint(0x2a2c30, 'satin');
+    // Frame spars under the tank, swingarm, footpegs, chain. Most of the rest hides behind the fairing.
+    const head: V3 = [0, r + Math.cos(RAKE) * 0.64, a - Math.sin(RAKE) * 0.64];
+    c.tube(frame, [0, head[1] + 0.06, head[2] - 0.03], [0, head[1] - 0.1, head[2] + 0.05], 0.034, 8);
     for (const s of [1, -1]) {
-      c.pipe(frame, [[s * 0.05, head[1] - 0.07, head[2] + 0.03], [s * 0.14, 0.27, 0.3], [s * 0.14, 0.3, -0.2], [s * 0.12, 0.74, -0.14], [s * 0.11, 0.8, -0.84]], 0.019, 6, true);
-      c.tube(frame, [s * 0.13, 0.42, -0.22], [s * 0.11, 0.78, -0.62], 0.015, 5);
-      // Swingarm, shock with its spring, footpegs.
+      c.beam(ALLOY, [s * 0.05, head[1] - 0.02, head[2]], [s * 0.13, 0.62, -0.18], 0.05, 0.035, true);
       c.beam(ALLOY, [s * 0.11, 0.37, -0.2], [s * 0.11, r, -a - 0.03], 0.035, 0.06, true);
-      c.tube(CHROME, [s * 0.15, r + 0.07, -a + 0.1], [s * 0.15, 0.76, -0.46], 0.014, 6);
-      c.tube(tint(0xa02020, 'satin'), [s * 0.15, r + 0.16, -a + 0.135], [s * 0.15, 0.7, -0.44], 0.027, 8);
-      c.tube(frame, [s * 0.13, 0.28, -0.17], [s * 0.26, 0.28, -0.17], 0.014, 5);
+      c.tube(frame, [s * 0.13, 0.42, -0.22], [s * 0.11, 0.7, -0.6], 0.015, 5);
+      c.tube(frame, [s * 0.13, 0.3, -0.17], [s * 0.26, 0.3, -0.17], 0.014, 5);
       c.tube(frame, [s * 0.14, 0.45, -0.45], [s * 0.24, 0.42, -0.5], 0.012, 5);
       // Rear indicators on stalks.
-      c.tube(DARK, [s * 0.08, 0.8, -0.93], [s * 0.17, 0.8, -0.94], 0.008, 4);
-      c.pad(AMBER, 0.055, 0.045, 0.045, s * 0.19, 0.8, -0.94, 0.015);
-      // Side panels under the seat.
-      c.pad(PAINT, 0.03, 0.15, 0.27, s * 0.15, 0.63, -0.21, 0.012);
+      c.tube(DARK, [s * 0.08, 0.76, -0.9], [s * 0.17, 0.76, -0.91], 0.008, 4);
+      c.pad(tint(0xe58a16, 'gloss'), 0.055, 0.045, 0.045, s * 0.19, 0.76, -0.91, 0.015);
     }
     // Chain run and sprocket on the left.
     c.box(DARK, 0.012, 0.03, a - 0.18, 0.13, 0.36, -(a + 0.2) / 2, [0.085, 0, 0]);
     c.box(DARK, 0.012, 0.025, a - 0.2, 0.13, 0.27, -(a + 0.2) / 2, [-0.045, 0, 0]);
     c.drum(STEEL, 0.1, 0.008, 0.13, r, -a, 'x', 12);
+    // What shows of the engine under the fairing's hem, and the four-into-one swept up the right.
+    c.pad(CASE, 0.38, 0.2, 0.44, 0, 0.33, 0.04, 0.04, undefined, true);
+    for (const s of [1, -1]) c.drum(CASE, 0.08, 0.05, s * 0.2, 0.33, 0.08, 'x', 10);
+    for (const x of [-0.14, -0.05, 0.05, 0.14]) c.pipe(DARK, [[x, 0.46, 0.44], [x * 0.8, 0.26, 0.34], [-0.07, 0.22, 0.05]], 0.018, 6);
+    c.pipe(DARK, [[-0.07, 0.22, 0.05], [-0.2, 0.24, -0.28], [-0.23, 0.3, -0.5]], 0.032, 8);
+    c.tube(tint(0x3b3d40, 'alloy'), [-0.23, 0.3, -0.5], [-0.26, 0.42, -0.98], 0.045, 10, true, 0.06);
+    c.drum(DARK, 0.048, 0.004, -0.26, 0.421, -0.981, 'z', 10);
 
-    // Engine: crankcase with round side covers, a finned block leaning forward, the head, carbs and airbox.
-    c.pad(ENGINE, 0.4, 0.24, 0.44, 0, 0.41, 0.04, 0.04, undefined, true);
-    for (const s of [1, -1]) {
-      c.drum(CASE, 0.095, 0.06, s * 0.215, 0.41, 0.1, 'x', 12);
-      c.drum(CASE, 0.07, 0.05, s * 0.2, 0.42, -0.12, 'x', 10);
-    }
-    for (let i = 0; i < 5; i++) c.box(i % 2 ? ENGINE : CASE, 0.46 - (i % 2) * 0.03, 0.05, 0.27, 0, 0.535 + i * 0.047, 0.115 + i * 0.016, [0.3, 0, 0], i === 2);
-    c.pad(CASE, 0.47, 0.07, 0.3, 0, 0.775, 0.2, 0.02, [0.3, 0, 0]);
-    for (const x of [-0.165, -0.055, 0.055, 0.165]) c.tube(STEEL, [x, 0.68, -0.02], [x, 0.66, -0.14], 0.03, 6);
-    c.pad(PLASTIC, 0.3, 0.17, 0.2, 0, 0.63, -0.22, 0.03);
-
-    // Four-into-one: headers down the front, collector under the cases, megaphone up the right.
-    for (const x of [-0.165, -0.055, 0.055, 0.165]) c.pipe(CHROME, [[x, 0.7, 0.3], [x * 0.95, 0.42, 0.37], [x * 0.7, 0.24, 0.26], [-0.08, 0.21, 0.02]], 0.019, 6);
-    c.pipe(CHROME, [[-0.08, 0.21, 0.02], [-0.2, 0.24, -0.28], [-0.23, 0.3, -0.5]], 0.034, 8);
-    c.tube(CHROME, [-0.23, 0.3, -0.5], [-0.26, 0.43, -1.0], 0.04, 10, true, 0.062);
-    c.drum(DARK, 0.05, 0.004, -0.26, 0.431, -1.001, 'z', 10);
-
-    // Tank: a teardrop lofted from cross-sections.
+    // The fairing: one loft from the nose back to the seat, painted above, white below the waist.
     const sections: [number, number, number, number][] = [
+      // z, half-width, top, bottom
+      [0.74, 0.055, 0.87, 0.77],
+      [0.62, 0.15, 0.97, 0.56],
+      [0.44, 0.23, 1.02, 0.36],
+      [0.18, 0.265, 0.92, 0.23],
+      [-0.08, 0.255, 0.83, 0.23],
+      [-0.3, 0.21, 0.75, 0.29],
+    ];
+    const N = 12;
+    const rings = sections.map(([z, w, top, bottom]) => {
+      const row: V3[] = [];
+      const cy = (top + bottom) / 2;
+      const ry = (top - bottom) / 2;
+      for (let i = 0; i <= N; i++) {
+        const t = (i / N) * Math.PI * 2;
+        const sy = Math.sin(t);
+        row.push([Math.cos(t) * w * (sy < 0 ? 0.86 : 1), cy + (sy < 0 ? sy * 0.92 : sy) * ry, z]);
+      }
+      return row;
+    });
+    // Rings start on the +x flank at mid height: the upper half takes the paint, the belly runs white.
+    c.grid(PAINT, rings.map((row) => row.slice(0, N / 2 + 1)), { out: [0, 0.6, 0.1], group: 'fair' });
+    c.grid(WHITE, rings.map((row) => row.slice(N / 2)), { out: [0, 0.6, 0.1], group: 'fair' });
+    c.poly(PAINT, rings[0].slice(0, -1), [0, 0.82, 0]);
+    c.poly(DARK, rings[rings.length - 1].slice(0, -1), [0, 0.52, 0]);
+    // Twin lamps in the nose under one lens, and the smoked screen above it.
+    const lamp = (cx: number, cy2: number, rad: number, surface: Surface, z: number) => {
+      const pts: V3[] = [];
+      for (let i = 0; i < 10; i++) pts.push([cx + rad * Math.cos((i / 10) * Math.PI * 2), cy2 + rad * Math.sin((i / 10) * Math.PI * 2), z]);
+      c.poly(surface, pts, [cx, cy2, z - 1]);
+    };
+    if (c.lo) c.tris(HEAD, [-0.1, 0.78, 0.745, 0.1, 0.88, 0.745, 0.1, 0.78, 0.745, -0.1, 0.78, 0.745, -0.1, 0.88, 0.745, 0.1, 0.88, 0.745], { flat: true });
+    else {
+      for (const s of [1, -1]) lamp(s * 0.052, 0.826, 0.042, HEAD, 0.746);
+      lamp(0, 0.826, 0.1, LENS, 0.752);
+    }
+    const screen: V3[][] = [];
+    for (const [z0, y0, w0] of [
+      [0.58, 0.975, 0.125],
+      [0.46, 1.045, 0.15],
+      [0.33, 1.09, 0.165],
+    ]) {
+      const row: V3[] = [];
+      for (let i = -2; i <= 2; i++) {
+        const u = i / 2;
+        row.push([u * w0, y0 - Math.abs(u) * 0.025, z0 + u * u * 0.05]);
+      }
+      screen.push(row);
+    }
+    c.grid(SMOKED, screen, { out: [0, 0.7, -0.6] });
+    // Mirrors on stalks off the fairing shoulders.
+    for (const s of [1, -1]) {
+      c.beam(DARK, [s * 0.13, 1.0, 0.47], [s * 0.25, 1.08, 0.43], 0.014, 0.01);
+      c.pad(DARK, 0.1, 0.055, 0.025, s * 0.28, 1.09, 0.42, 0.01, [0, -s * 0.2, 0]);
+    }
+
+    // Tank: a teardrop lofted from cross-sections, flowing back from the fairing.
+    const tankSections: [number, number, number, number][] = [
       // z, half-width, top, bottom
       [-0.14, 0.085, 0.84, 0.76],
       [-0.08, 0.13, 0.9, 0.745],
-      [0.06, 0.175, 0.955, 0.735],
-      [0.22, 0.19, 0.975, 0.74],
-      [0.36, 0.165, 0.955, 0.76],
-      [0.45, 0.11, 0.905, 0.8],
-      [0.485, 0.04, 0.865, 0.83],
+      [0.06, 0.175, 0.95, 0.735],
+      [0.22, 0.185, 0.965, 0.74],
+      [0.36, 0.16, 0.945, 0.76],
+      [0.44, 0.1, 0.9, 0.8],
+      [0.47, 0.04, 0.87, 0.83],
     ];
-    const tank = sections.map(([z, w, top, bottom]) => {
+    const tank = tankSections.map(([z, w, top, bottom]) => {
       const row: V3[] = [];
       const cy = (top + bottom) / 2;
       const ry = (top - bottom) / 2;
       for (let i = 0; i <= 12; i++) {
         const t = (i / 12) * Math.PI * 2;
-        // Flatter underneath than on top.
         const sy = Math.sin(t);
         row.push([Math.cos(t) * w * (sy < 0 ? 0.82 : 1), cy + (sy < 0 ? sy * 0.75 : sy) * ry, z]);
       }
@@ -152,66 +195,51 @@ export function buildBike(spec: VehicleSpec, color: number, m: MaterialLibrary):
     c.grid(PAINT, tank, { out: [0, 0.86, 0.15] });
     c.poly(PAINT, tank[0].slice(0, -1), [0, 0.86, 0.15]);
     c.poly(PAINT, tank[tank.length - 1].slice(0, -1), [0, 0.86, 0.15]);
-    c.drum(CHROME, 0.04, 0.02, 0, 0.982, 0.24, 'y', 10);
-    c.boxes(tint(0xf2f2ee, 'gloss'), 0.004, 0.035, 0.26, 0.186, 0.9, 0.2);
+    c.drum(CHROME, 0.04, 0.02, 0, 0.972, 0.22, 'y', 10);
+    c.boxes(WHITE, 0.004, 0.035, 0.26, 0.182, 0.89, 0.18);
 
-    // Seat, tail piece, lamp, rear guard, plate bracket.
-    c.pad(VINYL, 0.28, 0.1, 0.5, 0, seatTop - 0.05, -0.33, 0.035, [0.03, 0, 0]);
-    c.pad(VINYL, 0.27, 0.1, 0.36, 0, seatTop - 0.015, -0.7, 0.035, [0.06, 0, 0]);
-    c.pad(PAINT, 0.25, 0.11, 0.26, 0, 0.78, -0.9, 0.035, [0.2, 0, 0], true);
-    c.pad(RED_LENS, 0.15, 0.065, 0.05, 0, 0.775, -1.022, 0.015);
-    c.box(TAIL, 0.11, 0.04, 0.012, 0, 0.775, -1.045);
-    guard(c, tint(0x141416, 'satin'), r, -a, r + 0.045, 0.75, 2.75, 0.085);
-    c.box(DARK, 0.03, 0.14, 0.012, 0, 0.6, -a - r - 0.012, [0.25, 0, 0]);
+    // Seat, cowled tail, lamp, rear guard, plate bracket.
+    c.pad(VINYL, 0.27, 0.09, 0.46, 0, seatTop - 0.045, -0.3, 0.035, [0.03, 0, 0]);
+    c.pad(PAINT, 0.26, 0.14, 0.42, 0, 0.72, -0.72, 0.045, [0.1, 0, 0], true);
+    c.pad(VINYL, 0.22, 0.06, 0.28, 0, 0.785, -0.62, 0.025, [0.08, 0, 0]);
+    c.pad(PAINT, 0.24, 0.12, 0.24, 0, 0.74, -0.92, 0.035, [0.25, 0, 0], true);
+    c.pad(RED_LENS, 0.15, 0.06, 0.05, 0, 0.73, -1.02, 0.015);
+    c.box(TAIL, 0.11, 0.04, 0.012, 0, 0.73, -1.042);
+    guard(c, tint(0x141416, 'satin'), r, -a, r + 0.045, 0.75, 2.75, 0.08);
+    c.box(DARK, 0.03, 0.14, 0.012, 0, 0.56, -a - r - 0.012, [0.25, 0, 0]);
     // (A bare pane on the distant version, where the little lamp itself is dropped.)
-    if (c.lo) c.tris(TAIL, [-0.07, 0.74, -1.05, 0.07, 0.81, -1.05, 0.07, 0.74, -1.05, -0.07, 0.74, -1.05, -0.07, 0.81, -1.05, 0.07, 0.81, -1.05], { flat: true });
+    if (c.lo) c.tris(TAIL, [-0.07, 0.7, -1.045, 0.07, 0.76, -1.045, 0.07, 0.7, -1.045, -0.07, 0.7, -1.045, -0.07, 0.76, -1.045, 0.07, 0.76, -1.045], { flat: true });
   };
-  k.cached('bike', body);
-  k.plates(Number.NaN, 0, -a - r - 0.03, 0.58, 'new', 0.6, 0.25);
+  k.cached('bike2', body);
+  k.plates(Number.NaN, 0, -a - r - 0.03, 0.54, 'new', 0.6, 0.25);
 
   // Steering assembly, built in the pivot's own frame: y runs up the fork from the axle.
   const f = new Kit(m, color, k.paint);
   /** Offset from the front axle in ordinary (level) axes → the pivot's raked frame. */
   const lv = (x: number, y: number, z: number): V3 => [x, y * Math.cos(RAKE) - z * Math.sin(RAKE), y * Math.sin(RAKE) + z * Math.cos(RAKE)];
-  f.cached('bike-fork', (c) => {
+  f.cached('bike2-fork', (c) => {
     for (const s of [1, -1]) {
       c.tube(ALLOY, [s * 0.1, -0.02, 0], [s * 0.1, 0.3, 0], 0.03, 8, true);
-      c.tube(CHROME, [s * 0.1, 0.3, 0], [s * 0.1, 0.74, 0], 0.02, 6);
+      c.tube(CHROME, [s * 0.1, 0.3, 0], [s * 0.1, 0.66, 0], 0.02, 6);
       c.box(STEEL, 0.03, 0.09, 0.06, s * 0.085, 0.13, -0.05);
-      // Bars: up from the clamp, out and back to the grips; lever, mirror, indicator.
-      c.pipe(CHROME, [lv(s * 0.06, 0.65, -0.33), lv(s * 0.13, 0.82, -0.4), lv(s * 0.25, 0.855, -0.47), lv(s * 0.36, 0.85, -0.5)], 0.012, 6);
-      c.tube(RUBBER, lv(s * 0.25, 0.855, -0.47), lv(s * 0.365, 0.85, -0.5), 0.018, 8);
-      c.beam(ALLOY, lv(s * 0.22, 0.85, -0.44), lv(s * 0.36, 0.845, -0.44), 0.012, 0.008);
-      c.tube(DARK, lv(s * 0.2, 0.85, -0.46), lv(s * 0.3, 0.925, -0.44), 0.006, 4);
-      c.pad(DARK, 0.11, 0.06, 0.025, ...lv(s * 0.315, 0.935, -0.44), 0.01, [RAKE, 0, 0]);
-      c.tube(DARK, lv(s * 0.1, 0.6, -0.1), lv(s * 0.2, 0.6, -0.1), 0.008, 4);
-      c.pad(AMBER, 0.055, 0.045, 0.045, ...lv(s * 0.22, 0.6, -0.1), 0.015);
+      // Clip-ons: from the top clamp, out and down to the grips tucked behind the fairing edge.
+      c.pipe(DARK, [lv(s * 0.07, 0.62, -0.26), lv(s * 0.2, 0.6, -0.34), lv(s * 0.345, 0.575, -0.42)], 0.012, 6);
+      c.tube(RUBBER, lv(s * 0.23, 0.593, -0.365), lv(s * 0.36, 0.57, -0.43), 0.017, 8);
+      c.beam(ALLOY, lv(s * 0.21, 0.6, -0.31), lv(s * 0.33, 0.59, -0.33), 0.012, 0.008);
     }
-    c.box(DARK, 0.27, 0.035, 0.08, 0, 0.56, 0);
-    c.box(DARK, 0.27, 0.035, 0.08, 0, 0.72, 0);
-    // Chromed guard over the tyre.
+    c.box(DARK, 0.26, 0.035, 0.08, 0, 0.5, 0);
+    c.box(DARK, 0.26, 0.035, 0.08, 0, 0.64, 0);
+    // The clocks behind the screen.
+    c.pad(DARK, 0.2, 0.08, 0.06, ...lv(0, 0.72, -0.2), 0.02, [RAKE, 0, 0]);
+    // Painted sports guard hugging the tyre.
     const rows: V3[][] = [];
     for (let i = 0; i <= 8; i++) {
-      const t = -1.0 + (2.0 * i) / 8;
+      const t = -1.1 + (2.1 * i) / 8;
       const at = (rad: number, x: number): V3 => [x, Math.cos(t) * rad, Math.sin(t) * rad];
-      rows.push([at(r + 0.012, -0.075), at(r + 0.035, -0.045), at(r + 0.035, 0.045), at(r + 0.012, 0.075)]);
+      rows.push([at(r + 0.012, -0.072), at(r + 0.04, -0.042), at(r + 0.04, 0.042), at(r + 0.012, 0.072)]);
     }
-    c.grid(CHROME, rows, { out: [0, 0, 0], cast: true });
+    c.grid(PAINT, rows, { out: [0, 0, 0], cast: true });
     c.grid(DARK, rows, { out: [0, 0, 0], inward: true });
-    // Round headlamp in a chrome shell, twin clocks.
-    // The shell is squashed so it stays behind the lens, and polished rather than mirror chrome: a mirror
-    // here throws a sun glint that blooms as if the lamp were on.
-    const shell = tint(0xf0f0f0, 'polished');
-    c.ball(shell, 0.096, ...lv(0, 0.585, -0.13), 1, 0.6, 10);
-    c.tube(shell, lv(0, 0.585, -0.1), lv(0, 0.585, -0.062), 0.099, 14);
-    c.tube(HEAD, lv(0, 0.585, -0.064), lv(0, 0.585, -0.056), 0.083, 14);
-    const lens: V3[] = [];
-    for (let i = 0; i < 12; i++) lens.push(lv(0.086 * Math.cos((i / 12) * Math.PI * 2), 0.585 + 0.086 * Math.sin((i / 12) * Math.PI * 2), -0.05));
-    c.poly(LENS, lens, lv(0, 0.585, -1));
-    for (const s of [1, -1]) {
-      c.tube(DARK, lv(s * 0.06, 0.71, -0.2), lv(s * 0.06, 0.755, -0.235), 0.05, 10);
-      c.tube(CHROME, lv(s * 0.06, 0.753, -0.233), lv(s * 0.06, 0.76, -0.238), 0.052, 10);
-    }
   });
   const steerPivot = f.finish();
   steerPivot.position.set(0, r, a);
@@ -227,16 +255,12 @@ export function buildBike(spec: VehicleSpec, color: number, m: MaterialLibrary):
   k.group.add(front, rear);
   k.nearOnly.push(steerPivot);
 
-  // From a distance: the same frame less its small parts, a plain fork and lamp, and two discs for wheels.
+  // From a distance: the fairing and tank less their small parts, a plain fork, and two discs for wheels.
   const far = new Kit(m, color, k.paint, true);
-  far.cached('bike', (c) => {
+  far.cached('bike2', (c) => {
     body(c);
-    const top: V3 = [0, r + Math.cos(RAKE) * 0.78, a - Math.sin(RAKE) * 0.78];
+    const top: V3 = [0, r + Math.cos(RAKE) * 0.7, a - Math.sin(RAKE) * 0.7];
     c.tube(tint(0x9a9da1, 'alloy'), [0, r, a], top, 0.05, 5, true);
-    c.box(DARK, 0.62, 0.05, 0.05, 0, top[1] + 0.08, top[2] - 0.12);
-    const y = top[1] - 0.16;
-    const z = top[2] + 0.12;
-    c.tris(HEAD, [-0.08, y - 0.08, z, 0.08, y - 0.08, z, 0.08, y + 0.08, z, -0.08, y - 0.08, z, 0.08, y + 0.08, z, -0.08, y + 0.08, z], { flat: true });
     for (const wz of [a, -a]) {
       c.drum(TYRE, r, spec.wheelWidth, 0, r, wz, 'x', 8, true);
       c.drum(ALLOY, r * 0.62, spec.wheelWidth + 0.01, 0, r, wz, 'x', 8);
@@ -247,7 +271,7 @@ export function buildBike(spec: VehicleSpec, color: number, m: MaterialLibrary):
     group: k.finish(far),
     wheels: [front, rear],
     // x is a hair negative so the door-side logic treats the rider like any driver (on and off from the right).
-    seats: [seat, { x: -0.001, y: seat.y + 0.05, z: -0.68 }].slice(0, spec.seats),
+    seats: [seat, { x: -0.001, y: seat.y + 0.05, z: -0.62 }].slice(0, spec.seats),
     headlights: k.headlights,
     taillights: k.taillights,
     bodyMaterial: k.paint,

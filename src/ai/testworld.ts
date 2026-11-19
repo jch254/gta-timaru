@@ -109,6 +109,7 @@ export interface TestWorld {
   sounds: string[];
   shots: { shooter: Actor; weaponId: string }[];
   punches: Actor[];
+  pickups: { kind: string; x: number; z: number; amount?: number; respawn?: number; options?: { ttl?: number; drop?: boolean } }[];
   /** Advance the clock and every vehicle by one frame. Systems are updated by the caller. */
   tick(dt: number): void;
   setDistrict(type: DistrictType): void;
@@ -128,6 +129,7 @@ export function makeTestWorld(graph: RoadGraph, specs: VehicleSpec[] = [makeSpec
   const sounds: string[] = [];
   const shots: TestWorld['shots'] = [];
   const punches: Actor[] = [];
+  const pickups: TestWorld['pickups'] = [];
   const specMap = new Map(specs.map((s) => [s.id, s]));
 
   const player = {
@@ -163,6 +165,7 @@ export function makeTestWorld(graph: RoadGraph, specs: VehicleSpec[] = [makeSpec
     sounds,
     shots,
     punches,
+    pickups,
     clear: true,
     tick(dt: number) {
       ctx.clock.elapsed += dt;
@@ -294,6 +297,10 @@ export function makeTestWorld(graph: RoadGraph, specs: VehicleSpec[] = [makeSpec
         return null;
       },
       createWeaponModel: (id: string) => (id === 'fists' ? null : new THREE.Object3D()),
+      spawnPickup(kind: string, x: number, z: number, amount?: number, respawn?: number, options?: { ttl?: number; drop?: boolean }) {
+        pickups.push({ kind, x, z, amount, respawn, options });
+        return () => undefined;
+      },
     },
     ui: {
       subtitle(text: string, _seconds?: number, speaker?: string) {

@@ -523,13 +523,23 @@ registerProp('shop-crates', (m) => ({ parts: [{ geometry: painted(shopCratesPart
 
 // ───────────────────────────── Roadside hoardings ─────────────────────────────
 
-/** What the paddock-edge hoardings say: invented products and stations, each one talking to the 03. */
+/**
+ * What the paddock-edge hoardings say: invented products, stations and the 1995 calendar.
+ * Every brand is invented; the dates (Show Day Fri 10 Nov, the Boxing Day carnival, the red socks
+ * autumn, the Mururoa announcement) are the researched year. No real parties, no real beer.
+ */
 export const HOARDINGS = [
   { text: 'WEKA MOTOR SPIRIT\nKEEPS THE 03 MOVING', bg: '#f0c33a', fg: '#1c1c1c', style: 'block' },
-  { text: 'PARTYLINE 1017 AM\nTALKBACK FOR THE 03', bg: '#1d2a44', fg: '#f0c33a', style: 'block' },
+  { text: 'PARTYLINE 1017 AM\nTALKBACK AND THE RACES', bg: '#1d2a44', fg: '#f0c33a', style: 'block' },
   { text: 'SHINGLE FM 93.4\nLOUD ALL OVER THE 03', bg: '#b3261e', fg: '#fff6e0', style: 'block' },
-  { text: 'SNOWLINE ICE CREAM\nA SCOOP IN EVERY TOWN IN THE 03', bg: '#f6f2e6', fg: '#1f6a8a', style: 'script' },
-  { text: 'TUSSOCK TEA\nTHE 03 PUTS THE JUG ON', bg: '#1f4a36', fg: '#f6edd0', style: 'paint' },
+  { text: 'CAROLINE DRAUGHT\nBREWED IN TIMARU', bg: '#1f4a36', fg: '#f2d9a0', style: 'paint' },
+  { text: 'A&P SHOW · FRI NOV 10\nGRAND PARADE · WOODCHOPPING', bg: '#f2ead6', fg: '#8a1f1f', style: 'block' },
+  { text: 'CAROLINE BAY CARNIVAL\nOPENS BOXING DAY', bg: '#2f6d8a', fg: '#f6efe0', style: 'script' },
+  { text: 'PULL ON YOUR RED SOCKS\nBRING THE CUP HOME', bg: '#f6f2e6', fg: '#b3261e', style: 'paint' },
+  { text: 'AVON CASINO\nOPEN LATE', bg: '#15121a', fg: '#f0c33a', style: 'block' },
+  { text: 'WOOL SALE THURS 9 AM\nDRUMMOND & PEAKE LTD', bg: '#e9e4d6', fg: '#1d2a44', style: 'block' },
+  // Hand-painted on someone's own plywood, nailed up the week the tests were announced.
+  { text: 'NO TESTS\nHANDS OFF MURUROA', bg: '#ddd6c2', fg: '#8a1f1f', style: 'paint' },
   { text: "YOU'RE IN THE 03 NOW\nTAKE YOUR TIME, EH", bg: '#f2ead6', fg: '#1d2a44', style: 'paint' },
 ] as const;
 
@@ -616,7 +626,7 @@ registerProp('boat-trailer', (m) => {
 /**
  * Three-aspect signal on a yellow post, facing +z (the driver waiting at the limit line), with its black
  * target board. The lamps are live where the library can drive them (one town-wide cycle; `axis` says which
- * phase this signal follows — the placement gives crossing roads opposite axes), dark rounds anywhere else.
+ * phase this signal follows; the placement gives crossing roads opposite axes), dark rounds anywhere else.
  */
 function trafficSignal(m: MaterialLibrary, axis: 'a' | 'b'): PropDef {
   const BLACK = 0x17181a;

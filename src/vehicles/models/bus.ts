@@ -20,12 +20,13 @@ function bays(z0: number, z1: number, count: number, pillar = 0.09, last: PaneKi
 }
 
 /**
- * 1980s rear-engined city bus: slab sides, a long run of windows, two-leaf doors on the kerb (left) side,
- * a lit destination blind and twin rear wheels.
+ * MAN SL202 class rear-engined city bus, 1986 to 1990: boxy slab sides, a long run of windows, a big flat
+ * windscreen, two-leaf doors on the kerb (left) side, a lit destination blind and twin rear wheels. The
+ * documented Christchurch livery: deep red with one broad white band below the windows.
  */
 export function buildBus(spec: VehicleSpec, color: number, m: MaterialLibrary): VehicleModel {
   const route = dice.int(0, BLINDS.length - 1);
-  // Cream bands on a coloured bus; on the cream bus the bands go oxblood instead.
+  // The band stays white on the red fleet; on a pale bus (resold, repainted) it goes oxblood instead.
   const light = (0.3 * ((color >> 16) & 255) + 0.59 * ((color >> 8) & 255) + 0.11 * (color & 255)) / 255 > 0.6;
   const W = spec.width / 2;
   const r = spec.wheelRadius;
@@ -109,10 +110,9 @@ export function buildBus(spec: VehicleSpec, color: number, m: MaterialLibrary): 
     dress(k, shell, cab) {
       const F = new Face(k, shell, 'front');
       const R = new Face(k, shell, 'rear');
-      const band = light ? tint(0x8a2a22, 'gloss') : tint(0xe9e2cc, 'gloss');
-      // Waistband and a pinstripe under it.
-      shell.band(k, band, 1.2, 1.34, -h + 0.16, h - 0.95, [1, -1], 0.004, 1);
-      shell.hline(k, band, 1.13, -h + 0.16, h - 0.95, 0.025, [1, -1], 0.004);
+      const band = light ? tint(0x8a2a22, 'gloss') : tint(0xeae3cf, 'gloss');
+      // One broad white band below the windows, nose to tail: the whole livery.
+      shell.band(k, band, 1.04, 1.38, -h + 0.16, h - 0.95, [1, -1], 0.004, 1);
       // Panel joints along the skirt, engine louvres at the back.
       for (const z of [-3.6, -1.2, 0.5, 1.8, 3.7]) shell.vline(k, DARK, z, 0.42, 1.12, 0.008, [-1]);
       for (const z of [-3.6, 1.8]) shell.vline(k, DARK, z, 0.42, 1.12, 0.008, [1]);
@@ -182,5 +182,5 @@ export function buildBus(spec: VehicleSpec, color: number, m: MaterialLibrary): 
       k.pad(vinyl, 0.7, 0.3, 0.3, -0.72, 1.12, h - 0.4, 0.04);
     },
   };
-  return assemble(spec, color, m, `bus|${light}|${route}`, plan, (k) => k.plates(h + 0.105, 0.56, -h - 0.105, 0.56)).model;
+  return assemble(spec, color, m, `bus2|${light}|${route}`, plan, (k) => k.plates(h + 0.105, 0.56, -h - 0.105, 0.56)).model;
 }

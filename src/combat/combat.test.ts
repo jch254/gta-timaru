@@ -780,6 +780,25 @@ describe('combat: pickups', () => {
     expect(h.player.money).toBe(25);
   });
 
+  it('weapon drops fade on their timer and share the drop cap with cash', () => {
+    const h = harness();
+    const live = () => (h.combat as unknown as { livePickups(): { kind: string; x: number; z: number }[] }).livePickups();
+    h.player.position.set(200, 0, 200); // well out of collecting range
+    h.combat.spawnPickup('pistol', 0, 0, 8, 0, { ttl: 1.5, drop: true });
+    expect(live().map((p) => p.kind)).toEqual(['pistol']);
+    h.run(2);
+    expect(live()).toEqual([]); // faded away by itself
+    // Dropped weapons and dropped cash share one cap: the oldest drop makes way.
+    h.combat.spawnPickup('shotgun', 1, 0, 3, 0, { ttl: 60, drop: true });
+    for (let i = 0; i < TUNING.maxCashDrops; i++) h.combat.spawnPickup('cash', 2 + i, 0, 5, 0, { ttl: 60, drop: true });
+    const kinds = live().map((p) => p.kind);
+    expect(kinds.length).toBe(TUNING.maxCashDrops);
+    expect(kinds).not.toContain('shotgun');
+    // Placed pickups are not drops and are left alone by the cap.
+    h.combat.spawnPickup('health', 50, 0);
+    expect(live().length).toBe(TUNING.maxCashDrops + 1);
+  });
+
   it('ignores unknown kinds and stays out of marae', () => {
     const h = harness();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
