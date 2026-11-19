@@ -11,7 +11,9 @@ import {
   burstSplash,
   burstVehicle,
   burstWorld,
+  DECAL_BLOOD_CAR,
   DECAL_BLOOD_POOL,
+  DECAL_BLOOD_SMEAR,
   DECAL_BLOOD_SPATTER,
   DECAL_CAPACITY,
   DECAL_HOLE,
@@ -41,12 +43,19 @@ const SPATTER_INTERVAL = 0.07;
 /** Crashes slower than this (closing speed, m/s) throw no sparks; seconds between spark bursts. */
 const CRASH_SPEED = 3.5;
 const CRASH_INTERVAL = 0.12;
+/** A body thrown faster than this (m/s) gets its pool where it comes to rest, waiting at most POOL_WAIT seconds. */
+const THROWN_SPEED = 2.5;
+const POOL_WAIT = 5;
+/** Someone hit faster than this (m/s) leaves blood on the car. */
+const SPLASH_SPEED = 7;
 
 const UP = new THREE.Vector3(0, 1, 0);
 const _a = new THREE.Vector3();
 const _b = new THREE.Vector3();
 const _n = new THREE.Vector3();
 const _d = new THREE.Vector3();
+const _c = new THREE.Vector3();
+const _e = new THREE.Vector3();
 const rnd = () => Math.random() * 2 - 1;
 
 /**
@@ -77,6 +86,8 @@ export class Effects {
 
   private lastSpatter = -1;
   private lastCrash = -1;
+  /** Bodies still flying or skidding: their pools wait until they stop. */
+  private landing: { actor: Actor; info: DamageInfo; wait: number }[] = [];
   // Smoke columns: x, y, z, seconds left, scale, emission accumulator.
   private columns = new Float32Array(COLUMNS * 6);
   private columnCursor = 0;
@@ -92,7 +103,8 @@ export class Effects {
     this.vehicles = new VehicleFx(ctx, this.smoke, this.glow, this.decals, (p, size) => this.splash(p, size));
     this.off.push(
       ctx.events.on('impact', ({ position, normal, surface }) => this.impact(position, normal, surface)),
-      ctx.events.on('actorDied', ({ actor, info }) => this.bloodPool(actor, info)),
+      ctx.events.on('actorDied', ({ actor, info }) => this.died(actor, info)),
+      ctx.events.on('vehicleHitActor', ({ actor, vehicle, speed, under }) => (under ? this.runOver(actor, vehicle, speed) : this.struck(actor, vehicle, speed))),
       ctx.events.on('vehicleCrash', ({ vehicle, speed }) => this.crash(vehicle, speed)),
     );
   }
@@ -215,6 +227,64 @@ export class Effects {
     this.decals.add(DECAL_BLOOD_SPATTER, now, _a, this.groundNormal(x, z, ground, _n), flat > 0.05 ? direction : null, length, length * (0.5 + Math.random() * 0.25));
   }
 
+  /** A body down: pooled at once, or once it lands if something threw it. */
+  private died(actor: Actor, info: DamageInfo) {
+    const v = actor.velocity;
+    if (!actor.vehicle && v.x * v.x + v.z * v.z > THROWN_SPEED * THROWN_SPEED) this.landing.push({ actor, info, wait: POOL_WAIT });
+    else this.bloodPool(actor, info);
+  }
+
+  /** Someone hit by a vehicle: blood thrown on ahead of it, onto the road, and across the panel that hit them. */
+  private struck(actor: Actor, vehicle: Vehicle, speed: number) {
+    const { ctx } = this;
+    if (actor.invulnerable || actor.position.distanceToSquared(ctx.camera.position) > IMPACT_RANGE * IMPACT_RANGE) return;
+    const amount = Math.min(1.5, Math.max(0.4, (speed - 3) / 9));
+    // Thrown on along the car's travel, a little upward.
+    this.travel(vehicle, _e);
+    _e.y = 0.35;
+    _e.normalize();
+    _c.set(actor.position.x, actor.position.y + 1, actor.position.z);
+    _n.copy(_e).negate();
+    burstFlesh(this.smoke, _c, _n, _e, amount);
+    this.spatter(_c, _e, amount);
+    if (speed < SPLASH_SPEED) return;
+    // Find the bonnet or bumper: look back at the car from just in front of them, a little downward.
+    _c.addScaledVector(_e, 0.6);
+    _d.set(-_e.x, -0.45, -_e.z).normalize();
+    if (!this.bodywork(vehicle, _c, _d, _c)) return;
+    const size = (0.16 + Math.random() * 0.12) * (0.7 + 0.3 * amount);
+    this.decals.attach(this.decals.add(DECAL_BLOOD_CAR, ctx.clock.elapsed, _a, _b, null, size, size * (0.55 + Math.random() * 0.3)), vehicle);
+  }
+
+  /** Rolled over where they lay: blood squeezed out either side of the tyre and a smear along the road. */
+  private runOver(actor: Actor, vehicle: Vehicle, speed: number) {
+    const { ctx } = this;
+    if (actor.invulnerable || actor.position.distanceToSquared(ctx.camera.position) > IMPACT_RANGE * IMPACT_RANGE) return;
+    this.travel(vehicle, _d);
+    // The body lies back from where the feet are.
+    const x = actor.position.x - Math.sin(actor.heading) * 0.6;
+    const z = actor.position.z - Math.cos(actor.heading) * 0.6;
+    const ground = ctx.world.groundAt(x, z);
+    if (Math.abs(actor.position.y - ground) > 1.5) return;
+    const amount = Math.min(1.5, 0.6 + speed / 12);
+    _c.set(x, ground + 0.15, z);
+    for (const side of [-1, 1]) {
+      _e.set(_d.z * side, 0.55, -_d.x * side).normalize();
+      burstFlesh(this.smoke, _c, UP, _e, amount * 0.6);
+    }
+    if (ctx.world.waterDepthAt(x, z) > 0.1) return;
+    _a.set(x, ground, z);
+    const length = 0.5 + Math.min(0.8, speed * 0.06);
+    this.decals.add(DECAL_BLOOD_SMEAR, ctx.clock.elapsed, _a, this.groundNormal(x, z, ground, _n), _d, length, 0.2 + Math.random() * 0.12);
+  }
+
+  /** Unit direction a vehicle is travelling along the ground (its heading when it is barely moving). */
+  private travel(vehicle: Vehicle, out: THREE.Vector3): THREE.Vector3 {
+    out.set(vehicle.velocity.x, 0, vehicle.velocity.z);
+    if (out.lengthSq() < 0.01) out.set(Math.sin(vehicle.heading), 0, Math.cos(vehicle.heading));
+    return out.normalize();
+  }
+
   /** A pool spreading slowly under a body. */
   private bloodPool(actor: Actor, info: DamageInfo) {
     const { ctx } = this;
@@ -294,6 +364,20 @@ export class Effects {
 
   // ───────────── Frame ─────────────
 
+  /** Pool the thrown bodies that have come to rest. */
+  private land(dt: number) {
+    const landing = this.landing;
+    for (let i = landing.length - 1; i >= 0; i--) {
+      const body = landing[i];
+      const v = body.actor.velocity;
+      body.wait -= dt;
+      if (v.x * v.x + v.z * v.z > 0.25 && body.wait > 0) continue;
+      landing[i] = landing[landing.length - 1];
+      landing.pop();
+      this.bloodPool(body.actor, body.info);
+    }
+  }
+
   update(dt: number) {
     const { ctx } = this;
     const env = ctx.env;
@@ -308,6 +392,7 @@ export class Effects {
     this.vehicles.update(dt);
     this.wading(dt);
     this.burn(dt);
+    this.land(dt);
 
     // Wind in m/s; smoke leans with it.
     const wx = env.wind.x * 0.6;
@@ -373,6 +458,7 @@ export class Effects {
 
   dispose() {
     for (const off of this.off) off();
+    this.landing.length = 0;
     this.smoke.dispose();
     this.glow.dispose();
     this.tracers.dispose();

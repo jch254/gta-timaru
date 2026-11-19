@@ -669,6 +669,7 @@ export class Officer implements Actor {
       // (Colleagues' driving shoves but does not hurt: the pursuit should not mow down its own.)
       if (closing > TUNING.vehicleHitSpeed && this.hitCooldown <= 0 && v.controller !== 'police') {
         this.hitCooldown = 0.6;
+        ctx.events.emit('vehicleHitActor', { actor: this, vehicle: v, speed: closing, under: false });
         this.takeDamage({ amount: (closing - 2.5) * TUNING.vehicleHitDamage, kind: 'vehicle', source: v.driver });
       }
       // Out through the nearest side; always sideways from a moving car, or its bumper would carry us along.

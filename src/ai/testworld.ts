@@ -15,6 +15,7 @@ const BASE_SPEC = {
   width: 1.84,
   height: 1.42,
   wheelbase: 2.8,
+  mass: 1400,
   steerLock: 0.58,
   topSpeed: 50,
   traffic: true,
@@ -28,6 +29,8 @@ export function makeSpec(id: string, extra: Partial<VehicleSpec> = {}): VehicleS
 export interface FakeVehicle extends Vehicle {
   step(dt: number): void;
   horns: number;
+  /** Impulses applied to the body (people being hit or run over): linear, and at a point. */
+  impulses: { x: number; y: number; z: number }[];
 }
 
 function makeVehicle(id: number, spec: VehicleSpec, x: number, z: number, heading: number, events: EventBus<GameEvents>): FakeVehicle {
@@ -54,9 +57,16 @@ function makeVehicle(id: number, spec: VehicleSpec, x: number, z: number, headin
     controller: 'none' as Vehicle['controller'],
     tags: new Set<string>(),
     horns: 0,
+    impulses: [] as { x: number; y: number; z: number }[],
     body: {
       setLinvel(lv: { x: number; y: number; z: number }) {
         v.speed = lv.x * Math.sin(v.heading) + lv.z * Math.cos(v.heading);
+      },
+      applyImpulse(i: { x: number; y: number; z: number }) {
+        v.impulses.push({ ...i });
+      },
+      applyImpulseAtPoint(i: { x: number; y: number; z: number }) {
+        v.impulses.push({ ...i });
       },
     },
     applyDamage() {},
@@ -104,7 +114,7 @@ export interface TestWorld {
   ctx: GameContext;
   events: EventBus<GameEvents>;
   vehicles: FakeVehicle[];
-  player: Actor & { vehicle: Vehicle | null; cameraHeading: number; damage: number };
+  player: Actor & { vehicle: Vehicle | null; cameraHeading: number; damage: number; shakes: number[] };
   subtitles: { text: string; speaker?: string }[];
   sounds: string[];
   shots: { shooter: Actor; weaponId: string }[];
@@ -146,8 +156,12 @@ export function makeTestWorld(graph: RoadGraph, specs: VehicleSpec[] = [makeSpec
     vehicle: null as Vehicle | null,
     cameraHeading: 0,
     damage: 0,
+    shakes: [] as number[],
     takeDamage(info: { amount: number }) {
       player.damage += info.amount;
+    },
+    shakeCamera(amount: number) {
+      player.shakes.push(amount);
     },
   };
   actors.add(player as unknown as Actor);

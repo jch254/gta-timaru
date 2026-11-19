@@ -393,6 +393,28 @@ describe('combat: fire()', () => {
     expect(h.crimes()).toHaveLength(3);
   });
 
+  it('running someone down is murder (or killing a cop), once; the wheels of anyone else are not', () => {
+    const h = harness();
+    const ped = h.ped('ped', 0, 10, 50);
+    // Knocked flat and run over: two blows, one death.
+    ped.takeDamage({ amount: 40, kind: 'vehicle', source: h.player });
+    expect(h.crimes()).toEqual([]); // the hit itself is the pedestrian system's hit-and-run
+    ped.takeDamage({ amount: 60, kind: 'vehicle', source: h.player });
+    expect(ped.alive).toBe(false);
+    h.events.emit('actorDied', { actor: ped, info: ped.hits[1] });
+    expect(h.crimes()).toEqual(['murder']);
+    const cop = h.ped('cop', 5, 0, 60);
+    cop.takeDamage({ amount: 90, kind: 'vehicle', source: h.player });
+    expect(h.crimes()).toEqual(['murder', 'copKilled']);
+    // A traffic driver's doing, or an empty car rolling downhill.
+    h.ped('ped', 9, 9).takeDamage({ amount: 200, kind: 'vehicle', source: h.ped('ped', 30, 30) });
+    h.ped('ped', 12, 9).takeDamage({ amount: 200, kind: 'vehicle', source: null });
+    expect(h.crimes()).toHaveLength(2);
+    // Crashing your own car is no crime.
+    h.player.takeDamage({ amount: 200, kind: 'vehicle', source: h.player });
+    expect(h.crimes()).toHaveLength(2);
+  });
+
   it('a shotgun blast is one gunshot and one damage call per target, pellets summed', () => {
     const h = harness();
     const shotgun = h.combat.weapons.get('shotgun')!;
@@ -851,6 +873,76 @@ describe('combat: blood and marks', () => {
     h.combat.fire(h.player, 'pistol', muzzle(), ahead());
     expect(ped.alive).toBe(false);
     expect(fx.decals.active).toBe(3); // second spatter and the pool
+  });
+
+  it('a car hitting someone throws blood on down the road and across its front; the pool waits for the body to land', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    const ped = h.ped('ped', 0, 6);
+    // A box of a car facing +z, its nose just short of them.
+    const car = h.car(0, 3);
+    car.group.position.copy(car.position);
+    car.group.add(new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.2, 4.8), new THREE.MeshBasicMaterial()));
+    car.group.updateMatrixWorld(true);
+    car.velocity.set(0, 0, 14);
+    h.events.emit('vehicleHitActor', { actor: ped, vehicle: car, speed: 14, under: false });
+    expect(fx.smoke.alive).toBeGreaterThan(10);
+    expect(fx.decals.active).toBe(2);
+    const pos = decalPositions(fx);
+    const slots = [...Array(fx.decals.capacity).keys()];
+    const road = slots.find((i) => pos[i * 3 + 2] > 6);
+    const panel = slots.find((i) => Math.abs(pos[i * 3 + 2] - 5.4) < 0.05);
+    expect(road).toBeDefined(); // thrown on ahead of the car
+    expect(pos[road! * 3 + 1]).toBeLessThan(0.1);
+    expect(panel).toBeDefined(); // on the grille
+    // The car takes it away with it.
+    car.position.z += 20;
+    car.group.position.copy(car.position);
+    h.run(1 / 60);
+    expect(pos[panel! * 3 + 2]).toBeCloseTo(25.4, 1);
+
+    // Killed and still flying: no pool until the body stops, then one where it lies.
+    const before = fx.decals.active;
+    ped.velocity.set(0, 0, 8);
+    ped.takeDamage({ amount: 200, kind: 'vehicle', source: null });
+    expect(ped.alive).toBe(false);
+    h.run(0.5);
+    expect(fx.decals.active).toBe(before);
+    ped.position.z = 14;
+    ped.velocity.set(0, 0, 0);
+    h.run(1 / 60);
+    expect(fx.decals.active).toBe(before + 1);
+    expect(slots.some((i) => Math.abs(pos[i * 3 + 2] - 13.6) < 0.01)).toBe(true);
+  });
+
+  it('wheels going over someone squeeze blood out either side and smear it along the road', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    const ped = h.ped('ped', 2, 8);
+    ped.heading = Math.PI / 2; // lying back along −x from the feet
+    const car = h.car(1.4, 8);
+    car.velocity.set(0, 0, 6);
+    h.events.emit('vehicleHitActor', { actor: ped, vehicle: car, speed: 6, under: true });
+    expect(fx.smoke.alive).toBeGreaterThan(8);
+    expect(fx.decals.active).toBe(1);
+    const pos = decalPositions(fx);
+    const u = (fx.decals.mesh.geometry as THREE.InstancedBufferGeometry).getAttribute('iU').array as Float32Array;
+    // Under the body, not the feet, and drawn out along the car's travel.
+    expect(pos[0]).toBeCloseTo(1.4, 3);
+    expect(pos[2]).toBeCloseTo(8, 3);
+    expect(Math.abs(u[2])).toBeGreaterThan(Math.abs(u[0]) * 5);
+  });
+
+  it('a cameo struck or run over by a car shows no blood', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    const cameo = Object.assign(h.ped('scripted', 0, 6), { invulnerable: true });
+    const car = h.car(0, 3);
+    car.velocity.set(0, 0, 14);
+    h.events.emit('vehicleHitActor', { actor: cameo, vehicle: car, speed: 14, under: false });
+    h.events.emit('vehicleHitActor', { actor: cameo, vehicle: car, speed: 14, under: true });
+    expect(fx.smoke.alive).toBe(0);
+    expect(fx.decals.active).toBe(0);
   });
 
   it('punches draw no blood; the bat does', () => {

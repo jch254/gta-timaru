@@ -46,6 +46,19 @@ function voiced(
   return out;
 }
 
+/** A slow random wander (±amount) in a voice's pitch: `rate` fresh targets a second, smoothly joined. */
+function wander(r: Rng, dur: number, rate: number, amount: number): (t: number) => number {
+  const n = Math.ceil(dur * rate) + 2;
+  const points = new Float32Array(n);
+  for (let i = 0; i < n; i++) points[i] = (r.next() * 2 - 1) * amount;
+  return (t) => {
+    const x = t * rate;
+    const i = Math.min(n - 2, Math.floor(x));
+    const f = x - i;
+    return points[i] + (points[i + 1] - points[i]) * f * f * (3 - 2 * f);
+  };
+}
+
 /** One flute-like syllable with a pitch glide and optional amplitude roll (birdsong). */
 function warble(b: Float32Array, at: number, dur: number, fa: number, fb: number, amp: number, roll = 0): void {
   const start = Math.floor(at * SR);
@@ -615,20 +628,92 @@ const sheep: Renderer = (r) => {
 };
 
 const scream: Renderer = (r) => {
-  const f = r.range(390, 640);
-  const dur = r.range(0.34, 0.52);
+  // A sharp rise into a strained, wavering "aah" that sags as the breath goes. Rendered mid-range: playback
+  // pitches it up for women and down for men.
+  const f = r.range(430, 620);
+  const dur = r.range(0.6, 1.05);
+  const vib = r.range(5.5, 7.5);
+  const depth = r.range(0.018, 0.035);
+  const peakAt = r.range(0.08, 0.16);
+  const flutter = wander(r, dur, 18, 0.03);
   const out = voiced(
     r,
     dur,
-    (u, t) => f * (0.82 + 0.5 * Math.sin(Math.PI * Math.pow(u, 0.6))) * (1 + 0.012 * Math.sin(TAU * 31 * t)),
+    (u, t) => {
+      const rise = Math.min(1, u / peakAt);
+      const contour = 0.72 + 0.28 * rise * rise * (3 - 2 * rise) + 0.06 * Math.sin(Math.PI * u) - (0.22 * Math.max(0, u - 0.7)) / 0.3;
+      return f * contour * (1 + depth * Math.min(1, t / 0.2) * Math.sin(TAU * vib * t)) * (1 + flutter(t));
+    },
     [
-      [900, 4, 1],
-      [1450, 5, 0.8],
-      [2900, 6, 0.3],
+      [r.range(880, 1050), 4, 1],
+      [r.range(1350, 1650), 5, 0.75],
+      [r.range(2700, 3100), 7, 0.35],
+      [r.range(3600, 4100), 9, 0.15],
     ],
-    { breath: 0.25, attack: 0.025, release: 0.14 },
+    { breath: 0.35, attack: 0.02, release: 0.22, tremRate: vib, tremDepth: 0.12 },
   );
-  return finish(out, 1.1);
+  return finish(out, 1.6);
+};
+
+/** Hurt: a sharp "agh!" that drops away, sometimes with a ragged breath in after it. */
+const pain: Renderer = (r) => {
+  const f = r.range(230, 320);
+  const dur = r.range(0.2, 0.4);
+  const b = buf(dur + 0.3);
+  const cry = voiced(
+    r,
+    dur,
+    (u) => f * (1.18 - 0.38 * u) * (1 + 0.05 * Math.sin(Math.PI * Math.min(1, u * 3))),
+    [
+      [r.range(650, 800), 4, 1],
+      [r.range(1050, 1300), 5, 0.6],
+      [r.range(2400, 2800), 6, 0.25],
+    ],
+    { breath: 0.45, attack: 0.008, release: 0.09 },
+  );
+  // The catch of breath it starts on.
+  addNoise(b, r, { dur: 0.05, amp: 0.25, type: 'bp', f0: 1800, q: 1.2, decay: 0.015 });
+  mixInto(b, cry, 0.01);
+  if (r.chance(0.4)) addNoise(b, r, { at: dur + 0.06, dur: 0.18, amp: 0.12, type: 'bp', f0: 1400, q: 0.9, attack: 0.05, decay: 0.05 });
+  return finish(b, 1.4);
+};
+
+/** The last sound someone makes: a gasp, then a groan that sags in pitch and breaks up. */
+const deathCry: Renderer = (r) => {
+  const f = r.range(190, 260);
+  const dur = r.range(0.55, 0.9);
+  const gurgle = r.range(9, 15);
+  const b = buf(dur + 0.12);
+  addNoise(b, r, { dur: 0.08, amp: 0.3, type: 'bp', f0: 1500, f1: 900, q: 1, attack: 0.01, decay: 0.03 });
+  const groan = voiced(
+    r,
+    dur,
+    (u, t) => f * (1.1 - 0.42 * u) * (1 + 0.04 * Math.sin(TAU * gurgle * 0.5 * t)),
+    [
+      [r.range(600, 760), 4, 1],
+      [r.range(1000, 1250), 5, 0.55],
+      [r.range(2300, 2700), 6, 0.2],
+    ],
+    { breath: 0.55, attack: 0.04, release: 0.3, tremRate: gurgle, tremDepth: 0.45 },
+  );
+  mixInto(b, groan, 0.06);
+  return finish(b, 1.5);
+};
+
+/** Wheels going over a body: a heavy thud up through the car, a wet give, and bone cracking. */
+const crunch: Renderer = (r) => {
+  const b = buf(0.45);
+  const v = r.range(0.9, 1.1);
+  addTone(b, { dur: 0.32, amp: 1, f0: 82 * v, f1: 36, sweep: 0.05, decay: 0.08 });
+  addNoise(b, r, { dur: 0.22, amp: 0.7, type: 'bp', f0: 340 * v, q: 1.1, decay: 0.05 });
+  addNoise(b, r, { at: 0.01, dur: 0.16, amp: 0.4, type: 'bp', f0: 1100 * v, f1: 420, q: 2.2, decay: 0.04 });
+  const cracks = r.int(3, 6);
+  let at = r.range(0.004, 0.02);
+  for (let i = 0; i < cracks; i++) {
+    addClick(b, r, at, r.range(1800, 3400), r.range(0.35, 0.7), r.range(0.002, 0.004), 2);
+    at += r.range(0.008, 0.03);
+  }
+  return finish(b, 1.6);
 };
 
 const gull: Renderer = (r) => {
@@ -906,6 +991,9 @@ export const RENDERERS = {
   magpie,
   scream,
   // Internal extras (not part of the public SfxId list).
+  pain,
+  deathCry,
+  crunch,
   footGravel: footstep.gravel,
   footGrass: footstep.grass,
   footSand: footstep.sand,

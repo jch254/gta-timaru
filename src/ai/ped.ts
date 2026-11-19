@@ -49,6 +49,7 @@ export interface PedSetup {
 }
 
 const FEET = PEDS.radius + PEDS.halfHeight;
+const GRAVITY = 9.8;
 /** A dead ped's weapon lies by the body this long (like a cash drop) before it fades. */
 const GUN_DROP_SECONDS = 45;
 const WALKABLE = (e: RoadEdge) => walkable(e);
@@ -183,6 +184,13 @@ export class Ped implements PedHandle {
   private onHit: ((info: DamageInfo) => void) | null;
   /** Bundled aside by a vehicle: cars pass through the capsule until the sidestep is over. */
   private shoved = false;
+  // Thrown by a car or a blast: height off the ground (drawn only: `position` stays on the ground), how fast that
+  // is changing, and a spin about the vertical.
+  private lift = 0;
+  private liftV = 0;
+  private spin = 0;
+  /** Seconds before a vehicle can roll over this one again (alive or dead). */
+  private rollCooldown = 0;
 
   constructor(
     private world: PedWorld,
@@ -416,6 +424,11 @@ export class Ped implements PedHandle {
       return;
     }
     this.velocity.set(vehicle.velocity.x * 0.55 + Math.cos(vehicle.heading) * side * 1.6, 0, vehicle.velocity.z * 0.55 - Math.sin(vehicle.heading) * side * 1.6);
+    // Up over the bonnet and turning as they go, the more so the faster it was going.
+    this.liftV = Math.min(PEDS.throwLiftMax, Math.max(0, closing - PEDS.throwFrom) * PEDS.throwLift);
+    this.spin = side * rng.range(0.4, 1) * PEDS.throwSpin * Math.min(1, closing / 15);
+    // The wheels can find them a moment later.
+    this.rollCooldown = 0.25;
     this.react = 'down';
     this.reactTimer = rng.range(PEDS.downSeconds[0], PEDS.downSeconds[1]);
     this.threatActor = null;
@@ -424,11 +437,71 @@ export class Ped implements PedHandle {
     // Lying down: cars pass over rather than hitting an upright post.
     this.collider.setCollisionGroups(this.groupsDown);
     ctx.audio.play('bodyHit', { at: this.position });
+    this.jolt(vehicle, closing, false);
+    ctx.events.emit('vehicleHitActor', { actor: this, vehicle, speed: closing, under: false });
     if (driver && driver === ctx.player && !this.hitAndRunReported) {
       this.hitAndRunReported = true;
       ctx.events.emit('crime', { type: 'hitAndRun', position: this.position.clone(), offender: ctx.player, victim: this });
     }
-    this.takeDamage({ amount: (closing - PEDS.hitDamageFrom) * PEDS.hitDamageScale, kind: 'vehicle', source: driver ?? null });
+    this.takeDamage({ amount: (closing - PEDS.hitDamageFrom) * PEDS.hitDamageScale, kind: 'vehicle', source: driver ?? null, ...this.hitAt(vehicle, 1) });
+  }
+
+  /** Lying in the road (knocked flat or dead) with a vehicle rolling over at `speed` m/s. */
+  runOver(vehicle: Vehicle, speed: number) {
+    if (this.invulnerable || this.removed) return;
+    const { ctx } = this.world;
+    this.rollCooldown = PEDS.runOverGap;
+    // Dragged along a little under it.
+    this.velocity.x += vehicle.velocity.x * 0.15;
+    this.velocity.z += vehicle.velocity.z * 0.15;
+    this.jolt(vehicle, speed, true);
+    ctx.events.emit('vehicleHitActor', { actor: this, vehicle, speed, under: true });
+    if (!this.alive) return;
+    const driver = vehicle.driver;
+    if (driver && driver === ctx.player && !this.hitAndRunReported) {
+      this.hitAndRunReported = true;
+      ctx.events.emit('crime', { type: 'hitAndRun', position: this.position.clone(), offender: ctx.player, victim: this });
+    }
+    const heavy = clamp(vehicle.spec.mass / PEDS.runOverMass, 0.5, 2);
+    this.takeDamage({ amount: (PEDS.runOverDamage + speed * PEDS.runOverScale) * heavy, kind: 'vehicle', source: driver ?? null, ...this.hitAt(vehicle, 0.2) });
+  }
+
+  /** Off the ground: a vehicle passes underneath rather than over. */
+  get airborne(): boolean {
+    return this.lift > 0.25;
+  }
+
+  /** Ready to be rolled over again. */
+  get rollable(): boolean {
+    return this.rollCooldown <= 0 && !this.airborne && !this.invulnerable && !this.removed && !this.seatedIn;
+  }
+
+  /** Where a vehicle met this body (`height` above the feet) and which way it was going. */
+  private hitAt(vehicle: Vehicle, height: number): { point: THREE.Vector3; direction: THREE.Vector3 } {
+    const direction = new THREE.Vector3(vehicle.velocity.x, 0, vehicle.velocity.z);
+    if (direction.lengthSq() < 1e-4) direction.set(Math.sin(vehicle.heading), 0, Math.cos(vehicle.heading));
+    return { point: new THREE.Vector3(this.position.x, this.position.y + height, this.position.z), direction: direction.normalize() };
+  }
+
+  /** The vehicle feels it: a shove against its travel, or (`under`) a kick up at the wheel that went over. */
+  private jolt(vehicle: Vehicle, speed: number, under: boolean) {
+    const { ctx } = this.world;
+    const mass = vehicle.spec.mass;
+    if (under) {
+      _t.x = this.position.x;
+      _t.y = vehicle.position.y;
+      _t.z = this.position.z;
+      vehicle.body.applyImpulseAtPoint({ x: 0, y: PEDS.runOverBump * mass, z: 0 }, _t, true);
+    } else {
+      const v = vehicle.velocity;
+      const s = Math.hypot(v.x, v.z);
+      if (s > 0.1) {
+        // (Kept under the vehicle's crash threshold: a person is a thump, not a wall.)
+        const dv = Math.min(PEDS.joltMax, (PEDS.hitMass * speed) / mass);
+        vehicle.body.applyImpulse({ x: (-v.x / s) * dv * mass, y: 0, z: (-v.z / s) * dv * mass }, true);
+      }
+    }
+    if (vehicle.driver === ctx.player) ctx.player.shakeCamera(under ? 0.1 : Math.min(0.35, 0.04 + speed * 0.012));
   }
 
   /** Stop for a moment and look at something (small talk, being bumped). */
@@ -483,8 +556,13 @@ export class Ped implements PedHandle {
 
   update(dt: number) {
     if (this.removed) return;
+    if (this.rollCooldown > 0) this.rollCooldown -= dt;
     if (!this.alive) {
       this.corpseTimer -= dt;
+      if (this.thrown) {
+        this.slide(dt);
+        this.settle(dt);
+      }
       this.animate('dead', dt);
       return;
     }
@@ -499,15 +577,11 @@ export class Ped implements PedHandle {
     let pose: HumanoidPose = 'idle';
 
     if (this.react === 'down') {
-      // Sliding to rest after being hit.
-      const keep = Math.exp(-3.5 * dt);
-      this.position.x += this.velocity.x * dt;
-      this.position.z += this.velocity.z * dt;
-      this.velocity.x *= keep;
-      this.velocity.z *= keep;
+      // Thrown, then sliding to rest.
+      this.slide(dt);
       this.reactTimer -= dt;
       pose = 'dead';
-      if (this.reactTimer <= 0) this.getUp();
+      if (this.reactTimer <= 0 && this.lift === 0) this.getUp();
     } else {
       this.velocity.set(0, 0, 0);
       if ((this.world.frame + this.slot) % 8 === 0) this.personalSpace();
@@ -571,7 +645,7 @@ export class Ped implements PedHandle {
     if (!this.onPath) {
       this.groundTimer -= dt;
       if (this.groundTimer <= 0) {
-        this.groundTimer = this.moved > 3 || this.react === 'down' ? 0.07 : 0.2;
+        this.groundTimer = this.moved > 3 || this.react === 'down' || !this.alive ? 0.07 : 0.2;
         this.groundY = ctx.world.groundAt(p.x, p.z);
       }
     }
@@ -580,6 +654,7 @@ export class Ped implements PedHandle {
     p.x = clamp(p.x, b.minX + 6, b.maxX - 6);
     p.z = clamp(p.z, b.minZ + 6, b.maxZ - 6);
     this.group.position.copy(p);
+    this.group.position.y += this.lift;
     this.group.rotation.y = this.heading;
     if (Math.abs(p.x - this.syncX) + Math.abs(p.y - this.syncY) + Math.abs(p.z - this.syncZ) > 0.004 || this.syncX !== this.syncX) {
       this.syncX = _t.x = p.x;
@@ -904,7 +979,7 @@ export class Ped implements PedHandle {
     this.reactTimer = rng.range(PEDS.fleeSeconds[0], PEDS.fleeSeconds[1]);
     if (this.retaliating > 0) this.standDown();
     if (fresh) {
-      if (!this.world.bark(this, 'flee') && rng.chance(0.35)) this.world.scream(this);
+      if (!this.world.bark(this, 'flee') && rng.chance(PEDS.screamChance)) this.world.scream(this);
       this.faceAway(x, z);
     }
   }
@@ -971,21 +1046,74 @@ export class Ped implements PedHandle {
   private getUp() {
     this.react = 'none';
     this.velocity.set(0, 0, 0);
+    this.lift = this.liftV = this.spin = 0;
     this.collider.setCollisionGroups(this.groupsUp);
     if (!this.reactive) return;
     this.world.bark(this, 'hit');
     this.startFlee(this.threatX, this.threatZ, null);
   }
 
+  /** Still flying or skidding after a hit. */
+  private get thrown(): boolean {
+    return this.lift > 0 || this.liftV > 0 || this.velocity.x !== 0 || this.velocity.z !== 0 || this.spin !== 0;
+  }
+
+  /** Thrown: an arc through the air if launched, then a skid to rest. A wall stops the skid. */
+  private slide(dt: number) {
+    const p = this.position;
+    const v = this.velocity;
+    const airborne = this.lift > 0 || this.liftV > 0;
+    if (airborne) {
+      this.liftV -= GRAVITY * dt;
+      this.lift += this.liftV * dt;
+      if (this.lift <= 0) {
+        this.lift = 0;
+        // A hard landing bounces once; after that they stay down.
+        if (this.liftV < -3) this.world.ctx.audio.play('bodyHit', { at: p, volume: 0.7 });
+        this.liftV = this.liftV < -3 ? -this.liftV * 0.3 : 0;
+      }
+    }
+    const speed2 = v.x * v.x + v.z * v.z;
+    if (speed2 > 0) {
+      const speed = Math.sqrt(speed2);
+      if (speed > 1) {
+        _o.set(p.x, p.y + 0.4 + this.lift, p.z);
+        _d.set(v.x / speed, 0, v.z / speed);
+        if (this.world.ctx.physics.raycast(_o, _d, speed * dt + PEDS.radius, WALLS)) v.x = v.z = 0;
+      }
+      p.x += v.x * dt;
+      p.z += v.z * dt;
+      // Little drag in the air; the road takes it off quickly.
+      const keep = Math.exp(-(airborne ? 0.3 : 3.5) * dt);
+      v.x *= keep;
+      v.z *= keep;
+      if (!airborne && speed2 < 0.0025) v.x = v.z = 0;
+    }
+    if (this.spin !== 0) {
+      this.heading += this.spin * dt;
+      this.spin *= Math.exp(-(airborne ? 0.4 : 6) * dt);
+      if (Math.abs(this.spin) < 0.05) this.spin = 0;
+    }
+  }
+
   private die(info: DamageInfo) {
     const { ctx } = this.world;
+    const seated = this.seatedIn !== null;
     this.alive = false;
     this.health = 0;
     if (this.seatedIn) this.unseat(true);
     this.cancelTask();
     this.react = 'none';
-    this.velocity.set(0, 0, 0);
     this.moved = 0;
+    this.onPath = false;
+    if (seated) {
+      this.velocity.set(0, 0, 0);
+      this.lift = this.liftV = this.spin = 0;
+    } else {
+      // Whatever killed them carries the body on: the car that threw them, a blast, the shove of a bullet.
+      if (info.kind === 'explosion') this.liftV = Math.max(this.liftV, this.velocity.y, Math.hypot(this.velocity.x, this.velocity.z) * 0.5);
+      this.velocity.y = 0;
+    }
     this.collider.setEnabled(false);
     ctx.actors.all.delete(this);
     this.corpseTimer = PEDS.corpseSeconds;

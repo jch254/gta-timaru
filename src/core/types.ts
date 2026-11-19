@@ -128,6 +128,11 @@ export interface GameEvents {
   vehicleDestroyed: { vehicle: Vehicle; source?: Actor | null };
   /** Vehicle body hit something hard. `speed` is the closing speed in m/s. */
   vehicleCrash: { vehicle: Vehicle; speed: number; other: Vehicle | Actor | null };
+  /**
+   * A vehicle went into a person: struck them on their feet, or (`under`) rolled over them where they lay, alive
+   * or dead. Comes alongside any `actorDamaged`; it is for the thump, the jolt and the blood. `speed` in m/s.
+   */
+  vehicleHitActor: { actor: Actor; vehicle: Vehicle; speed: number; under: boolean };
   vehicleEntered: { actor: Actor; vehicle: Vehicle; stolen: boolean; ejected: Actor | null };
   vehicleExited: { actor: Actor; vehicle: Vehicle };
   /** Something illegal happened where it could be witnessed. Police module decides the consequences. */
@@ -586,6 +591,8 @@ export interface Actor {
   name?: string;
   /** Cannot be hurt (cameo characters): `takeDamage` changes nothing and a hit draws no blood. */
   readonly invulnerable?: boolean;
+  /** Pitches their cries of pain higher (pedestrians set it; anyone else sounds like a bloke). */
+  readonly female?: boolean;
   takeDamage(info: DamageInfo): void;
 }
 

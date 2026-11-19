@@ -52,6 +52,15 @@ export function gunSound(weaponId: string, kind?: string): SoundId | null {
 /** Metres of ground covered per footfall at a given speed: a stroll is ~2 steps a second, a sprint ~3.5. */
 export const strideLength = (speed: number): number => 0.6 + 0.2 * speed;
 
+/**
+ * Playback pitch for someone's cries: women higher, men lower, and a fixed tilt of their own (from the id) so the
+ * same person sounds the same each time. `scream` keeps the spread narrower, as that sound is rendered high already.
+ */
+export function voicePitch(id: number, female: boolean, scream = false): number {
+  const own = 0.93 + ((id * 37) % 15) / 100;
+  return own * (female ? (scream ? 1.15 : 1.4) : scream ? 0.85 : 0.9);
+}
+
 const isVehicle = (o: Vehicle | Actor): o is Vehicle => 'spec' in o;
 
 class AudioSystem implements AudioApi, System {
@@ -292,15 +301,26 @@ class AudioSystem implements AudioApi, System {
     });
 
     on('actorDamaged', ({ actor, info }) => {
-      if (info.kind === 'vehicle' || info.kind === 'fall') this.emit('bodyHit', actor.position.x, actor.position.y, actor.position.z);
+      const p = actor.position;
+      if (info.kind === 'vehicle' || info.kind === 'fall') this.emit('bodyHit', p.x, p.y, p.z);
+      // A cry from whoever it did not kill (the dying get theirs below).
+      if (actor.kind !== 'player' && actor.health > 0 && info.kind !== 'drown' && this.rng.chance(0.75)) this.emit('pain', p.x, p.y + 1.6, p.z, 1, this.voice(actor));
     });
     on('actorDied', ({ actor, info }) => {
       if (actor.kind === 'player') {
         // The world goes dull and far away.
         this.mixer.setMuffled(true);
-      } else if (actor.kind !== 'cop' && info.kind !== 'drown' && this.rng.chance(0.4)) {
-        this.emit('scream', actor.position.x, actor.position.y + 1.5, actor.position.z, 1, 0.85 + ((actor.id * 37) % 40) / 100);
+      } else if (info.kind !== 'drown' && this.rng.chance(0.85)) {
+        // Run down: a scream. Shot, beaten or blown up: mostly a last groan.
+        const p = actor.position;
+        if (info.kind === 'vehicle' || info.kind === 'fire') this.emit('scream', p.x, p.y + 1.2, p.z, 1, this.voice(actor, true));
+        else this.emit('deathCry', p.x, p.y + 1.2, p.z, 1, this.voice(actor));
       }
+    });
+    on('vehicleHitActor', ({ actor, speed, under }) => {
+      if (!under) return;
+      const p = actor.position;
+      this.emit('crunch', p.x, p.y + 0.2, p.z, Math.min(1.2, 0.6 + speed / 15));
     });
     on('playerRespawned', () => {
       this.mixer.setMuffled(false);
@@ -381,6 +401,11 @@ class AudioSystem implements AudioApi, System {
       this.lastVariant.set(id, v);
     }
     return this.mixer.buffer(`sfx:${id}:${v}`, () => renderSound(id, v));
+  }
+
+  /** Playback pitch for this person's cries. */
+  private voice(actor: Actor, scream = false): number {
+    return voicePitch(actor.id, !!actor.female, scream);
   }
 
   /** Positional one-shot. */
