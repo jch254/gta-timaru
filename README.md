@@ -131,6 +131,6 @@ Both share `scripts/playtest/bot.js`, the honest test player they inject into th
 
 ## Deploying
 
-`infrastructure/` holds the Terraform for a private S3 bucket behind CloudFront, its certificate, the `03.quest` Cloudflare records (www and the old `the-03.603.nz` and `timmaz-hard.603.nz` redirect to the apex) and the token parameter they are edited with, and a CodeBuild project; `buildspec.yml` is what that project runs on each push to `main`: run the unit tests (a red suite stops everything), apply the Terraform, `pnpm run build`, sync `dist/` to the bucket, invalidate CloudFront. [infrastructure/README.md](infrastructure/README.md) has the settings, the one-off first deploy and the one-off move from `the-03.603.nz`.
+`infrastructure/` holds the Terraform for a private S3 bucket behind CloudFront, its certificate, the `03.quest` Cloudflare records (www redirects to the apex, as do the game's old addresses) and the token parameter they are edited with, and a CodeBuild project; `buildspec.yml` is what that project runs on each push to `main`: run the unit tests (a red suite stops everything), apply the Terraform, `pnpm run build`, sync `dist/` to the bucket, invalidate CloudFront. [infrastructure/README.md](infrastructure/README.md) has the settings and the one-off first deploy.
 
 To host it some other way, upload the contents of `dist/`. All asset URLs are relative, so it works from a bucket root or any prefix. Hashed files under `assets/` can be cached forever; serve `index.html` with a short cache lifetime.
