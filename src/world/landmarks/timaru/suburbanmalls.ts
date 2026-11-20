@@ -294,10 +294,12 @@ export const northsideMall: LandmarkBuilder = function* (p, out) {
   // ── Plinth and the front walk ──
   out.box(I.f, 0, foot / 2, -17, 88, -foot, 26.25, plinthMat);
   out.collider(I.f, 0, foot / 2, -17, 88, -foot, 26.25);
+  out.floor?.(I.f, 0, 0, -17, 88, 26.25);
   const [walkLow] = groundRange(s, -44, ZF + H, 44, 2, 2);
   const wb = walkLow - F - 0.4;
   out.box(I.f, 0, wb / 2, (ZF + H + 2) / 2, 88, -wb, 2 - (ZF + H), paving);
   out.collider(I.f, 0, wb / 2, (ZF + H + 2) / 2, 88, -wb, 2 - (ZF + H));
+  out.floor?.(I.f, 0, 0, (ZF + H + 2) / 2, 88, 2 - (ZF + H));
   kerbRamp(I, s, F, paving, CX, 2, 3);
   kerbRamp(I, s, F, paving, 39, 2, 3);
 
@@ -633,6 +635,7 @@ export const highfieldMall: LandmarkBuilder = function* (p, out) {
   const wb = walkLow - F - 0.4;
   out.box(I.f, 0, wb / 2, (ZW + ZK) / 2, 76, -wb, ZK - ZW, paving);
   out.collider(I.f, 0, wb / 2, (ZW + ZK) / 2, 76, -wb, ZK - ZW);
+  out.floor?.(I.f, 0, 0, (ZW + ZK) / 2, 76, ZK - ZW);
   for (const x of [-15.6, 4.4, 24.5]) kerbRamp(I, s, F, paving, x, ZK, 2.6);
 
   // ── Supermarket (1971): painted block, a deep fascia, a roof light over the sales floor ──

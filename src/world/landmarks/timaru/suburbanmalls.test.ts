@@ -11,6 +11,12 @@ import { highfieldMall, northsideMall } from './suburbanmalls';
 /** RecordingBuilder that also keeps every collider as a box, so tests can ask what is solid where. */
 class SolidBuilder extends RecordingBuilder {
   readonly solids: { inv: THREE.Matrix4; hw: number; hh: number; hd: number }[] = [];
+  readonly floors: { x: number; y: number; z: number; w: number; d: number }[] = [];
+
+  floor(frame: THREE.Matrix4, cx: number, cy: number, cz: number, w: number, d: number): void {
+    const p = new THREE.Vector3(cx, cy, cz).applyMatrix4(frame);
+    this.floors.push({ x: p.x, y: p.y, z: p.z, w, d });
+  }
 
   override collider(frame: THREE.Matrix4, cx: number, cy: number, cz: number, w: number, h: number, d: number): void {
     super.collider(frame, cx, cy, cz, w, h, d);
@@ -134,6 +140,17 @@ describe('suburban malls', () => {
         }
       }
       console.log(`${c.kind}: ${out.triangles} triangles, ${out.count('collider')} colliders, ${out.records.length} ops, ${out.count('instance')} props`);
+    });
+
+    it(`${c.kind}: tells the world where its raised floor is, so people put inside stand on it`, () => {
+      const { out, placement } = build(c);
+      expect(out.floors.length).toBeGreaterThan(0);
+      for (const f of out.floors) {
+        const [lx, lz] = local(placement, f.x, f.z);
+        // Level with the top of the solid under it.
+        expect(out.solidAt(f.x, f.y - 0.05, f.z), `floor at ${lx.toFixed(1)}, ${lz.toFixed(1)}`).toBe(true);
+        expect(f.y).toBeGreaterThan(c.ground(f.x, f.z));
+      }
     });
 
     it(`${c.kind}: is deterministic, and builds at reduced detail`, () => {
