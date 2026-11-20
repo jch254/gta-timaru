@@ -3,7 +3,7 @@ import { bench, gableRoof, Geo, Site, type V3 } from '../rural/kit';
 
 /**
  * The Millstone, the nightclub in the old flour mill at the bottom of North Street (the Old Mill people
- * remember): an 1878 brick mill built against the bank, so it is one and two storeys on the uphill west side
+ * remember): an 1877-78 brick mill built against the bank, so it is one and two storeys on the uphill west side
  * and two, three and four on the railway side, with hipped and gabled iron roofs, roof ventilators, shallow
  * arched openings, a canopy over the old siding and faded lettering on the east wall. The club door is on
  * North Street under a little canopy and the pink neon.
