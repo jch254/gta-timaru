@@ -4,7 +4,7 @@ import type { Vehicle } from '../core/types';
 import { Decals, type DecalStyle } from './decals';
 import { FlashLights } from './lights';
 import { ParticlePool, particleStyle } from './particles';
-import { DECAL_BLOOD_POOL, DECAL_BLOOD_SPATTER, DECAL_CAPACITY, DECAL_POCK, DecalRing } from './styles';
+import { burstExplosion, burstGore, DECAL_BLOOD_DROP, DECAL_BLOOD_POOL, DECAL_BLOOD_SPATTER, DECAL_CAPACITY, DECAL_POCK, DecalRing, SMOKE_BLAST } from './styles';
 import { TracerPool } from './tracers';
 
 /** Reach into a pool's buffers. */
@@ -79,6 +79,37 @@ describe('ParticlePool', () => {
     expect(pool.alive).toBe(0);
     expect(pool.mesh.visible).toBe(false);
   });
+
+  it('torn pieces fall, lie on the floor and are still there seconds later', () => {
+    const pool = new ParticlePool(400, false);
+    burstGore(pool, new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0), 1.5, 0);
+    const emitted = pool.alive;
+    expect(emitted).toBeGreaterThan(20);
+    for (let i = 0; i < 180; i++) pool.update(1 / 60);
+    // The drops are gone into the ground (decals take over); the pieces stay.
+    expect(pool.alive).toBeGreaterThan(0);
+    expect(pool.alive).toBeLessThan(emitted);
+    const { pos, siz } = buffers(pool);
+    for (let i = 0; i < 400; i++) if (siz[i * 2] > 0) expect(pos[i * 3 + 1]).toBeGreaterThanOrEqual(0);
+  });
+
+  it('a blast fits its pools many times over', () => {
+    const smoke = new ParticlePool(2000, false);
+    const glow = new ParticlePool(1000, true);
+    burstExplosion(smoke, glow, new THREE.Vector3(0, 0.5, 0), 9, 0);
+    expect(smoke.alive).toBeLessThan(400);
+    expect(glow.alive).toBeLessThan(250);
+  });
+
+  it('blast smoke glows from the fire inside it, then goes black', () => {
+    const pool = new ParticlePool(1, false);
+    const shp = () => (pool as unknown as { shp: Float32Array }).shp[3];
+    pool.emit(SMOKE_BLAST, 0, 0, 0, 0, 0, 0);
+    for (let i = 0; i < 12; i++) pool.update(1 / 60);
+    expect(shp()).toBeGreaterThan(0.5);
+    for (let i = 0; i < 100; i++) pool.update(1 / 60);
+    expect(shp()).toBe(0);
+  });
 });
 
 describe('TracerPool', () => {
@@ -133,6 +164,15 @@ describe('Decals', () => {
     expect(decals.mesh.visible).toBe(true);
   });
 
+  it('a trail of drops never takes the pools under bodies', () => {
+    const decals = new Decals(DECAL_CAPACITY);
+    for (let i = 0; i < 3; i++) decals.add(DECAL_BLOOD_POOL, 0, at(i), up, null, 0.6, 0.5);
+    const drops = DECAL_CAPACITY[DecalRing.Drop];
+    for (let i = 0; i < drops * 3; i++) decals.add(DECAL_BLOOD_DROP, 0, at(i), up, null, 0.05, 0.05);
+    expect(DECAL_BLOOD_DROP.ring).not.toBe(DECAL_BLOOD_POOL.ring);
+    expect(decals.active).toBe(3 + drops);
+  });
+
   it('lingers, fades, then frees the slot', () => {
     const decals = new Decals([4]);
     const style: DecalStyle = { ...DECAL_BLOOD_SPATTER, ring: 0, life: 60, fade: 10, grow: 0, alpha: 0.9 };
@@ -148,6 +188,18 @@ describe('Decals', () => {
     expect(color[slot * 4 + 3]).toBe(0);
     decals.update(172);
     expect(decals.mesh.visible).toBe(false);
+  });
+
+  it('keeps a decal laid at any moment of the clock (no rounding makes it born in the future)', () => {
+    const decals = new Decals([64]);
+    const style: DecalStyle = { ...DECAL_BLOOD_SPATTER, ring: 0 };
+    let now = 1234.5;
+    for (let i = 0; i < 40; i++) {
+      now += 1 / 60 + i * 1e-5;
+      decals.add(style, now, at(i), up, null, 0.3, 0.3);
+      decals.update(now);
+    }
+    expect(decals.active).toBe(40);
   });
 
   it('a pool grows from small to full size', () => {

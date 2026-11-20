@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { HumanoidLook, MaterialLibrary } from '../../core/types';
 import type { BodyTemplate } from './assets';
+import { BLOOD_PATCH, bloodPatch, type BloodUniforms } from './blood';
 import { SKIN_PATCH, TOP_PATCH, detailDebug, skinPatch, topPatch, traitsOf, type Traits } from './detail';
 import { FAR_CELLS, FAR_CELL_COUNT, type LodMesh } from './lods';
 
@@ -340,6 +341,13 @@ export interface LookMaterials {
   traits: Traits;
   /** Hand the look back when its figure is disposed (frees the painted atlas once nobody uses it). */
   release(): void;
+  /**
+   * This figure's own copies of `list` that show the stains in `uniforms` (made the first time it is hurt; null
+   * where the library cannot patch shaders). The copies share the shared materials' textures and programs.
+   */
+  bloody(uniforms: BloodUniforms): THREE.MeshStandardMaterial[] | null;
+  /** Drop the copies made by `bloody`. */
+  unbloody(): void;
 }
 
 /** Skin, top and leg colours come from short palettes and are kept; the atlases are counted, since every hair × shoe pairing makes one. */
@@ -362,7 +370,8 @@ export function lookMaterials(look: HumanoidLook, body: BodyTemplate, library: M
       vertexColors: true,
     });
   };
-  const skin = detailDebug.plain ? cached(library, `${skinKey}|plain${detailDebug.plain}`, makeSkin) : cached(library, skinKey, makeSkin, { key: SKIN_PATCH, apply: skinPatch(body.head, traits, look.hair) });
+  const skinOwn: Patch | null = detailDebug.plain ? null : { key: SKIN_PATCH, apply: skinPatch(body.head, traits, look.hair) };
+  const skin = skinOwn ? cached(library, skinKey, makeSkin, skinOwn) : cached(library, `${skinKey}|plain${detailDebug.plain}`, makeSkin);
   const top = topMaterial(look.topStyle ?? 'tee', look.top, library, body);
   const legs = cached(library, `chr-legs|${look.legs}`, () => {
     const f = getFabrics(body.uvMetres);
@@ -378,6 +387,31 @@ export function lookMaterials(look: HumanoidLook, body: BodyTemplate, library: M
   const hat = cached(library, 'chr-hat', () => new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0, vertexColors: true }));
   let released = false;
   let farMaterial: THREE.MeshStandardMaterial | null = null;
+  const list = [skin, top, legs, misc];
+  // The patch each of `list` was made with (the copies need it as well as the blood).
+  const own: (Patch | null)[] = [skinOwn, { key: TOP_PATCH, apply: topPatch(body.fit, look.topStyle ?? 'tee') }, null, null];
+  let bloodied: THREE.MeshStandardMaterial[] | null = null;
+  const bloody = (uniforms: BloodUniforms) => {
+    if (bloodied) return bloodied;
+    if (!library.registerPatched) return null;
+    const register = library.registerPatched.bind(library);
+    bloodied = list.map((material, i) => {
+      const patch = own[i];
+      const copy = material.clone();
+      copy.name = `${material.name}|blood`;
+      const blood = bloodPatch(uniforms, !patch);
+      return register(copy, `${patch?.key ?? 'plain'}|${BLOOD_PATCH}`, (shader) => {
+        patch?.apply(shader);
+        blood(shader);
+      });
+    });
+    return bloodied;
+  };
+  const unbloody = () => {
+    if (!bloodied) return;
+    for (const material of bloodied) library.release(material);
+    bloodied = null;
+  };
   const far = () => {
     farMaterial ??= library.register(new THREE.MeshStandardMaterial({ map: farPalette(look, body.uvMetres), roughness: 0.86, metalness: 0, vertexColors: true, side: THREE.DoubleSide }));
     return farMaterial;
@@ -385,6 +419,7 @@ export function lookMaterials(look: HumanoidLook, body: BodyTemplate, library: M
   const release = () => {
     if (released) return;
     released = true;
+    unbloody();
     if (farMaterial) {
       farMaterial.map?.dispose();
       library.release(farMaterial);
@@ -400,7 +435,7 @@ export function lookMaterials(look: HumanoidLook, body: BodyTemplate, library: M
     misc.map?.dispose();
     library.release(misc);
   };
-  return { list: [skin, top, legs, misc], hat, far, traits, release };
+  return { list, hat, far, traits, release, bloody, unbloody };
 }
 
 // ───────────────────────────── geometry variants ─────────────────────────────

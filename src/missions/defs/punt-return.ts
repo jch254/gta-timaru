@@ -29,12 +29,13 @@ export const puntReturn: MissionDef = {
       block: true,
       objective: null,
       lines: [
-        line(DAZZA, "There's a container landing at Lyttelton this week. Forty rebuilt engines out of Osaka. Every cent I've got, and a silent partner's."),
-        line(DAZZA, 'Ana at the shipping office holds the release papers. Yesterday two Easterlies told her they knew which school her tamariki go to.'),
-        line(DAZZA, "She handed them over. I'd have done the same. Now Harkness wants five grand for them, tonight, at the boat sheds on the Avon. He calls it taxing."),
-        line(DAZZA, "Shield gone nil to thirty-five, Ruapehu all over the news, and every cop in town hauling drunks out of pub fights. He picked tonight on purpose."),
+        line(DAZZA, "There's a container landing at Lyttelton this week. Forty rebuilt engines out of Osaka. Every bloody cent I've got, and a silent partner's."),
+        line(DAZZA, 'Ana at the shipping office holds the release papers. Yesterday two Easterly pricks told her they knew which school her tamariki go to.'),
+        line(DAZZA, "She handed them over. I'd have done the same. Now Harkness wants five grand for them tonight at the Avon boat sheds. Calls it taxing, the arsehole."),
+        line(DAZZA, "Shield gone nil to thirty-five, Ruapehu blowing its top, and every cop in town hauling pissheads out of pubs. He picked tonight on fucking purpose."),
         line(MACK, "And you'd like me to pay him."),
         line(DAZZA, "I'd like you to take this, and a vest, and go and explain that we're not."),
+        line(MACK, 'Sweet as. I was only going to sit home and watch the bloody replay.'),
       ],
     },
     { kind: 'setTime', hour: 21.5, unlessBetween: [20, 4], fade: true },
@@ -54,7 +55,10 @@ export const puntReturn: MissionDef = {
       radius: 30,
       marker: false,
       objective: 'Get to the Antigua Boat Sheds on the Avon',
-      cues: [{ at: 12, lines: [line('Radio, faintly', 'Nil to thirty-five at Lancaster Park this afternoon, and the Shield goes north. And Ruapehu has put ash twelve kilometres into the sky.')] }],
+      cues: [
+        { at: 12, lines: [line('Radio, faintly', 'Nil to thirty-five at Lancaster Park this afternoon, and the Shield goes north. And Ruapehu has put ash twelve kilometres into the sky.')] },
+        { at: 30, lines: [line(MACK, "Whole town's gutted about the footy. Nobody's going to give a shit about one more scrap down by the river.")] },
+      ],
     },
     // The retry resumes short of the crew, by the health pack: "have another go" must not stand the player
     // back up inside four drawn pistols (the honest playtest died in nine seconds, three retries straight,
@@ -64,17 +68,31 @@ export const puntReturn: MissionDef = {
       kind: 'setBehaviour',
       peds: SHED_CREW,
       behaviour: 'attack',
-      lines: [line(EASTERLY, "That's not Whitlock. Who's the meat worker?"), line(MACK, 'Dazza sends his apologies. And me.')],
+      lines: [
+        line(EASTERLY, "Oi. That's not fucking Whitlock. Who's the meat worker?"),
+        line(MACK, 'Dazza sends his apologies. And me.'),
+        line(EASTERLY, 'Then you can have the hiding for him, ya dickhead.'),
+      ],
     },
     // The law sits the shoot-outs themselves out, as at Stroud's yard: an honest playtest had patrol cars
     // join the quad fight at four lights and once arrest the player mid-fight. The police beat is scripted
     // right after Brick (loseHeat raises three lights regardless), so nothing is lost but the pile-on.
-    { kind: 'eliminate', targets: SHED_CREW, police: { suspend: true }, objective: 'Deal to the Easterlies at the boat sheds ({n} left)' },
+    {
+      kind: 'eliminate',
+      targets: SHED_CREW,
+      police: { suspend: true },
+      objective: 'Deal to the Easterlies at the boat sheds ({n} left)',
+      cues: [
+        { at: 12, lines: [line(EASTERLY, "Sort the bastard out, boys! He's just some egg from Timaru!")] },
+        { at: 22, lines: [line(MACK, 'Fourteen seasons on the chain at Smithfield. You lot are fuck all on a Monday morning in the boning room.')] },
+        { at: 34, lines: [line(EASTERLY, "Fuck this! Nobody said he'd be a bloody nutter!")] },
+      ],
+    },
     {
       kind: 'say',
       block: true,
       objective: null,
-      lines: [line(MACK, "No papers. Just a note. 'Arts Centre, the quad. Bring the money this time.' So it was never going to be simple.")],
+      lines: [line(MACK, "No papers. Just a note. 'Arts Centre, the quad. Bring the money this time.' Course it was always going to be a bit of a fucking mission.")],
     },
 
     // The Arts Centre: Brick, and the papers.
@@ -94,21 +112,32 @@ export const puntReturn: MissionDef = {
       radius: 34,
       marker: false,
       objective: 'Find Brick at the Arts Centre on Worcester Boulevard',
-      cues: [{ at: 20, lines: [line(MACK, 'Stone arches and one working streetlight. If I ran a gang, this is where I\'d stand the big fella too.')] }],
+      cues: [
+        { at: 20, lines: [line(MACK, 'Stone arches and one working streetlight. If I ran a gang, this is where I\'d stand the big bastard too.')] },
+        { at: 42, lines: [line(MACK, 'Not a soul on Worcester Boulevard. Even the students are home packing a sad about the footy.')] },
+      ],
     },
     { kind: 'checkpoint', label: 'the Arts Centre', at: { ...ARTS, snap: 'verge', along: -24 } },
     {
       kind: 'setBehaviour',
       peds: ARTS_CREW,
       behaviour: 'attack',
-      lines: [line(BRICK, "You're the one from Ashburton. Flash said to bring him your hands."), line(MACK, 'He can come and ask for them.')],
+      lines: [
+        line(EASTERLY, "That's him, Brick! The prick from the boat sheds!"),
+        line(BRICK, "You're the one from Ashburton. Flash said to bring him your hands."),
+        line(MACK, 'He can come and fucking ask for them.'),
+      ],
     },
     {
       kind: 'eliminate',
       targets: ARTS_CREW,
       police: { suspend: true },
       objective: 'Put Brick and his crew down ({n} left)',
-      cues: [{ at: 14, lines: [line(BRICK, "Still standing? Flash only wants the hands, Tully. The rest is for me.")] }],
+      cues: [
+        { at: 14, lines: [line(BRICK, "Still standing, ya cheeky prick? Flash only wants the hands, Tully. The rest is for me.")] },
+        { at: 24, lines: [line(EASTERLY, "Box the arsehole in by the arches! He's only got the one gun!")] },
+        { at: 34, lines: [line(MACK, 'Brick by name. Thick as two short planks by nature, ya great knob.')] },
+      ],
     },
     {
       kind: 'goTo',
@@ -116,6 +145,7 @@ export const puntReturn: MissionDef = {
       radius: 2.4,
       mode: 'foot',
       objective: 'Take the release papers off Brick',
+      lines: [line(MACK, "Right, ya big lump. Let's have a look in your pockets.")],
     },
     {
       kind: 'loseHeat',
@@ -123,22 +153,28 @@ export const puntReturn: MissionDef = {
       holdFor: 20,
       objective: 'Half of Christchurch heard that. Lose the police',
       toast: 'Break their line of sight and lie low, or buy a respray at the panel and paint shop',
-      lines: [line(MACK, "Release papers. Ana's signature is still on them.")],
+      lines: [line(MACK, "Release papers. Ana's signature still on them. Now piss off and let me get home.")],
+      cues: [
+        { at: 10, lines: [line(MACK, 'Sirens. For fuck\'s sake, I thought the cops were chocka with pub fights tonight.')] },
+        { at: 28, lines: [line(MACK, "Keep the head down and stop driving like a hoon, Tully. She'll be right.")] },
+      ],
     },
     {
       kind: 'goTo',
       to: 'chch-garage',
       radius: 8,
       objective: "Take the papers back to Dazza's workshop in Sydenham",
+      cues: [{ at: 10, lines: [line(MACK, 'Back to Sydenham. Dazza had better have the bloody jug on.')] }],
     },
     {
       kind: 'say',
       lines: [
-        line(DAZZA, "All there. I'll ring Ana and tell her she can stop looking over her shoulder."),
-        line(DAZZA, 'Harkness will come himself now. Five grand is carpet money. His takings wash through that new casino, the Avon Palace. First in the country.'),
+        line(DAZZA, "All there, good as gold. I'll ring Ana and tell her she can stop looking over her shoulder."),
+        line(DAZZA, 'Harkness will come himself now. Five grand\'s carpet money. His takings wash through that new casino, the Avon Palace. First in the fucking country.'),
         line(DAZZA, "And you'd better meet the silent partner. She's on the bus up from Timaru."),
         line(MACK, 'She.'),
         line(DAZZA, "Don't make me say it, mate."),
+        line(MACK, 'Oh, bugger. Oh, fuck me.'),
       ],
     },
   ],

@@ -623,12 +623,16 @@ export interface Actor {
   alive: boolean;
   /** Vehicle currently occupied, if any. */
   vehicle: Vehicle | null;
+  /** Seat taken in `vehicle` (0 = driver), for those who say; a passenger who does not is taken to sit in turn. */
+  readonly seat?: number;
   /** Display name for barks / missions. */
   name?: string;
   /** Cannot be hurt (cameo characters): `takeDamage` changes nothing and a hit draws no blood. */
   readonly invulnerable?: boolean;
   /** Pitches their cries of pain higher (pedestrians set it; anyone else sounds like a bloke). */
   readonly female?: boolean;
+  /** The figure drawn for them, where there is one (blood on their clothes, see Humanoid.stain). */
+  readonly figure?: Humanoid;
   takeDamage(info: DamageInfo): void;
 }
 
@@ -691,6 +695,14 @@ export interface Humanoid {
   setHeld(object: THREE.Object3D | null): void;
   /** World position of the right hand / muzzle attach point. */
   handPosition(target: THREE.Vector3): THREE.Vector3;
+  /**
+   * Blood soaked into the clothes round `point` (world space), about `size` metres across, and `soot` 0..1 over
+   * the whole figure (a blast, a fire). Repeated near the same place, a stain spreads. Optional: the code-built
+   * figure shows none.
+   */
+  stain?(point: THREE.Vector3 | null, size: number, soot?: number): void;
+  /** Wash off every stain (a figure recycled, the player respawned). */
+  clean?(): void;
   dispose(): void;
 }
 

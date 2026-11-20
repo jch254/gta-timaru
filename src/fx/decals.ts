@@ -6,7 +6,8 @@ import { FOG_FACTOR_GLSL } from './glsl';
  * Flat stains on the world: blood, bullet holes, scorch marks, tyre marks, and pocks that ride on
  * vehicles. All of them are instanced quads in ONE draw call, blended multiplicatively: a decal
  * only tints what is underneath, so it picks up the scene's lighting, shadows and wetness for free
- * and decals can overlap in any order. Shapes are procedural (no textures).
+ * and decals can overlap in any order. Shapes are procedural (no textures): a ragged blot, a tyre
+ * strip, a spray of droplets thrown along the decal's first axis, or a splash with runs down it.
  */
 const VERT = /* glsl */ `
 attribute vec3 iPos;
@@ -14,13 +15,16 @@ attribute vec3 iU;   // half-extent along the decal's first axis
 attribute vec3 iV;   // half-extent along the second
 attribute vec4 iColor; // tint rgb, strength
 attribute vec4 iShape; // seed, edge softness, edge irregularity, speckle (negative = tyre-mark strip)
+attribute float iPattern; // DecalPattern
 varying vec4 vColor;
 varying vec4 vShape;
+varying float vPattern;
 varying vec2 vUv;
 #include <fog_pars_vertex>
 void main() {
   vColor = iColor;
   vShape = iShape;
+  vPattern = iPattern;
   vUv = position.xy * 2.0;
   vec3 world = iPos + iU * vUv.x + iV * vUv.y;
   vec4 mvPosition = viewMatrix * vec4(world, 1.0);
@@ -32,6 +36,7 @@ void main() {
 const FRAG = /* glsl */ `
 varying vec4 vColor;
 varying vec4 vShape;
+varying float vPattern;
 varying vec2 vUv;
 #include <fog_pars_fragment>
 float hash(vec2 p) {
@@ -43,6 +48,39 @@ float noise(vec2 p) {
   f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
 }
+// A ragged outline: the edge radius wanders with the angle around the centre.
+float blot(vec2 p, float seed) {
+  float r = length(p);
+  vec2 around = p / max(r, 1e-4);
+  float n = noise(around * 2.3 + seed);
+  float edge = 0.98 - vShape.z * (1.0 - n);
+  return 1.0 - smoothstep(edge - vShape.y, edge, r);
+}
+// Droplets scattered over a grid of cells. thrown = 1: thrown along +x (thinning out and drawn out
+// further along); thrown = 0: flung out all round the centre.
+float droplets(vec2 uv, float seed, float thrown) {
+  vec2 cells = vec2(5.0, 4.0);
+  vec2 g = (uv + 1.0) * cells;
+  vec2 base = floor(g);
+  float a = 0.0;
+  for (int j = -1; j <= 1; j++) {
+    for (int i = -1; i <= 1; i++) {
+      vec2 c = base + vec2(float(i), float(j));
+      vec2 centre = (c + 0.2 + 0.6 * vec2(hash(c + seed), hash(c + seed * 1.37 + 5.1))) / cells - 1.0;
+      float far = mix(length(centre), centre.x * 0.5 + 0.5, thrown);
+      float side = mix(0.0, abs(centre.y), thrown);
+      float chance = (1.0 - side * side) * (0.95 - 0.6 * far);
+      if (hash(c + seed * 2.1 + 9.3) > chance) continue;
+      float rad = (0.045 + 0.085 * hash(c + seed + 3.7)) * (1.15 - 0.7 * far);
+      vec2 dv = uv - centre;
+      // Drawn out the way it was going.
+      dv.x *= mix(1.0, 0.5, thrown);
+      if (thrown < 0.5) dv = dv - centre * dot(dv, centre) * 0.6 / max(dot(centre, centre), 0.01);
+      a = max(a, 1.0 - smoothstep(0.7, 1.0, length(dv) / max(rad, 1e-3)));
+    }
+  }
+  return a;
+}
 void main() {
   float seed = vShape.x;
   float a;
@@ -52,14 +90,33 @@ void main() {
     float ends = 1.0 - smoothstep(0.92, 1.0, abs(vUv.x));
     float grain = 0.6 + 0.4 * noise(vec2(vUv.x * 2.0 + seed, vUv.y * 9.0 + seed));
     a = across * ends * grain;
+  } else if (vPattern > 0.5 && vPattern < 1.5) {
+    // Spray: a splash where it first landed and droplets thrown on along +x, sparser and longer as they go.
+    a = blot((vUv - vec2(-0.42, 0.0)) / vec2(0.56, 0.72), seed);
+    a = max(a, droplets(vUv, seed, 1.0));
+    a = max(a, vShape.w * step(0.78, noise(vUv * 9.0 + seed * 1.7)) * (1.0 - smoothstep(0.2, 0.9, length(vUv * vec2(0.8, 1.3)))));
+    a *= 1.0 - smoothstep(0.9, 1.0, max(abs(vUv.x), abs(vUv.y)));
+  } else if (vPattern > 1.5) {
+    // Splashed on a wall: a splat, droplets flung round it, and runs down +x (the decal is laid with x downhill).
+    a = blot(vUv / 0.58, seed);
+    a = max(a, droplets(vUv, seed, 0.0));
+    float width = 0.15;
+    float k = floor((vUv.y + 1.0) / width);
+    float lane = (k + 0.5) * width - 1.0;
+    if (hash(vec2(k, seed)) < 0.55 && abs(lane) < 0.5) {
+      float half_ = 0.014 + 0.022 * hash(vec2(k, seed + 1.0));
+      float reach = 0.4 + 0.52 * hash(vec2(k, seed + 2.0));
+      float down = clamp(vUv.x / reach, 0.0, 1.0);
+      float w = half_ * (1.0 - 0.45 * down);
+      float run = step(0.0, vUv.x) * (1.0 - smoothstep(reach - 0.02, reach, vUv.x)) * (1.0 - smoothstep(w * 0.6, w, abs(vUv.y - lane)));
+      float bead = 1.0 - smoothstep(half_ * 1.1, half_ * 1.6, length(vec2(vUv.x - reach, vUv.y - lane)));
+      a = max(a, max(run, bead));
+    }
+    a *= 1.0 - smoothstep(0.9, 1.0, max(abs(vUv.x), abs(vUv.y)));
   } else {
     float r = length(vUv);
     if (r > 1.0) discard;
-    // A ragged outline: the edge radius wanders with the angle around the centre.
-    vec2 around = vUv / max(r, 1e-4);
-    float n = noise(around * 2.3 + seed);
-    float edge = 0.98 - vShape.z * (1.0 - n);
-    a = 1.0 - smoothstep(edge - vShape.y, edge, r);
+    a = blot(vUv, seed);
     // Satellite droplets / flecks.
     float fleck = step(0.72, noise(vUv * 7.0 + seed * 1.7)) * (1.0 - smoothstep(0.5, 0.97, r));
     a = max(a, vShape.w * fleck);
@@ -94,7 +151,15 @@ export interface DecalStyle {
   readonly speckle: number;
   /** Metres the quad floats off the surface. */
   readonly lift: number;
+  /** Shape (see `DecalPattern`); default the ragged blot. */
+  readonly pattern?: number;
 }
+
+/**
+ * Decal shapes. Blot: a ragged patch (pools, holes, scorches). Spray: a splash with droplets thrown
+ * on along the decal's first axis. Drip: a splash with runs down the first axis (lay it downhill).
+ */
+export const DecalPattern = { Blot: 0, Spray: 1, Drip: 2 } as const;
 
 const _n = new THREE.Vector3();
 const _u = new THREE.Vector3();
@@ -119,7 +184,8 @@ export class Decals {
   private readonly axisU: Float32Array;
   private readonly axisV: Float32Array;
   private readonly half: Float32Array;
-  private readonly born: Float32Array;
+  /** Birth times. Doubles: a float32 copy of the clock can round above it, which reads as a negative age. */
+  private readonly born: Float64Array;
   private readonly strength: Float32Array;
   private readonly live: Uint8Array;
   private readonly styles: (DecalStyle | null)[];
@@ -129,6 +195,7 @@ export class Decals {
   private readonly aV: THREE.InstancedBufferAttribute;
   private readonly aColor: THREE.InstancedBufferAttribute;
   private readonly aShape: THREE.InstancedBufferAttribute;
+  private readonly aPattern: THREE.InstancedBufferAttribute;
 
   /** @param capacities size of each recycling ring; `DecalStyle.ring` indexes into this list */
   constructor(capacities: readonly number[]) {
@@ -144,7 +211,7 @@ export class Decals {
     this.axisU = new Float32Array(total * 3);
     this.axisV = new Float32Array(total * 3);
     this.half = new Float32Array(total * 2);
-    this.born = new Float32Array(total);
+    this.born = new Float64Array(total);
     this.strength = new Float32Array(total);
     this.live = new Uint8Array(total);
     this.styles = new Array<DecalStyle | null>(total).fill(null);
@@ -159,6 +226,8 @@ export class Decals {
     this.aV = attribute(3);
     this.aColor = attribute(4);
     this.aShape = attribute(4);
+    this.aPattern = attribute(1);
+    geometry.setAttribute('iPattern', this.aPattern);
     geometry.setAttribute('iPos', this.aPos);
     geometry.setAttribute('iU', this.aU);
     geometry.setAttribute('iV', this.aV);
@@ -202,9 +271,10 @@ export class Decals {
    *                 null for a random rotation
    * @param halfU    half-length along that axis, metres
    * @param halfV    half-width across it
+   * @param strength 0..1, default the style's alpha
    * @returns the slot, for `attach`
    */
-  add(style: DecalStyle, now: number, p: THREE.Vector3, normal: THREE.Vector3, along: THREE.Vector3 | null, halfU: number, halfV: number): number {
+  add(style: DecalStyle, now: number, p: THREE.Vector3, normal: THREE.Vector3, along: THREE.Vector3 | null, halfU: number, halfV: number, strength = style.alpha): number {
     const ring = style.ring;
     const i = this.ringStart[ring] + this.ringCursor[ring];
     this.ringCursor[ring] = (this.ringCursor[ring] + 1) % this.ringSize[ring];
@@ -239,7 +309,7 @@ export class Decals {
     this.half[i * 2] = halfU;
     this.half[i * 2 + 1] = halfV;
     this.born[i] = now;
-    this.strength[i] = style.alpha;
+    this.strength[i] = strength;
     this.styles[i] = style;
     this.riders[i] = null;
 
@@ -254,6 +324,8 @@ export class Decals {
     shape[i4 + 2] = style.irregular;
     shape[i4 + 3] = style.speckle;
     this.aShape.needsUpdate = true;
+    (this.aPattern.array as Float32Array)[i] = style.pattern ?? DecalPattern.Blot;
+    this.aPattern.needsUpdate = true;
     this.write(i, now);
     this.flush();
     return i;

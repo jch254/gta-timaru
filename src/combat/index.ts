@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { damp } from '../core/math';
 import { CollisionGroup, type Actor, type CombatApi, type CrimeType, type DamageInfo, type GameContext, type RayHit, type System, type Vehicle, type WeaponSpec } from '../core/types';
 import { createEffects, type Effects } from '../fx';
-import { damageAtRange, explosionFalloff, explosionShake, spreadDirection } from './ballistics';
+import { damageAtRange, explosionFalloff, explosionShake, rayToSegment, spreadDirection } from './ballistics';
 import { Inventory } from './inventory';
 import { HAND_FIT, WeaponModels } from './models';
 import { Pickups } from './pickups';
@@ -34,6 +34,14 @@ const _left = new THREE.Vector3();
 const _m = new THREE.Matrix4();
 const _qa = new THREE.Quaternion();
 const _qb = new THREE.Quaternion();
+// Shots into a vehicle's cabin (see `cabinHit`).
+const _cabinUp = new THREE.Vector3();
+const _seat = new THREE.Vector3();
+const _low = new THREE.Vector3();
+const _high = new THREE.Vector3();
+const _gap = { t: 0, gap2: 0 };
+
+const isPoliceVehicle = (vehicle: Vehicle): boolean => vehicle.tags.has('police') || vehicle.spec.cls === 'police';
 
 interface HeldModel {
   root: THREE.Group;
@@ -80,6 +88,8 @@ class Combat implements CombatApi, System {
   private lastGunfire = -Infinity;
   private lastVehicleCrime = -Infinity;
   private reportedDead = new WeakSet<Actor>();
+  /** Patrol cars whose shotgun the player has already taken. */
+  private searched = new WeakSet<Vehicle>();
 
   // One damage call per target per trigger pull: pellets are summed here first.
   private hitOwners: (Actor | Vehicle)[] = [];
@@ -121,6 +131,9 @@ class Combat implements CombatApi, System {
     ctx.events.on('actorDied', ({ actor, info }) => {
       if (info.source === ctx.player && (info.kind === 'bullet' || info.kind === 'melee' || info.kind === 'explosion' || info.kind === 'vehicle')) this.reportKill(actor);
     });
+    ctx.events.on('vehicleEntered', ({ actor, vehicle }) => {
+      if (actor === ctx.player && vehicle.driver === actor) this.searchPoliceCar(vehicle);
+    });
   }
 
   // ───────────── Loadout ─────────────
@@ -160,6 +173,24 @@ class Combat implements CombatApi, System {
   private cycle(direction: 1 | -1) {
     this.inv.cycle(direction);
     this.syncCurrent();
+  }
+
+  /**
+   * Every patrol car carries a pump shotgun racked between the front seats. The first time the player takes the
+   * wheel of one it is theirs, with a box of shells; a car whose rack has been emptied has nothing more to give.
+   * Already carrying all the shells they can, the player leaves it where it is.
+   */
+  private searchPoliceCar(vehicle: Vehicle) {
+    if (!isPoliceVehicle(vehicle) || this.searched.has(vehicle) || this.inv.full('shotgun')) return;
+    this.searched.add(vehicle);
+    const had = this.inv.has('shotgun');
+    const before = this.inv.ammo('shotgun');
+    this.give('shotgun', TUNING.copCarShells);
+    const after = this.inv.ammo('shotgun');
+    const shells = after.clip + after.reserve - before.clip - before.reserve;
+    const { ctx } = this;
+    ctx.audio.play('pickup', { at: ctx.player.position });
+    ctx.ui.toast(had ? `${shells} shotgun shells from the patrol car` : `Shotgun off the patrol car's rack, ${shells} shells`, 3);
   }
 
   /** Publish a change of weapon. */
@@ -209,11 +240,23 @@ class Combat implements CombatApi, System {
       fx.tracer(origin, hit.point, heavy);
       const owner = hit.owner;
       const vehicle = owner && isVehicle(owner) ? owner : null;
-      if (owner) this.addHit(owner, damageAtRange(spec.damage, hit.distance, spec.range, feel.falloffStart, feel.falloffMin), hit.point);
+      const damage = damageAtRange(spec.damage, hit.distance, spec.range, feel.falloffStart, feel.falloffMin);
+      if (owner) this.addHit(owner, damage, hit.point);
       // (A cameo cannot be hurt: the hit shows as a puff of cloth, never blood.)
       fx.hint(origin, _pellet, vehicle, owner && !vehicle && (owner as Actor).invulnerable ? 0 : feel.blood, false);
       ctx.events.emit('impact', { position: hit.point, normal: hit.normal, surface: !owner ? 'world' : vehicle ? 'vehicle' : 'flesh' });
       fx.clearHint();
+      // The player's rounds do not stop at the bodywork: whoever is sitting in the line of fire is hit as well.
+      if (vehicle && shooter === ctx.player) {
+        const sitter = this.cabinHit(vehicle, origin, _pellet, hit.distance);
+        if (sitter) {
+          const at = _end.copy(origin).addScaledVector(_pellet, _gap.t);
+          this.addHit(sitter, damage * TUNING.cabinDamage, at);
+          fx.hint(origin, _pellet, null, feel.blood, false);
+          ctx.events.emit('impact', { position: at.clone(), normal: _pellet.clone().negate(), surface: 'flesh' });
+          fx.clearHint();
+        }
+      }
     }
 
     ctx.events.emit('gunshot', { shooter, weaponId: spec.id, position: origin.clone(), direction: aim.clone() });
@@ -230,12 +273,43 @@ class Combat implements CombatApi, System {
       const amount = this.hitDamage[i];
       if (isVehicle(owner)) this.damageVehicle(owner, amount * feel.vehicleScale, shooter, this.hitPoints[i]);
       else {
-        if (owner.alive && owner !== ctx.player) owner.velocity.addScaledVector(aim, Math.min(TUNING.bulletKnockMax, amount * TUNING.bulletKnock));
+        // Someone hit in their seat stays in it.
+        if (owner.alive && owner !== ctx.player && !owner.vehicle) owner.velocity.addScaledVector(aim, Math.min(TUNING.bulletKnockMax, amount * TUNING.bulletKnock));
         this.damageActor(owner, { amount, kind: 'bullet', source: shooter, point: this.hitPoints[i].clone(), direction: aim.clone() });
       }
     }
     this.hitOwners.length = base;
     this.hitCount = base;
+  }
+
+  /**
+   * The first person sitting in `vehicle` along a pellet's line (`dir` unit, from `origin`) that met the car's
+   * shell `distance` along. Leaves where along the line it met them in `_gap.t`. The player is never hit this way
+   * (the police shoot the car they are in, not them), nor is anyone who cannot be hurt.
+   */
+  private cabinHit(vehicle: Vehicle, origin: THREE.Vector3, dir: THREE.Vector3, distance: number): Actor | null {
+    const player = this.ctx.player;
+    _cabinUp.set(0, 1, 0).applyQuaternion(vehicle.group.quaternion);
+    // From just outside the shell to the far side of the car.
+    const near = distance - TUNING.cabinRadius;
+    const far = distance + Math.hypot(vehicle.spec.length, vehicle.spec.width);
+    const r2 = TUNING.cabinRadius * TUNING.cabinRadius;
+    let best: Actor | null = null;
+    let bestT = Infinity;
+    const n = vehicle.passengers.length;
+    for (let i = -1; i < n; i++) {
+      const actor = i < 0 ? vehicle.driver : vehicle.passengers[i];
+      if (!actor || !actor.alive || actor === player || actor.invulnerable || actor.vehicle !== vehicle) continue;
+      vehicle.seatPosition(_seat, i < 0 ? 0 : (actor.seat ?? i + 1));
+      _low.copy(_seat).addScaledVector(_cabinUp, TUNING.cabinLow);
+      _high.copy(_seat).addScaledVector(_cabinUp, TUNING.cabinHigh);
+      rayToSegment(origin, dir, _low, _high, _gap);
+      if (_gap.gap2 > r2 || _gap.t < near || _gap.t > far || _gap.t >= bestT) continue;
+      best = actor;
+      bestT = _gap.t;
+    }
+    _gap.t = bestT;
+    return best;
   }
 
   private addHit(owner: Actor | Vehicle, damage: number, point: THREE.Vector3) {
@@ -314,7 +388,8 @@ class Combat implements CombatApi, System {
     const target = bestRank === 0 || bestRank === 1 ? owner : null;
     const heavy = damage >= TUNING.meleeBloodDamage;
     _a.set(attacker.position.x, attacker.position.y + MELEE_ROWS[0], attacker.position.z);
-    this.fx.hint(_a, forward, null, heavy && !(owner && !isVehicle(owner) && owner.invulnerable) ? feelOf('bat').blood : 0, true);
+    const blood = owner && !isVehicle(owner) && owner.invulnerable ? 0 : feelOf(heavy ? 'bat' : 'fists').blood;
+    this.fx.hint(_a, forward, null, blood, true);
     ctx.events.emit('impact', { position: best.point, normal: best.normal, surface: !owner ? 'world' : isVehicle(owner) ? 'vehicle' : 'flesh' });
     this.fx.clearHint();
     if (!target) return null;

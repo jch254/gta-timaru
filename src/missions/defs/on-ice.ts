@@ -32,7 +32,11 @@ export const onIce: MissionDef = {
       kind: 'say',
       block: true,
       objective: null,
-      lines: [line(RENA, "Kia ora, boy. Have you eaten? Don't lie to me, I can hear your stomach from here.")],
+      lines: [
+        line(RENA, "Kia ora, boy. Have you eaten? Don't lie to me, I can hear your stomach from here."),
+        line(MACK, 'Yeah, nah. Cup of tea and half a gingernut at six, watching the yachting. Bloody good, though.'),
+        line(RENA, "Language. Half a gingernut. There's a mince pie in the warmer with your name on it. Eat it on the way."),
+      ],
     },
     {
       kind: 'say',
@@ -48,8 +52,8 @@ export const onIce: MissionDef = {
       block: true,
       lines: [
         line(RENA, "After that, Shona at the Drover's Rest in Temuka has paying mahi for you. The kind that doesn't go on a tax return."),
-        line(MACK, "A pub with work going? It's ten o'clock on a Sunday morning."),
-        line(RENA, "We won the Cup at breakfast, dear. Five races to nil. There isn't an empty pub between here and the Bluff. Off you go."),
+        line(MACK, "A pub with work going? Jesus wept, it's ten o'clock on a Sunday morning."),
+        line(RENA, "We won the Cup at breakfast, dear. Five races to nil. Every pub between here and the Bluff is chocka, half of them pissed already. Off you go."),
       ],
     },
     {
@@ -59,7 +63,11 @@ export const onIce: MissionDef = {
       radius: 14,
       stop: true,
       objective: "Take Rena's kai out to the hui at Arowhenua marae, south of Temuka",
-      cues: [{ at: 40, lines: [line(MACK, 'Red socks on every second clothesline from Washdyke up. The whole country was awake at six for a yacht race, me included.')] }],
+      cues: [
+        { at: 15, lines: [line(MACK, "Chowder smells bloody choice. Not one spoonful, Mack. She'll know. She always knows.")] },
+        { at: 40, lines: [line(MACK, 'Red socks on every second clothesline from Washdyke up. The whole country was awake at six for a yacht race, me included.')] },
+        { at: 65, lines: [line(MACK, "Haven't been out to Arowhenua since I was a kid. And mind your mouth at the gate, Mack.")] },
+      ],
     },
     {
       kind: 'say',
@@ -89,17 +97,23 @@ export const onIce: MissionDef = {
       to: 'temuka-pub',
       radius: 14,
       objective: "Go and see Shona at the Drover's Rest on King Street, Temuka",
+      cues: [
+        { at: 10, lines: [line(MACK, "Car horns on King Street at ten in the bloody morning. You'd think Temuka sailed the boat itself.")] },
+        { at: 28, lines: [line(MACK, "Half of Temuka hasn't been to bed, and the other half's pissed in the Drover's telling them how it was done.")] },
+      ],
     },
     {
       kind: 'say',
       block: true,
       objective: null,
       lines: [
-        line(SHONA, "You're Rena's nephew. Good. Look at this bar. Five nil, every sock in Temuka is red, and I haven't had a hand free since seven."),
+        line(SHONA, "You're Rena's nephew? Good. Look at this bar, chocka with pissheads. Five nil, every sock in Temuka's red, and I haven't had a hand free since seven."),
         line(SHONA, "Four chilly bins of crays in my ute out front. They never met a licensed fish receiver, and they're not about to."),
-        line(SHONA, 'Russell is parked at the lay-by north of the Rangitata bridges. He leaves when the ice does.'),
+        line(SHONA, "Russell's parked up at the lay-by north of the Rangitata bridges. He pisses off when the ice does."),
         line(MACK, 'And the law?'),
-        line(SHONA, "See the black and white over the road? Fisheries, with the Temuka constable keeping him company since opening. So, briskly."),
+        line(SHONA, 'See the black and white over the road? Fisheries, with the Temuka constable keeping him company since opening. So, briskly. Not like a hoon.'),
+        line(MACK, "Sweet as. Shout me a jug when I'm back?"),
+        line(SHONA, "Bring back Russell's money and it's my shout. Now piss off."),
       ],
     },
     { kind: 'enterVehicle', vehicle: 'ute', objective: "Get in Shona's ute" },
@@ -120,12 +134,14 @@ export const onIce: MissionDef = {
       // on this fragile-cargo timed leg was unwinnable: contact with a pursuer escalates past any floor, and
       // a third light's gunfire shreds the ute under the "keep it sound" rule. The law converges at the
       // lay-by instead (the loseHeat step below), where there is no cargo-health gate to fight.
-      lines: [line(MACK, "Right. Four bins, two bridges, and the ice already sweating. Let's go.")],
+      lines: [line(MACK, "Right. Four bins, two bridges, and the ice already sweating. Better get a fuckin' wriggle on.")],
       cues: [
-        { at: 3, lines: [line(MACK, "Black and white hasn't moved. He'll radio ahead, but he won't catch this.")] },
+        { at: 3, lines: [line(MACK, "Black and white hasn't moved. He'll radio ahead, but he won't catch shit in that old bucket.")] },
         { at: 18, lines: [line('Radio, faintly', 'Five races to nil in San Diego! The oldest cup in sport is coming home, and the whole country is wearing red socks to church!')] },
-        { at: 35, lines: [line(MACK, "Rangitata bridges coming up. Bet there's a welcome on the far side.")] },
-        { at: 75, lines: [line(MACK, "Hold together, you lot. You're worth more than I am.")] },
+        { at: 35, lines: [line(MACK, "Rangitata bridges coming up. Bet some prick's waiting with a welcome on the far side.")] },
+        { at: 55, lines: [line(MACK, 'Paddocks, shelter belts, and a cow cocky on his tractor waving a red sock at me. Good on ya, mate.')] },
+        { at: 75, lines: [line(MACK, "Hold together, you little bastards. You're worth more than I am.")] },
+        { at: 95, lines: [line(MACK, "For fuck's sake, come on. If these crays cark it before the lay-by, Shona'll have my guts for garters.")] },
       ],
     },
     { kind: 'stopTimer' },
@@ -142,7 +158,12 @@ export const onIce: MissionDef = {
       objective: "Russell won't open the van with the law watching. Lose them",
       returnObjective: "Get back in Shona's ute",
       toast: 'Break their line of sight and lie low, or get a respray at a panel and paint shop',
-      lines: [line(RUSSELL, "You've brought half the South Canterbury police to a lay-by, mate. Come back when you're on your own.")],
+      lines: [line(RUSSELL, "Yeah, nah. You've brought half the South Canterbury police to a lay-by, ya dickhead. Come back when you're on your own.")],
+      cues: [
+        { at: 5, lines: [line(MACK, 'Shit. One black and white, and nothing out here to hide behind but a shelter belt and some sheep.')] },
+        { at: 12, lines: [line(MACK, 'Siren up my arse all the way from the bridge. Piss off, would you.')] },
+        { at: 20, lines: [line(MACK, "Get off the bloody main road and lie low a bit. She'll be right.")] },
+      ],
     },
     // Two men by a black V8, pricing the load from across the lay-by. They were here before Mack was.
     {
@@ -162,17 +183,19 @@ export const onIce: MissionDef = {
       clean: true,
       objective: 'Take the crays back to Russell at the lay-by',
       returnObjective: "Get back in Shona's ute",
+      lines: [line(MACK, 'Shook the bastard. Back to Russell before the ice is a puddle and the crays are soup.')],
     },
     {
       kind: 'say',
       lines: [
-        line(EASTERLY, "That's him. Shona's new driver. Flash will want the name."),
-        line(RUSSELL, 'Eyes front. Still kicking, the lot of them. Five hundred, as agreed with Shona.'),
+        line(EASTERLY, "That's him. Shona's new driver, the cheeky prick. Flash'll want the name."),
+        line(RUSSELL, 'Eyes front. Still kicking, the lot of them. Sweet as. Five hundred, as agreed with Shona.'),
         line(MACK, 'The two by the black V8. Friends of yours?'),
         line(RUSSELL, "Nobody's friends. Easterlies, out of Christchurch. They tax every load on this road now, and they've just priced yours. Don't meet them at night."),
-        line(RUSSELL, 'Half the 03 pays them already. Every wharf, every lay-by, Kaikōura on down. Not my fight.'),
+        line(RUSSELL, 'Half the 03 pays the bastards already. Every wharf, every lay-by, Kaikōura on down. Not my fight.'),
         line(RUSSELL, 'Shona says hang on to the ute for the week. She wants it back with the same number of doors.'),
         line(RUSSELL, 'Neville Stroud, the stock agent in Ashburton, is short a driver. Tell him I sent you. Then count your change.'),
+        line(MACK, 'Cheers, Russell. Ka kite.'),
       ],
     },
   ],

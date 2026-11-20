@@ -196,5 +196,6 @@ Cut from the proposal: the tractor (its big rear wheels fight the vehicle physic
 | [07](research/07-verification-and-ngai-tahu.md) | Verdicts on the old unverified items; Māori names checked against Ngāi Tahu sources |
 | [08](research/08-vehicle-reference-australian-british.md) | Reference data: Australian, British, European cars, trucks, buses, bikes, tractors |
 | [09](research/09-vehicle-reference-japanese.md) | Reference data: Japanese cars, utes and vans |
+| [10](research/10-slang-insults-and-banter.md) | Insults, similes, everyday te reo, what not to say; draft barks, conversations and Mack's quips |
 
 The files are the researchers' working notes, kept as written. Paths in them beginning `/private/tmp/` refer to downloads that were not kept.

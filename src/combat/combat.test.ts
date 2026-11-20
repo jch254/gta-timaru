@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventBus } from '../core/events';
 import type { Action, Actor, ActorKind, CombatApi, DamageInfo, GameContext, GameEvents, MaterialLibrary, PlayerApi, RayHit, System, Vehicle } from '../core/types';
 import type { Effects } from '../fx';
+import { DecalRing } from '../fx/styles';
 import { createCombat } from './index';
 import { DRAW_TIME } from './inventory';
 import { TUNING, WEAPONS } from './weapons';
@@ -30,7 +31,7 @@ interface Harness {
   player: PlayerApi & { shakes: number[]; actions: string[]; held: (THREE.Object3D | null)[]; hits: DamageInfo[] };
   targets: Target[];
   ped(kind: ActorKind, x: number, z: number, health?: number): Actor & { hits: DamageInfo[] };
-  car(x: number, z: number): Vehicle & { damage: number[]; impulses: { x: number; y: number; z: number }[] };
+  car(x: number, z: number, cls?: string): Vehicle & { damage: number[]; impulses: { x: number; y: number; z: number }[] };
   input: { down: Set<Action>; hit: Set<Action>; lookYaw: number; lookPitch: number };
   /** Run frames for `seconds`; presses are cleared after the first frame. */
   run(seconds: number): void;
@@ -38,6 +39,7 @@ interface Harness {
   flash: ReturnType<typeof vi.fn>;
   saved: { key: string; serialize: () => unknown; deserialize: (data: unknown) => void }[];
   ground: { enabled: boolean };
+  toasts: string[];
   aim: THREE.Vector3;
 }
 
@@ -159,6 +161,7 @@ function harness(): Harness {
   const flash = vi.fn();
   const saved: Harness['saved'] = [];
   const input = { down: new Set<Action>(), hit: new Set<Action>(), lookYaw: 0, lookPitch: 0 };
+  const toasts: string[] = [];
 
   const ctx = {
     scene,
@@ -179,7 +182,7 @@ function harness(): Harness {
     },
     actors: { all: new Set<Actor>([player]) },
     vehicles: { all: [] as Vehicle[] },
-    ui: { menuOpen: false },
+    ui: { menuOpen: false, toast: (text: string) => toasts.push(text) },
     audio: { play: audio },
     save: { register: (key: string, serialize: () => unknown, deserialize: (data: unknown) => void) => saved.push({ key, serialize, deserialize }) },
     player,
@@ -204,10 +207,10 @@ function harness(): Harness {
       targets.push({ centre: new THREE.Vector3(x, 1, z), radius: 0.45, owner: a });
       return a;
     },
-    car(x, z) {
+    car(x, z, cls = 'sedan') {
       const v = {
         id: nextId++,
-        spec: { id: 'statesman', cls: 'sedan', length: 4.8, width: 1.8, height: 1.4, mass: 1400, wheelRadius: 0.33, wheelWidth: 0.22, wheelbase: 2.8, track: 1.5, wheelCount: 4, health: 100 },
+        spec: { id: cls === 'police' ? 'police' : 'statesman', cls, length: 4.8, width: 1.8, height: 1.4, mass: 1400, wheelRadius: 0.33, wheelWidth: 0.22, wheelbase: 2.8, track: 1.5, wheelCount: 4, health: 100 },
         group: new THREE.Group(),
         position: new THREE.Vector3(x, 0.6, z),
         velocity: new THREE.Vector3(),
@@ -231,7 +234,7 @@ function harness(): Harness {
           this.damage.push(amount);
           this.health -= amount;
         },
-        seatPosition: (t: THREE.Vector3) => t.set(v.position.x - 0.4, v.position.y, v.position.z + 0.2),
+        seatPosition: (t: THREE.Vector3, seat = 0) => t.set(v.position.x + (seat % 2 ? 0.4 : -0.4), v.position.y, v.position.z + (seat < 2 ? 0.2 : -0.7)),
       };
       scene.add(v.group);
       const vehicle = v as unknown as ReturnType<Harness['car']>;
@@ -253,6 +256,7 @@ function harness(): Harness {
     flash,
     saved,
     ground,
+    toasts,
     aim,
   };
 }
@@ -467,6 +471,104 @@ describe('combat: fire()', () => {
     h.combat.fire(h.player, 'pistol', new THREE.Vector3(0, 1, 0), ahead());
     expect(car.damage).toHaveLength(0);
     expect(ped.hits).toHaveLength(1);
+  });
+
+  /** Someone sitting in `car`: no collider of their own (seated people have none), only the seat. */
+  const seated = (h: Harness, car: Vehicle, kind: ActorKind, health: number, seat?: number) => {
+    const a = h.ped(kind, car.position.x, car.position.z, health);
+    h.targets.splice(
+      h.targets.findIndex((t) => t.owner === a),
+      1,
+    );
+    a.vehicle = car;
+    if (seat === undefined) car.driver = a;
+    else {
+      (a as { seat?: number }).seat = seat;
+      car.passengers.push(a);
+    }
+    return a;
+  };
+  // In line with the driver's seat of a car at (0, 12) (seat 0 sits 0.4 m to the left), at head and at sill height.
+  const atDriver = () => new THREE.Vector3(-0.4, 1.1, 0.6);
+  const atSill = () => new THREE.Vector3(-0.4, 0.4, 0.6);
+
+  it("the player's rounds carry on into whoever sits in the line of fire: a cop in a car can be shot dead", () => {
+    const h = harness();
+    const car = h.car(0, 12, 'police');
+    const cop = seated(h, car, 'cop', 30);
+    const pistol = h.combat.weapons.get('pistol')!;
+    h.combat.fire(h.player, 'pistol', atDriver(), ahead());
+    expect(car.damage).toHaveLength(1);
+    expect(cop.hits).toHaveLength(1);
+    expect(cop.hits[0].kind).toBe('bullet');
+    expect(cop.hits[0].source).toBe(h.player);
+    expect(cop.hits[0].amount).toBeCloseTo(pistol.damage * TUNING.cabinDamage, 5);
+    expect(cop.velocity.length()).toBe(0); // knocked about in the seat, not out of it
+    expect(h.seen.impact!.map((i) => i.surface)).toEqual(['vehicle', 'flesh']);
+    expect(h.crimes()).toEqual(['gunfire', 'vehicleDamage', 'copAssault']);
+    h.combat.fire(h.player, 'pistol', atDriver(), ahead());
+    expect(cop.alive).toBe(false);
+    expect(h.crimes().at(-1)).toBe('copKilled');
+  });
+
+  it('a round low in the door, or through an empty seat, only hurts the car', () => {
+    const h = harness();
+    const car = h.car(0, 12);
+    const driver = seated(h, car, 'ped', 100);
+    h.combat.fire(h.player, 'pistol', atSill(), ahead());
+    h.combat.fire(h.player, 'pistol', new THREE.Vector3(0.4, 1.1, 0.6), ahead()); // the empty front passenger seat
+    expect(car.damage).toHaveLength(2);
+    expect(driver.hits).toHaveLength(0);
+  });
+
+  it('hits only the first person in line, passengers by their seat', () => {
+    const h = harness();
+    const car = h.car(0, 12);
+    const driver = seated(h, car, 'ped', 100);
+    const behind = seated(h, car, 'ped', 100, 2); // the seat behind the driver, nearer the muzzle
+    const beside = seated(h, car, 'ped', 90, 1);
+    h.combat.fire(h.player, 'pistol', atDriver(), ahead());
+    expect(behind.hits).toHaveLength(1);
+    expect(driver.hits).toHaveLength(0);
+    expect(beside.hits).toHaveLength(0);
+    h.combat.fire(h.player, 'pistol', new THREE.Vector3(0.4, 1.1, 0.6), ahead());
+    expect(beside.hits).toHaveLength(1);
+    // A shotgun's pellets through the same window are summed into one blow.
+    h.combat.fire(h.player, 'shotgun', new THREE.Vector3(0.4, 1.1, 0.6), ahead());
+    expect(beside.hits).toHaveLength(2);
+    expect(beside.alive).toBe(false);
+    expect(h.crimes()).toContain('murder');
+  });
+
+  it("nobody else's rounds reach the people inside, and the player's never reach a cameo or the player", () => {
+    const h = harness();
+    const car = h.car(0, 12);
+    const driver = seated(h, car, 'ped', 100);
+    const cop = h.ped('cop', -0.4, -6);
+    h.combat.fire(cop, 'pistol', atDriver(), ahead());
+    expect(car.damage).toHaveLength(1);
+    expect(driver.hits).toHaveLength(0);
+
+    const star = h.car(0, 12);
+    h.targets.splice(
+      h.targets.findIndex((t) => t.owner === car),
+      1,
+    );
+    const cameo = seated(h, star, 'scripted', 100);
+    (cameo as { invulnerable?: boolean }).invulnerable = true;
+    h.combat.fire(h.player, 'pistol', atDriver(), ahead());
+    expect(cameo.hits).toHaveLength(0);
+
+    const mine = h.car(0, 12);
+    h.targets.splice(
+      h.targets.findIndex((t) => t.owner === star),
+      1,
+    );
+    mine.driver = h.player;
+    h.player.vehicle = mine;
+    h.combat.fire(h.player, 'pistol', atDriver(), ahead()); // (own car excluded: nothing to hit)
+    h.combat.fire(cop, 'pistol', atDriver(), ahead());
+    expect(h.player.hits).toHaveLength(0);
   });
 
   it('world hits are impacts on the world', () => {
@@ -858,6 +960,15 @@ describe('combat: pickups', () => {
 describe('combat: blood and marks', () => {
   const fxOf = (h: Harness) => (h.combat as unknown as { fx: Effects }).fx;
   const decalPositions = (fx: Effects) => (fx.decals.mesh.geometry as THREE.InstancedBufferGeometry).getAttribute('iPos').array as Float32Array;
+  /** Live decals in one ring: the gore splats (DecalRing.Drop) are counted apart from the other stains. */
+  const inRing = (fx: Effects, ring: number) => {
+    const d = fx.decals as unknown as { ringStart: number[]; ringSize: number[]; live: Uint8Array };
+    let n = 0;
+    for (let i = d.ringStart[ring]; i < d.ringStart[ring] + d.ringSize[ring]; i++) n += d.live[i];
+    return n;
+  };
+  const splats = (fx: Effects) => inRing(fx, DecalRing.Drop);
+  const stains = (fx: Effects) => fx.decals.active - splats(fx);
 
   it('a bullet in a person sprays blood on along the shot, marks the ground, and pools when they die', () => {
     const h = harness();
@@ -887,7 +998,8 @@ describe('combat: blood and marks', () => {
     car.velocity.set(0, 0, 14);
     h.events.emit('vehicleHitActor', { actor: ped, vehicle: car, speed: 14, under: false });
     expect(fx.smoke.alive).toBeGreaterThan(10);
-    expect(fx.decals.active).toBe(2);
+    expect(stains(fx)).toBe(2);
+    expect(splats(fx)).toBeGreaterThan(0); // hit hard enough to tear: pieces landing round them
     const pos = decalPositions(fx);
     const slots = [...Array(fx.decals.capacity).keys()];
     const road = slots.find((i) => pos[i * 3 + 2] > 6);
@@ -915,7 +1027,7 @@ describe('combat: blood and marks', () => {
     expect(slots.some((i) => Math.abs(pos[i * 3 + 2] - 13.6) < 0.01)).toBe(true);
   });
 
-  it('wheels going over someone squeeze blood out either side and smear it along the road', () => {
+  it('wheels going over someone squeeze blood out either side, smear it along the road and print it on down the road', () => {
     const h = harness();
     const fx = fxOf(h);
     const ped = h.ped('ped', 2, 8);
@@ -924,13 +1036,33 @@ describe('combat: blood and marks', () => {
     car.velocity.set(0, 0, 6);
     h.events.emit('vehicleHitActor', { actor: ped, vehicle: car, speed: 6, under: true });
     expect(fx.smoke.alive).toBeGreaterThan(8);
-    expect(fx.decals.active).toBe(1);
+    expect(stains(fx)).toBe(2); // the smear, and a splash thrown out to one side
+    expect(splats(fx)).toBeGreaterThan(0); // and what the tyre tore out
     const pos = decalPositions(fx);
     const u = (fx.decals.mesh.geometry as THREE.InstancedBufferGeometry).getAttribute('iU').array as Float32Array;
     // Under the body, not the feet, and drawn out along the car's travel.
     expect(pos[0]).toBeCloseTo(1.4, 3);
     expect(pos[2]).toBeCloseTo(8, 3);
     expect(Math.abs(u[2])).toBeGreaterThan(Math.abs(u[0]) * 5);
+    // The splash went sideways, off the line of travel.
+    expect(Math.abs(pos[3] - 1.4)).toBeGreaterThan(0.3);
+
+    // Driving on, the tyres print red on the road for a while, then wear clean.
+    const before = fx.decals.active;
+    const drive = (metres: number) => {
+      for (let i = 0; i < metres / 0.1; i++) {
+        car.position.z += 0.1;
+        h.run(1 / 60);
+      }
+    };
+    drive(8);
+    const printed = fx.decals.active - before;
+    expect(printed).toBeGreaterThan(10); // two rear wheels, a print every 75 cm
+    drive(30);
+    const worn = fx.decals.active;
+    drive(10);
+    expect(fx.decals.active).toBe(worn);
+    expect(worn - before).toBeLessThan(2 * Math.ceil(24 / 0.75) + 4);
   });
 
   it('a cameo struck or run over by a car shows no blood', () => {
@@ -945,16 +1077,172 @@ describe('combat: blood and marks', () => {
     expect(fx.decals.active).toBe(0);
   });
 
-  it('punches draw no blood; the bat does', () => {
+  it('someone badly hurt and on their feet leaves a trail of drops as they go, and stops when they die', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    const ped = h.ped('ped', 0, 6, 100);
+    ped.health = 55;
+    h.events.emit('actorDamaged', { actor: ped, info: { amount: 45, kind: 'bullet', direction: new THREE.Vector3(0, 0, 1) } });
+    h.run(1 / 60);
+    const at = splats(fx);
+    for (let i = 0; i < 20; i++) {
+      ped.position.z += 0.5;
+      h.run(1 / 10);
+    }
+    const trail = splats(fx) - at;
+    expect(trail).toBeGreaterThan(3); // ten metres
+    expect(trail).toBeLessThan(20);
+    ped.alive = false;
+    h.run(1 / 60);
+    const dead = splats(fx);
+    for (let i = 0; i < 10; i++) {
+      ped.position.z += 0.5;
+      h.run(1 / 10);
+    }
+    expect(splats(fx)).toBe(dead);
+  });
+
+  it('a punch does not open anyone up', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    const ped = h.ped('ped', 0, 6, 100);
+    ped.health = 50;
+    h.events.emit('actorDamaged', { actor: ped, info: { amount: 14, kind: 'melee' } });
+    for (let i = 0; i < 20; i++) {
+      ped.position.z += 0.5;
+      h.run(1 / 10);
+    }
+    expect(splats(fx)).toBe(0);
+  });
+
+  it('hits soak the clothes where they land: a round more than a punch, a bat in between, a blast sooting them', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    const stains: [THREE.Vector3 | null, number, number][] = [];
+    const figure = { stain: (point: THREE.Vector3 | null, size: number, soot = 0) => stains.push([point?.clone() ?? null, size, soot]) };
+    const ped = Object.assign(h.ped('ped', 0, 6, 1000), { figure });
+    const at = new THREE.Vector3(0, 1.3, 5.8);
+    h.events.emit('actorDamaged', { actor: ped, info: { amount: 26, kind: 'bullet', point: at, direction: new THREE.Vector3(0, 0, 1) } });
+    h.events.emit('actorDamaged', { actor: ped, info: { amount: 14, kind: 'melee', point: at } });
+    h.events.emit('actorDamaged', { actor: ped, info: { amount: 32, kind: 'melee', point: at } });
+    expect(stains).toHaveLength(3);
+    expect(stains[0][0]!.distanceTo(at)).toBeLessThan(1e-6);
+    expect(stains[0][1]).toBeGreaterThan(stains[2][1]);
+    expect(stains[2][1]).toBeGreaterThan(stains[1][1]);
+    stains.length = 0;
+    h.events.emit('actorDamaged', { actor: ped, info: { amount: 60, kind: 'explosion', point: at, direction: new THREE.Vector3(0, 0, 1) } });
+    expect(stains.length).toBeGreaterThan(0);
+    expect(stains[0][2]).toBeGreaterThan(0.5);
+    expect(fx).toBeDefined();
+  });
+
+  it('a cameo is never stained', () => {
+    const h = harness();
+    const stains: unknown[] = [];
+    const figure = { stain: (...args: unknown[]) => stains.push(args) };
+    const cameo = Object.assign(h.ped('scripted', 0, 6), { invulnerable: true, figure });
+    const car = h.car(0, 3);
+    car.velocity.set(0, 0, 14);
+    h.events.emit('actorDamaged', { actor: cameo, info: { amount: 26, kind: 'bullet', point: new THREE.Vector3(0, 1.3, 6) } });
+    h.events.emit('vehicleHitActor', { actor: cameo, vehicle: car, speed: 14, under: false });
+    h.events.emit('vehicleHitActor', { actor: cameo, vehicle: car, speed: 14, under: true });
+    expect(stains).toHaveLength(0);
+  });
+
+  it('a car leaves them bloodied front and legs; wheels over them, where the tyre went', () => {
+    const h = harness();
+    const stains: THREE.Vector3[] = [];
+    const figure = { stain: (point: THREE.Vector3 | null) => point && stains.push(point.clone()) };
+    const ped = Object.assign(h.ped('ped', 0, 6), { figure });
+    const car = h.car(0, 3);
+    car.velocity.set(0, 0, 14);
+    h.events.emit('vehicleHitActor', { actor: ped, vehicle: car, speed: 14, under: false });
+    expect(stains).toHaveLength(2);
+    expect(stains[0].y).toBeGreaterThan(stains[1].y);
+    expect(stains[0].z).toBeLessThan(6); // the side that faced the car
+    stains.length = 0;
+    h.events.emit('vehicleHitActor', { actor: ped, vehicle: car, speed: 6, under: true });
+    expect(stains.length).toBeGreaterThan(0);
+    expect(stains[0].y).toBeLessThan(0.5); // lying in the road
+  });
+
+  it('a punch draws a little blood; the bat draws more', () => {
     const h = harness();
     const fx = fxOf(h);
     h.ped('ped', 0, 1.2, 1000);
     h.combat.melee(h.player, h.combat.weapons.get('fists')!.damage);
-    expect(fx.decals.active).toBe(0);
-    expect(fx.smoke.alive).toBeLessThanOrEqual(2);
+    const punch = fx.smoke.alive;
+    expect(punch).toBeGreaterThan(4); // drops and a little haze, not just a puff of cloth
+    expect(fx.decals.active).toBe(1); // drips on the ground
+    h.run(1);
+    expect(fx.smoke.alive).toBe(0);
     h.combat.melee(h.player, h.combat.weapons.get('bat')!.damage, 2);
-    expect(fx.smoke.alive).toBeGreaterThan(8);
-    expect(fx.decals.active).toBe(1);
+    expect(fx.smoke.alive).toBeGreaterThan(punch * 1.8);
+    expect(fx.decals.active).toBe(2);
+  });
+
+  it('a shot through someone splashes the wall behind them, and the splash runs down it', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    h.ped('ped', 0, 6, 1000);
+    // A wall across the street 2 m behind them, facing back up it.
+    const physics = h.ctx.physics as unknown as { raycast: (o: THREE.Vector3, d: THREE.Vector3, max: number, opts?: { mask?: number }) => RayHit | null };
+    const ray = physics.raycast;
+    physics.raycast = (o, d, max, opts) => {
+      if (opts?.mask !== 3 || d.z <= 0) return ray(o, d, max, opts);
+      const distance = (8 - o.z) / d.z;
+      if (distance > max) return null;
+      return { point: o.clone().addScaledVector(d, distance), normal: new THREE.Vector3(0, 0, -1), distance, collider: null as never, owner: null };
+    };
+    h.combat.fire(h.player, 'pistol', muzzle(), ahead());
+    expect(fx.decals.active).toBe(2); // on the ground, and on the wall
+    const pos = decalPositions(fx);
+    const u = (fx.decals.mesh.geometry as THREE.InstancedBufferGeometry).getAttribute('iU').array as Float32Array;
+    const slot = [...Array(fx.decals.capacity).keys()].find((i) => Math.abs(pos[i * 3 + 2] - 8) < 0.05)!;
+    expect(slot).toBeDefined();
+    expect(pos[slot * 3 + 1]).toBeGreaterThan(0.5); // up on the wall, at the height of the wound
+    expect(u[slot * 3 + 1]).toBeLessThan(0); // laid with its runs going downhill
+  });
+
+  it('a blast throws blood out of the people it catches, and they pool where they land', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    h.player.position.set(0, 0, -40);
+    const ped = h.ped('ped', 2, 10, 60);
+    h.combat.explode(new THREE.Vector3(0, 0.8, 10), 9, 120, null);
+    expect(ped.alive).toBe(false);
+    expect(stains(fx)).toBe(2); // the scorch and the spatter beyond them
+    expect(splats(fx)).toBeGreaterThan(0); // caught close: in pieces
+    // Thrown by the blast; the pool waits for the body to stop.
+    ped.velocity.set(0, 0, 0);
+    h.run(1 / 60);
+    expect(stains(fx)).toBe(3);
+  });
+
+  it('a body thrown by a car smears the road as it slides, but not while it is in the air', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    const ped = h.ped('ped', 0, 6);
+    const car = h.car(0, 3);
+    car.velocity.set(0, 0, 14);
+    h.events.emit('vehicleHitActor', { actor: ped, vehicle: car, speed: 14, under: false });
+    const before = fx.decals.active;
+    // Up over the bonnet: nothing.
+    ped.group.position.set(0, 1.2, 6);
+    for (let i = 0; i < 10; i++) {
+      ped.position.z += 0.3;
+      h.run(1 / 60);
+    }
+    expect(fx.decals.active).toBe(before);
+    // Down and sliding: a smear every half-metre or so.
+    ped.group.position.y = 0;
+    for (let i = 0; i < 20; i++) {
+      ped.position.z += 0.2;
+      h.run(1 / 60);
+    }
+    const smears = fx.decals.active - before;
+    expect(smears).toBeGreaterThanOrEqual(5);
+    expect(smears).toBeLessThanOrEqual(8);
   });
 
   it('bullets leave holes in the world and pocks that ride on cars', () => {
@@ -1025,5 +1313,60 @@ describe('combat: effects stay within budget', () => {
     expect(children()).toBe(before);
     const lights = h.ctx.scene.children.filter((c) => (c as THREE.PointLight).isPointLight);
     expect(lights).toHaveLength(2);
+  });
+});
+
+describe('combat: the shotgun in a patrol car', () => {
+  const drive = (h: Harness, vehicle: Vehicle) => {
+    vehicle.driver = h.player;
+    h.player.vehicle = vehicle;
+    h.events.emit('vehicleEntered', { actor: h.player, vehicle, stolen: true, ejected: null });
+  };
+
+  it('is the player\'s the first time they take the wheel, once per car', () => {
+    const h = harness();
+    drive(h, h.car(0, 12));
+    expect(h.combat.has('shotgun')).toBe(false);
+    expect(h.toasts).toHaveLength(0);
+
+    const patrol = h.car(10, 12, 'police');
+    drive(h, patrol);
+    expect(h.combat.has('shotgun')).toBe(true);
+    expect(h.combat.ammo('shotgun')).toEqual({ clip: 5, reserve: TUNING.copCarShells - 5 });
+    expect(h.combat.current.id).toBe('shotgun'); // empty-handed, so it is drawn
+    expect(h.seen.weaponChanged?.at(-1)).toEqual({ weaponId: 'shotgun' });
+    expect(h.audio).toHaveBeenCalledWith('pickup', expect.anything());
+    expect(h.toasts).toHaveLength(1);
+    // The rack in that car is empty now.
+    drive(h, patrol);
+    expect(h.combat.ammo('shotgun')).toEqual({ clip: 5, reserve: 5 });
+    expect(h.toasts).toHaveLength(1);
+
+    // Any police vehicle (a roadblock car, the armed-response van) carries one: shells for the gun already held.
+    const van = h.car(20, 12);
+    van.tags.add('police');
+    drive(h, van);
+    expect(h.combat.ammo('shotgun')).toEqual({ clip: 5, reserve: 5 + TUNING.copCarShells });
+    expect(h.toasts[1]).toContain(`${TUNING.copCarShells} shotgun shells`);
+    // No pickup event: that would claim a one-off world pickup lying under the player's feet.
+    expect(h.count('pickup')).toBe(0);
+  });
+
+  it('does not come with someone else at the wheel, and is left in the rack while the player is full up', () => {
+    const h = harness();
+    const crewed = h.car(0, 12, 'police');
+    const cop = h.ped('cop', 0, 12);
+    crewed.driver = cop;
+    h.events.emit('vehicleEntered', { actor: cop, vehicle: crewed, stolen: false, ejected: null });
+    expect(h.combat.has('shotgun')).toBe(false);
+
+    h.combat.give('shotgun', 999);
+    const patrol = h.car(10, 12, 'police');
+    drive(h, patrol);
+    expect(h.toasts).toHaveLength(0);
+    h.events.emit('playerRespawned', { reason: 'died' }); // half the spare shells gone
+    const reserve = h.combat.ammo('shotgun').reserve;
+    drive(h, patrol);
+    expect(h.combat.ammo('shotgun').reserve).toBe(reserve + TUNING.copCarShells);
   });
 });

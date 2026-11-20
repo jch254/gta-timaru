@@ -7,7 +7,7 @@ import type { StaticMarker } from './minimap';
 import type { MenuNav } from './nav';
 import type { Waypoint } from './waypoint';
 
-type ItemId = 'resume' | 'map' | 'jobs' | 'controls' | 'settings' | 'save' | 'quit';
+type ItemId = 'resume' | 'map' | 'jobs' | 'controls' | 'settings' | 'save' | 'update' | 'quit';
 
 const ITEMS: { id: ItemId; label: string }[] = [
   { id: 'resume', label: 'Resume' },
@@ -16,6 +16,8 @@ const ITEMS: { id: ItemId; label: string }[] = [
   { id: 'controls', label: 'Controls' },
   { id: 'settings', label: 'Settings' },
   { id: 'save', label: 'Save game' },
+  // Only there once a newer build has been deployed (see showUpdate).
+  { id: 'update', label: 'New version' },
   { id: 'quit', label: 'Quit to title' },
 ];
 
@@ -26,6 +28,7 @@ const PANEL_TITLES: Record<ItemId, string> = {
   controls: 'Controls',
   settings: 'Settings',
   save: 'Save game',
+  update: 'A new version is out',
   quit: 'Quit to title',
 };
 
@@ -173,7 +176,9 @@ export class PauseMenu {
   private status: TextCache;
   private foot: HTMLDivElement;
   private footKey = '';
-  private quitArmed = false;
+  /** The post waiting for a second press (Quit, New version), showing "Sure? Press again". */
+  private armed: ItemId | null = null;
+  private updateReady = false;
   private savedNote = '';
   private openedAt = 0;
   private lockLoss = false;
@@ -206,6 +211,7 @@ export class PauseMenu {
     const menu = el('div', 'nw-menu', body);
     ITEMS.forEach((item, i) => {
       const post = el('div', 'nw-post', menu);
+      if (!this.shows(item.id)) post.style.display = 'none';
       this.postLabels.push(new TextCache(el('span', 'nw-post-text', post)));
       this.postLabels[i].set(item.label);
       post.addEventListener('pointerenter', () => {
@@ -240,8 +246,7 @@ export class PauseMenu {
     this.isOpen = true;
     this.openedAt = performance.now();
     this.lockLoss = lockLoss;
-    this.quitArmed = false;
-    this.postLabels[ITEMS.length - 1].set(ITEMS[ITEMS.length - 1].label);
+    this.disarm();
     this.refreshStatus();
     this.shown.set(true);
     this.focus = 'menu';
@@ -282,6 +287,19 @@ export class PauseMenu {
     this.mapDirect = false;
   }
 
+  /** A newer build has been deployed: put up the post that saves and reloads onto it. */
+  showUpdate() {
+    if (this.updateReady) return;
+    this.updateReady = true;
+    this.posts[ITEMS.findIndex((item) => item.id === 'update')].style.display = '';
+    // The first sheet carries a line about it; refill it if it is up.
+    if (this.isOpen && this.pane === 'resume') this.showPane('resume', true);
+  }
+
+  private shows(id: ItemId): boolean {
+    return id !== 'update' || this.updateReady;
+  }
+
   private refreshStatus() {
     const { clock, player, world } = this.host.ctx;
     if (!clock || !player) return;
@@ -297,12 +315,34 @@ export class PauseMenu {
     this.posts[this.index]?.classList.remove('sel');
     this.index = index;
     this.posts[index].classList.add('sel');
-    if (ITEMS[index].id !== 'quit' && this.quitArmed) {
-      this.quitArmed = false;
-      this.postLabels[ITEMS.length - 1].set(ITEMS[ITEMS.length - 1].label);
-    }
+    if (ITEMS[index].id !== this.armed) this.disarm();
     this.showPane(ITEMS[index].id);
     if (sound) this.host.sound('uiMove');
+  }
+
+  /** Moves the highlight up or down the posts, passing over any not shown. */
+  private step(delta: 1 | -1) {
+    const n = ITEMS.length;
+    let i = this.index;
+    do i = (i + delta + n) % n;
+    while (!this.shows(ITEMS[i].id));
+    this.select(i, true);
+  }
+
+  /** First press of a post that asks twice: true if this was it (and the post now asks). */
+  private arm(id: ItemId): boolean {
+    if (this.armed === id) return false;
+    this.disarm();
+    this.armed = id;
+    this.postLabels[ITEMS.findIndex((item) => item.id === id)].set('Sure? Press again');
+    return true;
+  }
+
+  private disarm() {
+    if (!this.armed) return;
+    const i = ITEMS.findIndex((item) => item.id === this.armed);
+    this.postLabels[i].set(ITEMS[i].label);
+    this.armed = null;
   }
 
   private setFocus(focus: 'menu' | 'panel') {
@@ -339,13 +379,15 @@ export class PauseMenu {
         this.showPane('save', true);
         break;
       }
-      case 'quit':
-        if (!this.quitArmed) {
-          this.quitArmed = true;
-          this.postLabels[this.index].set('Sure? Press again');
-        } else {
+      case 'update':
+        // Saved first, so the new version picks up where this one left off.
+        if (!this.arm('update')) {
+          ctx.save.save();
           location.reload();
         }
+        break;
+      case 'quit':
+        if (!this.arm('quit')) location.reload();
         break;
     }
   }
@@ -384,6 +426,15 @@ export class PauseMenu {
       case 'save':
         this.fillText(pane, ['Writes your progress to this browser: cash, kit, jobs done and where you are standing.', this.savedNote || (this.host.ctx.save.exists() ? 'There is a save on file. Saving again replaces it.' : 'Nothing saved yet.')]);
         break;
+      case 'update': {
+        const job = this.host.ctx.missions?.active ?? null;
+        this.fillText(pane, [
+          '03 Quest has been updated since you started playing. Reload to play the new version.',
+          'This saves your game first, then reloads: cash, kit, jobs done and where you are standing all carry over.',
+          job ? `The job you are on, ${job.title}, will have to be started again.` : 'Nothing you are doing now will be lost.',
+        ]);
+        break;
+      }
       case 'quit':
         this.fillText(pane, ['Back to the title screen.', 'Anything since your last save is gone for good, so save first if it matters.']);
         break;
@@ -420,6 +471,7 @@ export class PauseMenu {
       el('span', 'nw-kv-key', row, key);
       el('span', 'nw-kv-value', row, value);
     }
+    if (this.updateReady) el('p', 'nw-para nw-note', pane, 'A new version of 03 Quest is out. Choose New version to save and reload onto it.');
   }
 
   private fillJobs(pane: HTMLElement) {
@@ -724,9 +776,8 @@ export class PauseMenu {
       return;
     }
     if (this.focus === 'menu') {
-      const n = ITEMS.length;
-      if (nav.up) this.select((this.index + n - 1) % n, true);
-      else if (nav.down) this.select((this.index + 1) % n, true);
+      if (nav.up) this.step(-1);
+      else if (nav.down) this.step(1);
       else if (nav.confirm) this.activate();
       else if (nav.right && FOCUSABLE[ITEMS[this.index].id]) this.activate();
       return;

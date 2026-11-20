@@ -59,6 +59,33 @@ export function explosionFalloff(distance: number, radius: number, core = 0.25):
   return 1 - (distance - inner) / (radius - inner);
 }
 
+/**
+ * Closest approach of the line through `origin` along the unit vector `dir` to the segment `a`–`b`. Writes the
+ * distance along the line (`t`, may be negative) and the squared gap between the two (`gap2`) into `out`.
+ */
+export function rayToSegment(origin: THREE.Vector3, dir: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3, out: { t: number; gap2: number }): { t: number; gap2: number } {
+  const sx = b.x - a.x;
+  const sy = b.y - a.y;
+  const sz = b.z - a.z;
+  const wx = origin.x - a.x;
+  const wy = origin.y - a.y;
+  const wz = origin.z - a.z;
+  const ds = dir.x * sx + dir.y * sy + dir.z * sz;
+  const ss = sx * sx + sy * sy + sz * sz;
+  const dw = dir.x * wx + dir.y * wy + dir.z * wz;
+  const sw = sx * wx + sy * wy + sz * wz;
+  const denom = ss - ds * ds;
+  let s = denom > 1e-9 ? (sw - dw * ds) / denom : 0;
+  s = s < 0 ? 0 : s > 1 ? 1 : s;
+  const t = s * ds - dw;
+  const gx = wx + dir.x * t - sx * s;
+  const gy = wy + dir.y * t - sy * s;
+  const gz = wz + dir.z * t - sz * s;
+  out.t = t;
+  out.gap2 = gx * gx + gy * gy + gz * gz;
+  return out;
+}
+
 /** Camera shake 0..1 for an explosion `distance` away: felt out to about five radii. */
 export function explosionShake(distance: number, radius: number): number {
   if (radius <= 0) return 0;

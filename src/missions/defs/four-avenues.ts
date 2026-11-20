@@ -17,6 +17,9 @@ const GRID: SpotObject = { place: 'four-aves-start', snap: 'lane', road: 'moorho
 
 const GARAGE_KERB: SpotObject = { place: 'chch-garage', snap: 'lane', along: 7, kerb: true };
 
+/** The Easterlies' driver (the race rival of that name), when he mouths off. */
+const SKIDS = 'Skids';
+
 /**
  * 4. Christchurch, a Friday night in early September 1995. The first Mururoa test (Tuesday the 5th) is on
  * every radio and the town is angry about it; the Easterlies' legitimate face is Flash Harkness's car yard,
@@ -41,13 +44,14 @@ export const fourAvenues: MissionDef = {
       block: true,
       objective: null,
       lines: [
-        line(DAZZA, "So you're the one who left three Easterlies on East Street. Neville rang. He was whispering."),
+        line(DAZZA, "So you're the hard case who left three Easterlies on East Street. Neville rang. Silly prick was whispering."),
         line(DAZZA, "I'm Dazza. I fix cars, and on a Friday night I fix who wins."),
-        line(DAZZA, "Lap of the four aves tonight. My driver's in Christchurch Hospital with both hands broken. Flash Harkness's idea of a transfer fee."),
+        line(DAZZA, "Lap of the four aves tonight. My driver's in Christchurch Hospital, both hands munted. Flash Harkness's idea of a fucking transfer fee."),
         line(DAZZA, "Harkness runs the Easterlies out of a car yard. Clocked imports: speedos wound halfway back to new on the boat over. His boy Skids is on pole."),
-        line(DAZZA, "Flash has five grand on Skids tonight, and he'll be there to watch it come in."),
+        line(DAZZA, "Flash has five grand on Skids tonight, and the bastard'll be there to watch it come in."),
         line(MACK, 'And if I lose?'),
         line(DAZZA, "Don't."),
+        line(DAZZA, "Oh, and she pulls left under brakes, the cow. Otherwise she's grunty as. Give her some herbs."),
       ],
     },
     { kind: 'setTime', hour: 22, unlessBetween: [20.5, 4.5], fade: true },
@@ -62,14 +66,15 @@ export const fourAvenues: MissionDef = {
       vehicle: 'v8',
       stop: true,
       objective: 'Line up on Moorhouse Ave, by the Deans Ave corner',
-      lines: [line(MACK, 'Pulls left under brakes, he says. He might have led with that.')],
-      // The Mayor, on the car radio (a cameo), then the news everybody is angry about.
+      lines: [line(MACK, 'Pulls left under brakes, he says. Could have fucking led with that.')],
+      // The Mayor, on the car radio (a cameo), then the news everybody is angry about, and Mack's view of it.
       cues: [
         ...cameoCue('nicky-roe', 9, (mayor) => [
           line(onTheRadio(mayor), 'And it gives me enormous pleasure to declare the Friday night market open. Seven months I have had the new tram, and I still wave at it. Safe home!'),
           line(MACK, 'Will do, Your Worship.'),
         ]),
         { at: 24, lines: [line('Radio, faintly', "Paris has confirmed a second test will follow Tuesday's blast at Mururoa. Wellington has already called our ambassador home.")] },
+        { at: 36, lines: [line(MACK, "Blowing up the bloody Pacific on our doorstep. Whole country's ropeable, and fair enough.")] },
       ],
     },
     { kind: 'checkpoint', label: 'the grid', at: GRID },
@@ -90,11 +95,17 @@ export const fourAvenues: MissionDef = {
       loseReason: 'Beaten to the line. Dazza has stopped answering to his name',
       lines: [
         line(TAMA, "Kia ora. Dazza's new driver? That's Skids on pole. Easterly money says you eat his exhaust, e hoa."),
-        line(TAMA, 'Win it and the whole 03 hears by smoko.'),
-        line(TRACEY, "Whole town's been in a filthy mood since Mururoa on Tuesday. Good night to be loud."),
+        line(SKIDS, "Timaru, eh? Hope that shitheap's got more grunt than your town, ya wanker."),
+        line(TAMA, 'Ignore the knob, bro. Skids is all mouth. Win it and the whole 03 hears by smoko.'),
+        line(TRACEY, "Whole town's been pissed off since Mururoa on Tuesday. Good night to be bloody loud."),
         line(TRACEY, 'Keep it off the tram tracks, Timaru.'),
       ],
-      cues: [{ at: 45, lines: [line(TRACEY, 'Skids is cutting the park corner! He always cuts the park corner!')] }],
+      cues: [
+        { at: 32, lines: [line(SKIDS, "Gutless as, that V8! Dazza should've left the fucking thing up on the hoist!")] },
+        { at: 45, lines: [line(TRACEY, 'Skids is cutting the park corner! Cheeky prick always cuts the park corner!')] },
+        { at: 70, lines: [line(TAMA, 'Hard out, Timaru! Foot to the fucking floor and give it some herbs!')] },
+        { at: 95, lines: [line(TRACEY, "If Skids loses this he'll spit the dummy all the way home to New Brighton, the tosser.")] },
+      ],
     },
     { kind: 'checkpoint', label: 'the finish line', at: FINISH },
     {
@@ -108,8 +119,13 @@ export const fourAvenues: MissionDef = {
       toast: 'They know the V8 and Dazza wants it back. A panel and paint shop can make it a different car',
       lines: [
         line(TAMA, "Ka pai, e hoa! First time Skids has seen anybody's tail-lights."),
-        line(FLASH, "Enjoy it, Timaru. I'm Flash Harkness. You just cost me five grand, and I collect in person."),
-        line(TRACEY, 'Blue lights on Deans Ave! Scatter!'),
+        line(SKIDS, 'That was a fucking fluke, ya egg! A fluke!'),
+        line(FLASH, "Enjoy it, Timaru. I'm Flash Harkness. You just cost me five fucking grand, and I collect in person."),
+        line(TRACEY, 'Shit, blue lights on Deans Ave! Rattle your dags and scatter!'),
+      ],
+      cues: [
+        { at: 22, lines: [line(MACK, "Fourteen seasons on the chain, and now I'm a bloody boy racer with the cops up my arse. Mum would've had kittens.")] },
+        { at: 40, lines: [line(MACK, "Panel and paint shop. New coat of paint, new car, and nobody's the wiser. She'll be right.")] },
       ],
     },
     {
@@ -123,13 +139,15 @@ export const fourAvenues: MissionDef = {
       objective: "Take the V8 home to Dazza's workshop in Sydenham",
       returnObjective: "Get back in Dazza's V8",
       damageReason: "There's not enough V8 left to take home",
+      cues: [{ at: 5, lines: [line(MACK, "Easy does it. Dazza'll do his bloody nut if I bring her home munted.")] }],
     },
     {
       kind: 'say',
       lines: [
-        line(DAZZA, 'Two grand, and Harkness is out five. He keeps a list, and you just went to the top of it.'),
+        line(DAZZA, "Tama's already rung. Says Skids packed a proper sad on the finish line. Threw his fucking steering lock."),
+        line(DAZZA, 'Two grand, and Harkness is out five. He keeps a list, the prick, and you just went straight to the top of it.'),
         line(MACK, 'Is that good?'),
-        line(DAZZA, "It's not boring. Get some sleep. Tomorrow I'll tell you what he's really after."),
+        line(DAZZA, "It's not boring. Go and get your head down. Tomorrow I'll tell you what that wanker's really after."),
       ],
     },
   ],

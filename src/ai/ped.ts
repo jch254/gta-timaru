@@ -57,6 +57,8 @@ const GUN_DROP_SECONDS = 45;
 const WALKABLE = (e: RoadEdge) => walkable(e);
 const STREET = (e: RoadEdge) => e.drivable && e.footpaths;
 const WALLS = { mask: CollisionGroup.World as number };
+/** Closest a pedestrian walks up to the player (centre to centre): the two capsules plus a hair. */
+const PLAYER_GAP = PEDS.radius * 2 + 0.05;
 const _fp = makePoint();
 const _o = new THREE.Vector3();
 const _d = new THREE.Vector3();
@@ -101,6 +103,9 @@ export class Ped implements PedHandle {
   readonly invulnerable: boolean;
 
   private humanoid: Humanoid;
+  get figure(): Humanoid {
+    return this.humanoid;
+  }
   private body: RAPIER.RigidBody;
   private collider: RAPIER.Collider;
   private groupsUp: number;
@@ -157,7 +162,8 @@ export class Ped implements PedHandle {
   private biasTimer = 0;
   private biasX = 0;
   private biasZ = 0;
-  private seat = 0;
+  /** Seat taken while riding (Actor.seat). */
+  seat = 0;
   private wantOut = false;
   // Fighting.
   private weaponId: string | null = null;
@@ -232,7 +238,8 @@ export class Ped implements PedHandle {
     this.homeZ = this.roamZ = setup.z;
     const R = ctx.physics.rapier;
     this.body = ctx.physics.world.createRigidBody(R.RigidBodyDesc.kinematicPositionBased().setTranslation(setup.x, y + FEET, setup.z));
-    this.groupsUp = ctx.physics.groups(CollisionGroup.Character, CollisionGroup.World | CollisionGroup.Vehicle);
+    // Standing, the capsule stops cars and the player on foot; knocked down (or shoved aside) it stops neither.
+    this.groupsUp = ctx.physics.groups(CollisionGroup.Character, CollisionGroup.World | CollisionGroup.Vehicle | CollisionGroup.Character);
     this.groupsDown = ctx.physics.groups(CollisionGroup.Character, CollisionGroup.World);
     this.collider = ctx.physics.world.createCollider(R.ColliderDesc.capsule(PEDS.halfHeight, PEDS.radius).setCollisionGroups(this.groupsUp), this.body);
     ctx.physics.setOwner(this.collider, this);
@@ -403,6 +410,7 @@ export class Ped implements PedHandle {
     this.dodgeZ = -sin * s;
     this.react = 'dodge';
     this.reactTimer = 1.1;
+    if (this.reactive && vehicle.driver === this.world.ctx.player) this.world.bark(this, 'nearMiss');
   }
 
   /** Hit by a vehicle closing at `closing` m/s. */
@@ -535,6 +543,11 @@ export class Ped implements PedHandle {
   /** On their feet (not knocked flat). */
   get standing(): boolean {
     return this.react !== 'down';
+  }
+
+  /** An ordinary passer-by (not a scripted character) up and about on foot: free to shout at what they see. */
+  get vocal(): boolean {
+    return this.reactive && this.alive && !this.seatedIn && this.react !== 'down' && this.behaviour !== 'attack';
   }
 
   dispose() {
@@ -713,12 +726,12 @@ export class Ped implements PedHandle {
     const stride = Math.min(speed * dt, d);
     let nx = p.x + hx * stride + this.sepX * dt;
     let nz = p.z + hz * stride + this.sepZ * dt;
-    if (cars && this.carAt(nx, nz, ignore)) {
+    if ((cars && this.carAt(nx, nz, ignore)) || this.intoPlayer(nx, nz)) {
       // Slide along rather than through: try a sidestep, else wait.
       const side = this.slot % 2 === 0 ? 1 : -1;
       nx = p.x + hz * stride * side;
       nz = p.z - hx * stride * side;
-      if (this.carAt(nx, nz, ignore)) return d;
+      if ((cars && this.carAt(nx, nz, ignore)) || this.intoPlayer(nx, nz)) return d;
     }
     p.x = nx;
     p.z = nz;
@@ -759,6 +772,22 @@ export class Ped implements PedHandle {
       if (Math.abs(dx * sin + dz * cos) < v.spec.length / 2 + 0.35 && Math.abs(dx * cos - dz * sin) < v.spec.width / 2 + 0.35) return true;
     }
     return false;
+  }
+
+  /** Would a step to (x, z) push into the player on foot? (Steps that open the gap are always allowed.) */
+  private intoPlayer(x: number, z: number): boolean {
+    const player = this.world.ctx.player;
+    if (player.vehicle || !player.alive) return false;
+    const q = player.position;
+    const p = this.position;
+    if (Math.abs(q.y - p.y) > 1.5) return false;
+    const dx = x - q.x;
+    const dz = z - q.z;
+    const d2 = dx * dx + dz * dz;
+    if (d2 >= PLAYER_GAP * PLAYER_GAP) return false;
+    const ox = p.x - q.x;
+    const oz = p.z - q.z;
+    return d2 < ox * ox + oz * oz;
   }
 
   /** A gentle push away from whoever is closest, refreshed now and then. */
