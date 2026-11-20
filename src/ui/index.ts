@@ -1,5 +1,6 @@
 import './ui.css';
 import type { Blip, GameContext, System, UiApi } from '../core/types';
+import { updates as tabUpdates, type UpdateWatch } from '../core/update';
 import { ChooseDialog } from './choose';
 import { el, Flag, hint, pixelRatio } from './dom';
 import { bilingual, locationLines } from './format';
@@ -70,9 +71,15 @@ class Ui implements UiApi, System {
   private hurt = 0;
   private lastHurt = -1e9;
   private deaths = 0;
+  /** A newer build of the game has been deployed since this one started. */
+  private updateReady = false;
+  private updateToasted = false;
   private cleanups: (() => void)[] = [];
 
-  constructor(private ctx: GameContext) {
+  constructor(
+    private ctx: GameContext,
+    private updates: UpdateWatch = tabUpdates,
+  ) {
     // Only DOM here: the other systems do not exist yet (see init()).
     const root = (this.root = el('div', 'nw-ui'));
     this.pausedFlag = new Flag(root, 'nw-paused');
@@ -131,6 +138,13 @@ class Ui implements UiApi, System {
     } catch (err) {
       console.warn('ui: map setup failed; carrying on without the minimap', err);
     }
+
+    this.cleanups.push(
+      this.updates.onAvailable(() => {
+        this.updateReady = true;
+        this.pause?.showUpdate();
+      }),
+    );
 
     this.cleanups.push(
       events.on('zoneChanged', ({ name, city }) => {
@@ -240,6 +254,8 @@ class Ui implements UiApi, System {
     }
     pause.open(screen, lockLoss);
     this.syncMenu();
+    // A natural moment to ask whether a newer build is out (spaced out by the watch itself).
+    void this.updates.check();
   }
 
   private resume(gesture: boolean) {
@@ -402,6 +418,11 @@ class Ui implements UiApi, System {
 
     this.subtitles.update(live);
     this.bigBanner.update(live);
+    // A newer build: said once, in free roam, never over a menu or in the middle of a job.
+    if (this.updateReady && !this.updateToasted && !this.menuOpen && !paused && !ctx.missions?.active) {
+      this.updateToasted = true;
+      this.toast(pause ? 'A new version of 03 Quest is out. Pause to get it.' : 'A new version of 03 Quest is out. Reload the page to get it.', 8);
+    }
     this.toasts.update(dt);
 
     const player = ctx.player;
@@ -418,6 +439,6 @@ class Ui implements UiApi, System {
   }
 }
 
-export function createUi(ctx: GameContext): UiApi & System {
-  return new Ui(ctx);
+export function createUi(ctx: GameContext, updates?: UpdateWatch): UiApi & System {
+  return new Ui(ctx, updates);
 }

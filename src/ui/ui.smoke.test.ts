@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { EventBus } from '../core/events';
 import type { Action, District, GameContext, GameEvents, MissionSummary, SettingsData, System, UiApi } from '../core/types';
+import { UpdateWatch } from '../core/update';
 
 /**
  * Smoke test for the whole UI against a tiny stand-in DOM and a fake game: builds it, runs frames, pushes
@@ -216,7 +217,7 @@ function makeGame() {
       ammo: () => ({ clip: 7, reserve: 42 }),
     },
     police: { level: 0, heat: 0, evading: 0 },
-    missions: { list: () => missions, active: null },
+    missions: { list: () => missions, active: null as MissionSummary | null },
     audio: {
       play() {
         calls.sounds++;
@@ -234,7 +235,7 @@ function makeGame() {
 }
 
 type Ui = UiApi & System;
-let createUi: (ctx: GameContext) => Ui;
+let createUi: (ctx: GameContext, updates?: UpdateWatch) => Ui;
 
 beforeAll(async () => {
   const g = globalThis as Record<string, unknown>;
@@ -253,10 +254,10 @@ beforeAll(async () => {
   ({ createUi } = await import('./index'));
 });
 
-function setup() {
+function setup(updates?: UpdateWatch) {
   body.children = [];
   const game = makeGame();
-  const ui = createUi(game.ctx);
+  const ui = createUi(game.ctx, updates);
   (game.ctx as { ui: UiApi }).ui = ui;
   void ui.init?.();
   const root = body.children[0];
@@ -450,7 +451,9 @@ describe('UI smoke test', () => {
     const pause = root.find('nw-pause')!;
     expect(pause.classList.contains('on')).toBe(true);
     const posts = root.findAll('nw-post');
-    expect(posts.map((p) => p.text.trim())).toEqual(['Resume', 'Map', 'Jobs', 'Controls', 'Settings', 'Save game', 'Quit to title']);
+    expect(posts.map((p) => p.text.trim())).toEqual(['Resume', 'Map', 'Jobs', 'Controls', 'Settings', 'Save game', 'New version', 'Quit to title']);
+    // New version stays out of sight (and out of the walk) until a newer build is deployed.
+    expect(posts[6].style.display).toBe('none');
     expect(posts[0].classList.contains('sel')).toBe(true);
     expect(pause.find('nw-pause-status')!.textContent).toContain('Friday 9:30 am');
 
@@ -557,7 +560,7 @@ describe('UI smoke test', () => {
     down();
     frame(['interact']);
     expect(reloads).toBe(0);
-    expect(posts[6].text).toContain('Sure?');
+    expect(posts[7].text).toContain('Sure?');
     frame(['interact']);
     expect(reloads).toBe(1);
 
@@ -620,6 +623,65 @@ describe('UI smoke test', () => {
     expect(raw.clock.paused).toBe(false);
     expect(ui.menuOpen).toBe(false);
     expect(calls.capture).toBe(before + 1);
+  });
+
+  it('offers a newer build: one toast in free roam, then a pause post that saves and reloads', () => {
+    const watch = new UpdateWatch({ build: 'old', builtAt: 1 }, 'version.json');
+    const { root, frame, frames, raw, calls } = setup(watch);
+    frames(2);
+    const posts = root.findAll('nw-post');
+    const update = posts[6];
+    expect(update.text.trim()).toBe('New version');
+    const toasted = () => root.findAll('nw-toast').filter((t) => t.classList.contains('on')).map((t) => t.textContent);
+    const job: MissionSummary = { id: 'm2', title: 'North on One', giver: 'Dazza', blurb: '', reward: 800, state: 'active', placeId: 'chch-garage' };
+
+    // Out mid-job: the post appears, but the toast waits for the job to finish.
+    raw.missions.active = job;
+    expect(watch.accept({ build: 'new', builtAt: 2 })).toBe(true);
+    frames(3);
+    expect(update.style.display).toBe('');
+    expect(toasted()).toEqual([]);
+    raw.missions.active = null;
+    frame();
+    expect(toasted()).toEqual(['A new version of 03 Quest is out. Pause to get it.']);
+    frames(600);
+    expect(toasted()).toEqual([]); // said once only
+
+    // The pause screen: a line on the first sheet, and the post now in the walk between Save game and Quit.
+    raw.missions.active = job;
+    frame(['pause']);
+    expect(root.find('nw-pane-resume')!.text).toContain('A new version of 03 Quest is out');
+    const down = () => {
+      raw.input.moveZ = -1;
+      frame();
+      raw.input.moveZ = 0;
+      frame();
+    };
+    for (let i = 0; i < 6; i++) down();
+    expect(update.classList.contains('sel')).toBe(true);
+    expect(root.find('nw-pane-update')!.text).toContain('North on One, will have to be started again');
+
+    // Asks twice, like Quit; moving off an armed post puts its label back.
+    const saves = calls.saves;
+    const reloaded = reloads;
+    frame(['interact']);
+    expect(update.text).toContain('Sure?');
+    down();
+    expect(posts[7].classList.contains('sel')).toBe(true);
+    expect(update.text.trim()).toBe('New version');
+    raw.input.moveZ = 1;
+    frame();
+    raw.input.moveZ = 0;
+    frame();
+    expect(update.classList.contains('sel')).toBe(true);
+    frame(['interact']);
+    expect(update.text).toContain('Sure?');
+    expect(calls.saves).toBe(saves);
+    expect(reloads).toBe(reloaded);
+    // The second press saves first, then reloads.
+    frame(['interact']);
+    expect(calls.saves).toBe(saves + 1);
+    expect(reloads).toBe(reloaded + 1);
   });
 
   it('leaves un-pausing to whoever paused the game first', () => {
