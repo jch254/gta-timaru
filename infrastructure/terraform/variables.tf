@@ -31,7 +31,7 @@ variable "old_site_zone" {
 variable "old_site_subdomains" {
   description = "Old addresses of the game in old_site_zone, each redirected (301) to the site. Empty list turns the redirect off."
   type        = list(string)
-  default     = ["the-03"]
+  default     = ["the-03", "timmaz-hard"]
 }
 
 variable "bucket_name" {
