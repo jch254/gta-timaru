@@ -15,7 +15,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
-import { CHROME, DEV_URL, GPU_ARGS, parseArgs, SETTINGS_KEY } from '../lib.mjs';
+import { CHROME, DEV_URL, GPU_ARGS, newGame, parseArgs, SETTINGS_KEY } from '../lib.mjs';
 
 const MISSIONS = ['severance-pay', 'on-ice', 'mint-sauce', 'four-avenues', 'punt-return', 'southerly-change'];
 const args = parseArgs();
@@ -67,8 +67,7 @@ try {
     SETTINGS_KEY,
   );
   await page.goto(url + (url.includes('?') ? '&' : '?') + 'dev', { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('#btn-new', { timeout: 30000 });
-  await page.click('#btn-new');
+  await newGame(page);
   await page.waitForFunction('window.dev !== undefined', { timeout: 60000 });
   await page.evaluate(botSource);
   await page.evaluate(async () => {

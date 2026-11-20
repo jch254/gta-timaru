@@ -55,6 +55,8 @@ const INTRO: readonly Line[] = [
   { who: MACK, text: 'Aunty Rena said to come by the shop. She had that look. It usually costs somebody something.' },
 ];
 const INTRO_OBJECTIVE = 'See Aunty Rena at her chip shop on the Bay Hill';
+/** The same pointer for a new game begun in Christchurch, a long way up the road. */
+const INTRO_OBJECTIVE_FAR = 'Head down SH1 to Timaru and see Aunty Rena at her chip shop on the Bay Hill';
 
 const TAKE_JOB = 'Take the job';
 const KIP = 'Have a kip and save';
@@ -187,7 +189,10 @@ class Missions implements MissionsApi, System {
           const first = this.runner.defs[0];
           if (first && this.runner.stateOf(first) === 'available') {
             this.introObjective = true;
-            ctx.ui.objective(INTRO_OBJECTIVE);
+            const shop = ctx.world.places.find((p) => p.id === first.placeId);
+            const p = ctx.player.position;
+            const far = !!shop && Math.hypot(shop.x - p.x, shop.z - p.z) > TUNING.introFar;
+            ctx.ui.objective(far ? INTRO_OBJECTIVE_FAR : INTRO_OBJECTIVE);
           }
         }
       }

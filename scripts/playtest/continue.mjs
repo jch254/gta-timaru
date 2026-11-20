@@ -2,7 +2,7 @@
 // Save, reload the page, Continue: checks that money and position come back. Start `pnpm dev` first.
 //   node scripts/playtest/continue.mjs [url]
 import puppeteer from 'puppeteer-core';
-import { CHROME, DEV_URL, GPU_ARGS } from '../lib.mjs';
+import { CHROME, DEV_URL, GPU_ARGS, newGame } from '../lib.mjs';
 
 const url = process.argv[2] || DEV_URL;
 const browser = await puppeteer.launch({
@@ -20,8 +20,11 @@ try {
   });
   const start = async (button) => {
     await page.goto(url + '?dev', { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector(button + ':not([hidden])', { timeout: 30000 });
-    await page.click(button);
+    if (button === '#btn-new') await newGame(page);
+    else {
+      await page.waitForSelector(button + ':not([hidden])', { timeout: 30000 });
+      await page.click(button);
+    }
     await page.waitForFunction('window.dev !== undefined && document.querySelector("#title") === null', { timeout: 90000 });
   };
   await start('#btn-new');

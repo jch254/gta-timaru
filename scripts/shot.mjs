@@ -29,10 +29,11 @@
 //               Implies --hud (the touch controller is part of the picture). This is Chrome pretending, not
 //               Safari: see scripts/playtest/phone.mjs for a played-through run with real touch events.
 //   --out       PNG path, default shots/shot.png
+//   --town      timaru | christchurch: where the new game starts (default timaru), before any --place / --at
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
-import { CHROME, DEV_URL, GPU_ARGS, IPHONE_UA, parseArgs, SETTINGS_KEY } from './lib.mjs';
+import { CHROME, DEV_URL, GPU_ARGS, IPHONE_UA, newGame, parseArgs, SETTINGS_KEY } from './lib.mjs';
 
 const args = parseArgs();
 const url = args.url || DEV_URL;
@@ -82,9 +83,7 @@ try {
     !!args.live,
   );
   await page.goto(url + (url.includes('?') ? '&' : '?') + 'dev', { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('#btn-new', { timeout: 30000 });
-  if (mobile) await page.tap('#btn-new');
-  else await page.click('#btn-new');
+  await newGame(page, { tap: !!mobile, town: args.town ? String(args.town) : 'timaru' });
   await page.waitForFunction('window.dev !== undefined', { timeout: mobile ? 120000 : 60000 });
   const setup = await page.evaluate(
     async (o) => {

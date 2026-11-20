@@ -312,6 +312,9 @@ export class Player implements PlayerApi, System {
       this.velocity.copy(vehicle.velocity);
       this.position.copy(vehicle.position);
       this.heading = vehicle.heading;
+      // Gone into the water with the car: once the cabin is under, the driver drowns as they would on foot.
+      const seat = vehicle.seatPosition(_v, 0);
+      if (this.underwater(seat.x, seat.y + TUNING.seatedHead, seat.z) > 0) this.takeDamage({ amount: TUNING.drownPerSecond * dt, kind: 'drown' });
     } else {
       const t = this.body.translation();
       this.position.set(t.x, t.y - FEET, t.z);
@@ -323,7 +326,8 @@ export class Player implements PlayerApi, System {
       const len = Math.hypot(mx, mz);
       this.sprinting = free && input.held('sprint') && len > 0.1 && !this.aiming;
       const top = this.aiming ? TUNING.aimSpeed : this.sprinting ? TUNING.sprintSpeed : TUNING.walkSpeed;
-      const depth = ctx.world.waterDepthAt(this.position.x, this.position.z);
+      // Water over the feet: standing on a wharf or a bridge above it is not wading.
+      const depth = this.underwater(this.position.x, this.position.y, this.position.z);
       const wade = depth > TUNING.wadeDepth ? TUNING.wadeFactor : 1;
       if (len > 0.05) {
         const k = (Math.min(1, len) * top * wade) / len;
@@ -380,6 +384,13 @@ export class Player implements PlayerApi, System {
 
   lateUpdate(dt: number) {
     this.camera.update(dt);
+  }
+
+  /** How far below the water surface a point is (0 if it is above it or there is no water). */
+  private underwater(x: number, y: number, z: number): number {
+    const world = this.ctx.world;
+    const depth = world.waterDepthAt(x, z);
+    return depth > 0 ? Math.max(0, world.heightAt(x, z) + depth - y) : 0;
   }
 
 }
