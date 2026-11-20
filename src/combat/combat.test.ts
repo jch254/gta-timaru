@@ -31,7 +31,7 @@ interface Harness {
   player: PlayerApi & { shakes: number[]; actions: string[]; held: (THREE.Object3D | null)[]; hits: DamageInfo[] };
   targets: Target[];
   ped(kind: ActorKind, x: number, z: number, health?: number): Actor & { hits: DamageInfo[] };
-  car(x: number, z: number): Vehicle & { damage: number[]; impulses: { x: number; y: number; z: number }[] };
+  car(x: number, z: number, cls?: string): Vehicle & { damage: number[]; impulses: { x: number; y: number; z: number }[] };
   input: { down: Set<Action>; hit: Set<Action>; lookYaw: number; lookPitch: number };
   /** Run frames for `seconds`; presses are cleared after the first frame. */
   run(seconds: number): void;
@@ -39,6 +39,7 @@ interface Harness {
   flash: ReturnType<typeof vi.fn>;
   saved: { key: string; serialize: () => unknown; deserialize: (data: unknown) => void }[];
   ground: { enabled: boolean };
+  toasts: string[];
   aim: THREE.Vector3;
 }
 
@@ -160,6 +161,7 @@ function harness(): Harness {
   const flash = vi.fn();
   const saved: Harness['saved'] = [];
   const input = { down: new Set<Action>(), hit: new Set<Action>(), lookYaw: 0, lookPitch: 0 };
+  const toasts: string[] = [];
 
   const ctx = {
     scene,
@@ -180,7 +182,7 @@ function harness(): Harness {
     },
     actors: { all: new Set<Actor>([player]) },
     vehicles: { all: [] as Vehicle[] },
-    ui: { menuOpen: false },
+    ui: { menuOpen: false, toast: (text: string) => toasts.push(text) },
     audio: { play: audio },
     save: { register: (key: string, serialize: () => unknown, deserialize: (data: unknown) => void) => saved.push({ key, serialize, deserialize }) },
     player,
@@ -205,10 +207,10 @@ function harness(): Harness {
       targets.push({ centre: new THREE.Vector3(x, 1, z), radius: 0.45, owner: a });
       return a;
     },
-    car(x, z) {
+    car(x, z, cls = 'sedan') {
       const v = {
         id: nextId++,
-        spec: { id: 'statesman', cls: 'sedan', length: 4.8, width: 1.8, height: 1.4, mass: 1400, wheelRadius: 0.33, wheelWidth: 0.22, wheelbase: 2.8, track: 1.5, wheelCount: 4, health: 100 },
+        spec: { id: cls === 'police' ? 'police' : 'statesman', cls, length: 4.8, width: 1.8, height: 1.4, mass: 1400, wheelRadius: 0.33, wheelWidth: 0.22, wheelbase: 2.8, track: 1.5, wheelCount: 4, health: 100 },
         group: new THREE.Group(),
         position: new THREE.Vector3(x, 0.6, z),
         velocity: new THREE.Vector3(),
@@ -232,7 +234,7 @@ function harness(): Harness {
           this.damage.push(amount);
           this.health -= amount;
         },
-        seatPosition: (t: THREE.Vector3) => t.set(v.position.x - 0.4, v.position.y, v.position.z + 0.2),
+        seatPosition: (t: THREE.Vector3, seat = 0) => t.set(v.position.x + (seat % 2 ? 0.4 : -0.4), v.position.y, v.position.z + (seat < 2 ? 0.2 : -0.7)),
       };
       scene.add(v.group);
       const vehicle = v as unknown as ReturnType<Harness['car']>;
@@ -254,6 +256,7 @@ function harness(): Harness {
     flash,
     saved,
     ground,
+    toasts,
     aim,
   };
 }
@@ -468,6 +471,104 @@ describe('combat: fire()', () => {
     h.combat.fire(h.player, 'pistol', new THREE.Vector3(0, 1, 0), ahead());
     expect(car.damage).toHaveLength(0);
     expect(ped.hits).toHaveLength(1);
+  });
+
+  /** Someone sitting in `car`: no collider of their own (seated people have none), only the seat. */
+  const seated = (h: Harness, car: Vehicle, kind: ActorKind, health: number, seat?: number) => {
+    const a = h.ped(kind, car.position.x, car.position.z, health);
+    h.targets.splice(
+      h.targets.findIndex((t) => t.owner === a),
+      1,
+    );
+    a.vehicle = car;
+    if (seat === undefined) car.driver = a;
+    else {
+      (a as { seat?: number }).seat = seat;
+      car.passengers.push(a);
+    }
+    return a;
+  };
+  // In line with the driver's seat of a car at (0, 12) (seat 0 sits 0.4 m to the left), at head and at sill height.
+  const atDriver = () => new THREE.Vector3(-0.4, 1.1, 0.6);
+  const atSill = () => new THREE.Vector3(-0.4, 0.4, 0.6);
+
+  it("the player's rounds carry on into whoever sits in the line of fire: a cop in a car can be shot dead", () => {
+    const h = harness();
+    const car = h.car(0, 12, 'police');
+    const cop = seated(h, car, 'cop', 30);
+    const pistol = h.combat.weapons.get('pistol')!;
+    h.combat.fire(h.player, 'pistol', atDriver(), ahead());
+    expect(car.damage).toHaveLength(1);
+    expect(cop.hits).toHaveLength(1);
+    expect(cop.hits[0].kind).toBe('bullet');
+    expect(cop.hits[0].source).toBe(h.player);
+    expect(cop.hits[0].amount).toBeCloseTo(pistol.damage * TUNING.cabinDamage, 5);
+    expect(cop.velocity.length()).toBe(0); // knocked about in the seat, not out of it
+    expect(h.seen.impact!.map((i) => i.surface)).toEqual(['vehicle', 'flesh']);
+    expect(h.crimes()).toEqual(['gunfire', 'vehicleDamage', 'copAssault']);
+    h.combat.fire(h.player, 'pistol', atDriver(), ahead());
+    expect(cop.alive).toBe(false);
+    expect(h.crimes().at(-1)).toBe('copKilled');
+  });
+
+  it('a round low in the door, or through an empty seat, only hurts the car', () => {
+    const h = harness();
+    const car = h.car(0, 12);
+    const driver = seated(h, car, 'ped', 100);
+    h.combat.fire(h.player, 'pistol', atSill(), ahead());
+    h.combat.fire(h.player, 'pistol', new THREE.Vector3(0.4, 1.1, 0.6), ahead()); // the empty front passenger seat
+    expect(car.damage).toHaveLength(2);
+    expect(driver.hits).toHaveLength(0);
+  });
+
+  it('hits only the first person in line, passengers by their seat', () => {
+    const h = harness();
+    const car = h.car(0, 12);
+    const driver = seated(h, car, 'ped', 100);
+    const behind = seated(h, car, 'ped', 100, 2); // the seat behind the driver, nearer the muzzle
+    const beside = seated(h, car, 'ped', 90, 1);
+    h.combat.fire(h.player, 'pistol', atDriver(), ahead());
+    expect(behind.hits).toHaveLength(1);
+    expect(driver.hits).toHaveLength(0);
+    expect(beside.hits).toHaveLength(0);
+    h.combat.fire(h.player, 'pistol', new THREE.Vector3(0.4, 1.1, 0.6), ahead());
+    expect(beside.hits).toHaveLength(1);
+    // A shotgun's pellets through the same window are summed into one blow.
+    h.combat.fire(h.player, 'shotgun', new THREE.Vector3(0.4, 1.1, 0.6), ahead());
+    expect(beside.hits).toHaveLength(2);
+    expect(beside.alive).toBe(false);
+    expect(h.crimes()).toContain('murder');
+  });
+
+  it("nobody else's rounds reach the people inside, and the player's never reach a cameo or the player", () => {
+    const h = harness();
+    const car = h.car(0, 12);
+    const driver = seated(h, car, 'ped', 100);
+    const cop = h.ped('cop', -0.4, -6);
+    h.combat.fire(cop, 'pistol', atDriver(), ahead());
+    expect(car.damage).toHaveLength(1);
+    expect(driver.hits).toHaveLength(0);
+
+    const star = h.car(0, 12);
+    h.targets.splice(
+      h.targets.findIndex((t) => t.owner === car),
+      1,
+    );
+    const cameo = seated(h, star, 'scripted', 100);
+    (cameo as { invulnerable?: boolean }).invulnerable = true;
+    h.combat.fire(h.player, 'pistol', atDriver(), ahead());
+    expect(cameo.hits).toHaveLength(0);
+
+    const mine = h.car(0, 12);
+    h.targets.splice(
+      h.targets.findIndex((t) => t.owner === star),
+      1,
+    );
+    mine.driver = h.player;
+    h.player.vehicle = mine;
+    h.combat.fire(h.player, 'pistol', atDriver(), ahead()); // (own car excluded: nothing to hit)
+    h.combat.fire(cop, 'pistol', atDriver(), ahead());
+    expect(h.player.hits).toHaveLength(0);
   });
 
   it('world hits are impacts on the world', () => {
@@ -1161,5 +1262,60 @@ describe('combat: effects stay within budget', () => {
     expect(children()).toBe(before);
     const lights = h.ctx.scene.children.filter((c) => (c as THREE.PointLight).isPointLight);
     expect(lights).toHaveLength(2);
+  });
+});
+
+describe('combat: the shotgun in a patrol car', () => {
+  const drive = (h: Harness, vehicle: Vehicle) => {
+    vehicle.driver = h.player;
+    h.player.vehicle = vehicle;
+    h.events.emit('vehicleEntered', { actor: h.player, vehicle, stolen: true, ejected: null });
+  };
+
+  it('is the player\'s the first time they take the wheel, once per car', () => {
+    const h = harness();
+    drive(h, h.car(0, 12));
+    expect(h.combat.has('shotgun')).toBe(false);
+    expect(h.toasts).toHaveLength(0);
+
+    const patrol = h.car(10, 12, 'police');
+    drive(h, patrol);
+    expect(h.combat.has('shotgun')).toBe(true);
+    expect(h.combat.ammo('shotgun')).toEqual({ clip: 5, reserve: TUNING.copCarShells - 5 });
+    expect(h.combat.current.id).toBe('shotgun'); // empty-handed, so it is drawn
+    expect(h.seen.weaponChanged?.at(-1)).toEqual({ weaponId: 'shotgun' });
+    expect(h.audio).toHaveBeenCalledWith('pickup', expect.anything());
+    expect(h.toasts).toHaveLength(1);
+    // The rack in that car is empty now.
+    drive(h, patrol);
+    expect(h.combat.ammo('shotgun')).toEqual({ clip: 5, reserve: 5 });
+    expect(h.toasts).toHaveLength(1);
+
+    // Any police vehicle (a roadblock car, the armed-response van) carries one: shells for the gun already held.
+    const van = h.car(20, 12);
+    van.tags.add('police');
+    drive(h, van);
+    expect(h.combat.ammo('shotgun')).toEqual({ clip: 5, reserve: 5 + TUNING.copCarShells });
+    expect(h.toasts[1]).toContain(`${TUNING.copCarShells} shotgun shells`);
+    // No pickup event: that would claim a one-off world pickup lying under the player's feet.
+    expect(h.count('pickup')).toBe(0);
+  });
+
+  it('does not come with someone else at the wheel, and is left in the rack while the player is full up', () => {
+    const h = harness();
+    const crewed = h.car(0, 12, 'police');
+    const cop = h.ped('cop', 0, 12);
+    crewed.driver = cop;
+    h.events.emit('vehicleEntered', { actor: cop, vehicle: crewed, stolen: false, ejected: null });
+    expect(h.combat.has('shotgun')).toBe(false);
+
+    h.combat.give('shotgun', 999);
+    const patrol = h.car(10, 12, 'police');
+    drive(h, patrol);
+    expect(h.toasts).toHaveLength(0);
+    h.events.emit('playerRespawned', { reason: 'died' }); // half the spare shells gone
+    const reserve = h.combat.ammo('shotgun').reserve;
+    drive(h, patrol);
+    expect(h.combat.ammo('shotgun').reserve).toBe(reserve + TUNING.copCarShells);
   });
 });

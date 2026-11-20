@@ -104,6 +104,18 @@ export const TUNING = {
   explosionLift: 2.6,
   /** Knock given to people caught in a blast (m/s at the core). */
   explosionKnock: 5,
+  /** Shells in the shotgun racked in every patrol car, taken the first time the player gets behind the wheel. */
+  copCarShells: 10,
+  /**
+   * The player's rounds carry on through a vehicle's glass and panels into whoever is sitting in their line. A
+   * seated person is a capsule from `cabinLow` to `cabinHigh` metres above the seat, `cabinRadius` thick (the
+   * figure in vehicles/occupant.ts: torso from about 0.2 m, crown at 1 m, shoulders 0.21 m either side), and
+   * takes `cabinDamage` of what the round had left when it reached the car.
+   */
+  cabinLow: 0.25,
+  cabinHigh: 0.8,
+  cabinRadius: 0.25,
+  cabinDamage: 0.8,
   /** Pickups. */
   pickupRadius: 1.4,
   pickupHeight: 0.8,
