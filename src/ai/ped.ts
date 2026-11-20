@@ -404,6 +404,7 @@ export class Ped implements PedHandle {
     this.dodgeZ = -sin * s;
     this.react = 'dodge';
     this.reactTimer = 1.1;
+    if (this.reactive && vehicle.driver === this.world.ctx.player) this.world.bark(this, 'nearMiss');
   }
 
   /** Hit by a vehicle closing at `closing` m/s. */
@@ -536,6 +537,11 @@ export class Ped implements PedHandle {
   /** On their feet (not knocked flat). */
   get standing(): boolean {
     return this.react !== 'down';
+  }
+
+  /** An ordinary passer-by (not a scripted character) up and about on foot: free to shout at what they see. */
+  get vocal(): boolean {
+    return this.reactive && this.alive && !this.seatedIn && this.react !== 'down' && this.behaviour !== 'attack';
   }
 
   dispose() {

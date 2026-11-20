@@ -329,6 +329,22 @@ export const PEDS = {
   lingerRadius: 2.3,
   lingerSeconds: 3.2,
   bumpRadius: 0.75,
+  /** Two passers-by within this of each other, and both this close to the player, may strike up a yarn. */
+  convoPair: 4.5,
+  convoRange: 18,
+  /** Seconds between looks for a pair to talk (a range), and the chance a look finds them talking. */
+  convoEvery: [7, 14] as [number, number],
+  convoChance: 0.6,
+  /** Witnesses: how far a passer-by notices a crash, an explosion, a horn, a gun pointed their way, a chase. */
+  crashWitness: 30,
+  boomWitness: 45,
+  hornWitness: 16,
+  armedWitness: 14,
+  chaseWitness: 22,
+  /** The player's car hitting something at least this hard (m/s) draws a comment. */
+  crashSpeed: 9,
+  /** Driving at least this fast (m/s) with the police on you draws a comment from the footpath. */
+  chaseSpeed: 14,
   /** Animation LOD: beyond this distance the rig updates every third frame. */
   lodDistance: 60,
   /** goTo gives up after distance / speed × this + goToGrace seconds. */
