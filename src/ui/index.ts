@@ -1,4 +1,5 @@
 import './ui.css';
+import { setPauseHold } from '../core/pause';
 import type { Blip, GameContext, System, UiApi } from '../core/types';
 import { updates as tabUpdates, type UpdateWatch } from '../core/update';
 import { ChooseDialog } from './choose';
@@ -56,7 +57,7 @@ class Ui implements UiApi, System {
   private ready = false;
   private running = false;
   private layoutDirty = true;
-  private pausedByUs = false;
+
   private relock = false;
   private wasLocked = false;
   /** Pointer lock has worked at least once this session (so asking for a click to get it back makes sense). */
@@ -246,12 +247,7 @@ class Ui implements UiApi, System {
   private openPause(screen: 'menu' | 'map', lockLoss = false) {
     const { pause, ctx } = this;
     if (!pause || pause.isOpen) return;
-    // If something else already paused the game, leave un-pausing to it.
-    this.pausedByUs = !ctx.clock.paused;
-    if (this.pausedByUs) {
-      ctx.clock.paused = true;
-      ctx.events.emit('pausedChanged', { paused: true });
-    }
+    setPauseHold(ctx, 'menu', true);
     pause.open(screen, lockLoss);
     this.syncMenu();
     // A natural moment to ask whether a newer build is out (spaced out by the watch itself).
@@ -282,12 +278,7 @@ class Ui implements UiApi, System {
   }
 
   private finishResume() {
-    const { ctx } = this;
-    if (this.pausedByUs) {
-      ctx.clock.paused = false;
-      ctx.events.emit('pausedChanged', { paused: false });
-    }
-    this.pausedByUs = false;
+    setPauseHold(this.ctx, 'menu', false);
     this.syncMenu();
   }
 

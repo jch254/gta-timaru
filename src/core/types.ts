@@ -52,7 +52,7 @@ export interface GameContext {
 }
 
 /**
- * Pausing: set `clock.paused` and emit 'pausedChanged'. While paused only `lateUpdate` runs (so menus stay
+ * Pausing: use `setPauseHold` so overlapping pause owners compose. While paused only `lateUpdate` runs (so menus stay
  * live) and the frame is still rendered.
  */
 export interface GameClock {

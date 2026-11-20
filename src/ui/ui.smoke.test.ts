@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { setPauseHold } from '../core/pause';
 import { EventBus } from '../core/events';
 import type { Action, District, GameContext, GameEvents, MissionSummary, SettingsData, System, UiApi } from '../core/types';
 import { UpdateWatch } from '../core/update';
@@ -690,6 +691,39 @@ describe('UI smoke test', () => {
     frame(['interact']);
     expect(calls.saves).toBe(saves + 1);
     expect(reloads).toBe(reloaded + 1);
+  });
+
+  it('releases the portrait pause while a shop choice stays open', async () => {
+    const { ctx, ui, frame } = setup();
+    const choice = ui.choose('Shop', '', ['Buy', 'Leave']);
+    setPauseHold(ctx, 'portrait', true);
+    expect(ctx.clock.paused).toBe(true);
+    setPauseHold(ctx, 'portrait', false);
+    expect(ui.menuOpen).toBe(true);
+    expect(ctx.clock.paused).toBe(false);
+    frame();
+    frame(['pause']);
+    expect(await choice).toBe(-1);
+  });
+
+  it.each([true, false])('keeps the remaining pause owner (portrait first: %s)', (portraitFirst) => {
+    const { ctx, frame, events } = setup();
+    const seen: boolean[] = [];
+    events.on('pausedChanged', ({ paused }) => seen.push(paused));
+    const rotate = (portrait: boolean) => setPauseHold(ctx, 'portrait', portrait);
+    frame();
+    if (portraitFirst) rotate(true);
+    frame(['pause']);
+    if (!portraitFirst) rotate(true);
+    frame();
+    if (portraitFirst) rotate(false);
+    else frame(['pause']);
+    expect(ctx.clock.paused).toBe(true);
+    expect(seen).toEqual([true]);
+    if (portraitFirst) frame(['pause']);
+    else rotate(false);
+    expect(ctx.clock.paused).toBe(false);
+    expect(seen).toEqual([true, false]);
   });
 
   it('leaves un-pausing to whoever paused the game first', () => {

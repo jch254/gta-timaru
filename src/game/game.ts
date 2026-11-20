@@ -4,6 +4,7 @@ import { preloadCharacters } from '../actors/gltf';
 import { createAudio } from '../audio';
 import { createCombat } from '../combat';
 import { EventBus } from '../core/events';
+import { setPauseHold } from '../core/pause';
 import { Input } from '../core/input';
 import { loadInitialRegion } from './initialRegion';
 import type { Snapshot } from '../core/saveFormat';
@@ -177,9 +178,7 @@ export class Game {
   }
 
   setPaused(paused: boolean) {
-    if (this.ctx.clock.paused === paused) return;
-    this.ctx.clock.paused = paused;
-    this.ctx.events.emit('pausedChanged', { paused });
+    setPauseHold(this.ctx, 'external', paused);
   }
 
   /** Extra per-slice callbacks (development tools). */
