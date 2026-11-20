@@ -198,8 +198,8 @@ export interface InputApi {
   lookPitch: number;
   /** True while the mouse is captured (pointer lock) or a gamepad is active. */
   captured: boolean;
-  /** Ask for pointer lock (must be called from a user gesture). */
-  capture(): void;
+  /** Ask for pointer lock. A canvas mousedown is consumed only if used to request capture. */
+  capture(gesture?: MouseEvent): void;
   release(): void;
   /** Human-readable binding for prompts, e.g. label('interact') → 'F'. */
   label(action: Action): string;
@@ -841,6 +841,8 @@ export interface Vehicle {
   heading: number;
   /** Signed forward speed, m/s. */
   speed: number;
+  /** Front wheel angle (radians) requested by full steer at the latest physics step. */
+  readonly steeringLimit: number;
   readonly velocity: THREE.Vector3;
   controls: VehicleControls;
   /** Whoever is driving. Null = parked / abandoned. */

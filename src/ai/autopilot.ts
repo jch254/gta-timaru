@@ -322,7 +322,7 @@ export class AutopilotImpl implements Autopilot {
       toLocal(x, z, v.heading, _p.x, _p.z, _local);
     }
     this.curvature = _local.f > 0.5 ? pursuitCurvature(_local.f, _local.l) : 0;
-    this.steer = pursuitSteer(_local.f, _local.l, v.spec.wheelbase, v.spec.steerLock, speed);
+    this.steer = pursuitSteer(_local.f, _local.l, v.spec.wheelbase, v.steeringLimit);
 
     if (this.avoidObstacles) limit = Math.min(limit, this.scan(dt, limit, brake, pursuit, true));
     else {
@@ -635,7 +635,7 @@ export class AutopilotImpl implements Autopilot {
       return 0;
     }
     this.curvature = lf > 0.5 ? pursuitCurvature(lf, ll) : ll >= 0 ? 0.25 : -0.25;
-    this.steer = pursuitSteer(lf, ll, v.spec.wheelbase, v.spec.steerLock, speed);
+    this.steer = pursuitSteer(lf, ll, v.spec.wheelbase, v.steeringLimit);
     const brake = pursuit ? PURSUIT.brake : DRIVE.brake;
     let limit = this.cruiseSpeed;
     const k = Math.abs(this.curvature);
@@ -648,7 +648,7 @@ export class AutopilotImpl implements Autopilot {
         if (pursuit) {
           // Do not queue: aim off to the open side and keep some speed on.
           const aim = ll - Math.sign(this.blockOff || 1) * PURSUIT.swerve * clamp(1 - this.blockGap / 30, 0.3, 1);
-          this.steer = pursuitSteer(lf, aim, v.spec.wheelbase, v.spec.steerLock, speed);
+          this.steer = pursuitSteer(lf, aim, v.spec.wheelbase, v.steeringLimit);
           limit = Math.max(allowed, Math.min(limit, PURSUIT.passSpeed));
         } else limit = allowed;
       }

@@ -1,4 +1,5 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { Input } from '../core/input';
 import { setPauseHold } from '../core/pause';
 import { EventBus } from '../core/events';
 import type { Action, District, GameContext, GameEvents, MissionSummary, SettingsData, System, UiApi } from '../core/types';
@@ -58,14 +59,17 @@ class FakeElement {
     if (this.parent) this.parent.children = this.parent.children.filter((c) => c !== this);
     this.parent = null;
   }
-  addEventListener(type: string, fn: Listener) {
-    this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]);
+  addEventListener(type: string, fn: Listener, capture = false) {
+    const key = capture === true ? `capture:${type}` : type;
+    this.listeners.set(key, [...(this.listeners.get(key) ?? []), fn]);
   }
-  removeEventListener(type: string, fn: Listener) {
-    this.listeners.set(type, (this.listeners.get(type) ?? []).filter((f) => f !== fn));
+  removeEventListener(type: string, fn: Listener, capture = false) {
+    const key = capture === true ? `capture:${type}` : type;
+    this.listeners.set(key, (this.listeners.get(key) ?? []).filter((f) => f !== fn));
   }
   emit(type: string, event: Record<string, unknown> = {}) {
-    for (const fn of this.listeners.get(type) ?? []) fn({ preventDefault() {}, button: 0, clientX: 50, clientY: 5, pointerId: 1, deltaY: -100, deltaMode: 0, ...event });
+    const e = { defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, button: 0, clientX: 50, clientY: 5, pointerId: 1, deltaY: -100, deltaMode: 0, ...event };
+    for (const key of [`capture:${type}`, type]) for (const fn of this.listeners.get(key) ?? []) fn(e);
   }
   getContext() {
     return fakeContext;
@@ -590,6 +594,43 @@ describe('UI smoke test', () => {
     frame();
     frame(['pause']);
     expect(raw.clock.paused).toBe(false);
+  });
+
+  it.each(['granted', 'denied'])('spends only the capture click when pointer lock is %s', (outcome) => {
+    const { ctx, raw } = makeGame();
+    const canvas = raw.gfx.renderer.domElement;
+    const request = vi.fn(() => outcome === 'denied' ? Promise.reject(new Error('denied')) : undefined);
+    Object.assign(canvas, { requestPointerLock: request });
+    const win = new FakeElement('window');
+    vi.stubGlobal('window', Object.assign(win, { innerWidth: 1280, innerHeight: 720, devicePixelRatio: 2 }));
+    try {
+      const input = new Input(ctx.gfx.renderer.domElement, ctx.settings);
+      Object.assign(ctx, { input });
+      const ui = createUi(ctx);
+      ui.lateUpdate?.(1 / 60);
+      canvas.emit('mousedown');
+      expect(request).toHaveBeenCalledTimes(1);
+      expect([input.pressed('fire'), input.held('fire')]).toEqual([false, false]);
+      if (outcome === 'granted') {
+        fakeDocument.pointerLockElement = canvas;
+        documentListeners.get('pointerlockchange')!.forEach((fn) => fn({}));
+      }
+      win.emit('mousemove', { buttons: 1, movementX: 50, movementY: 0 });
+      input.endFrame();
+      input.poll();
+      expect(input.lookYaw).toBeLessThan(0);
+      expect([input.pressed('fire'), input.held('fire')]).toEqual([false, false]);
+      win.emit('mouseup');
+      canvas.emit('mousedown');
+      expect(request).toHaveBeenCalledTimes(1);
+      expect([input.pressed('fire'), input.held('fire')]).toEqual([true, true]);
+      win.emit('mouseup');
+      expect(input.held('fire')).toBe(false);
+      ui.dispose?.();
+    } finally {
+      fakeDocument.pointerLockElement = null;
+      vi.unstubAllGlobals();
+    }
   });
 
   it('pauses when pointer lock is lost and asks for a click before carrying on after a bare Esc', () => {

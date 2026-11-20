@@ -210,6 +210,7 @@ class ToyVehicle implements Vehicle {
   readonly velocity = new THREE.Vector3();
   heading = 0;
   speed = 0;
+  readonly steeringLimit = 0.5;
   controls = { throttle: 0, brake: 0, steer: 0, handbrake: false };
   driver: Actor | null = null;
   passengers: Actor[] = [];
@@ -256,7 +257,7 @@ class ToyVehicle implements Vehicle {
     }
     this.speed += accel * dt;
     this.speed -= this.speed * (c.handbrake ? 4 : 0.05) * dt;
-    this.heading += ((this.speed * Math.tan(c.steer * 0.5)) / this.spec.wheelbase) * dt;
+    this.heading += ((this.speed * Math.tan(c.steer * this.steeringLimit)) / this.spec.wheelbase) * dt;
     this.velocity.set(Math.sin(this.heading) * this.speed, 0, Math.cos(this.heading) * this.speed);
     this.position.addScaledVector(this.velocity, dt);
     this.group.position.copy(this.position);

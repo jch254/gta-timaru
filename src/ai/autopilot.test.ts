@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { DRY_ROAD_MU, steeringLimit } from '../vehicles/steering';
 import { Rng } from '../core/rng';
 import type { Actor, GameContext, RoadGraph, Vehicle } from '../core/types';
 import { AutopilotImpl, type PilotWorld } from './autopilot';
@@ -32,6 +33,7 @@ function makeCar(id: number, x: number, z: number, heading: number, spec = SPEC)
     velocity: new THREE.Vector3(),
     heading,
     speed: 0,
+    get steeringLimit() { return steeringLimit(spec, this.speed, DRY_ROAD_MU); },
     controls: { throttle: 0, brake: 0, steer: 0, handbrake: false },
     driver: {} as Actor,
     controller: 'none',
@@ -50,7 +52,7 @@ function makeCar(id: number, x: number, z: number, heading: number, spec = SPEC)
         const stop = 7 * dt;
         v.speed = Math.abs(v.speed) <= stop ? 0 : v.speed - Math.sign(v.speed) * stop;
       } else v.speed += accel * dt;
-      const lock = spec.steerLock / (1 + Math.abs(v.speed) * 0.052);
+      const lock = v.steeringLimit;
       const want = Math.max(-1, Math.min(1, c.steer)) * lock;
       const rate = 2 * dt * (0.6 + lock);
       steerAngle += Math.max(-rate, Math.min(rate, want - steerAngle));

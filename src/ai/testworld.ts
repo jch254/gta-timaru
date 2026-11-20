@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DRY_ROAD_MU, steeringLimit } from '../vehicles/steering';
 import { EventBus } from '../core/events';
 import type { Actor, District, DistrictType, GameContext, GameEvents, RoadGraph, Vehicle, VehicleSpec, WeaponSpec } from '../core/types';
 
@@ -17,6 +18,7 @@ const BASE_SPEC = {
   wheelbase: 2.8,
   mass: 1400,
   steerLock: 0.58,
+  grip: 1,
   topSpeed: 50,
   traffic: true,
   spawn: { cbd: 1, shops: 1, villa: 1 },
@@ -43,6 +45,7 @@ function makeVehicle(id: number, spec: VehicleSpec, x: number, z: number, headin
     velocity: new THREE.Vector3(),
     heading,
     speed: 0,
+    get steeringLimit() { return steeringLimit(spec, this.speed, DRY_ROAD_MU * spec.grip); },
     controls: { throttle: 0, brake: 0, steer: 0, handbrake: false },
     driver: null as Actor | null,
     passengers: [] as Actor[],
@@ -93,7 +96,7 @@ function makeVehicle(id: number, spec: VehicleSpec, x: number, z: number, headin
         const stop = 7 * dt;
         v.speed = Math.abs(v.speed) <= stop ? 0 : v.speed - Math.sign(v.speed) * stop;
       } else v.speed += accel * dt;
-      const lock = spec.steerLock / (1 + Math.abs(v.speed) * 0.052);
+      const lock = v.steeringLimit;
       const want = Math.max(-1, Math.min(1, c.steer)) * lock;
       const rate = 2 * dt * (0.6 + lock);
       steerAngle += Math.max(-rate, Math.min(rate, want - steerAngle));
