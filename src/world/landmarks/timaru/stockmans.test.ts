@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { LandmarkPlacement } from '../../../core/types';
+import { CUT_DROP } from '../../height';
 import { fakeMaterials, fakeWorld, PRIMITIVE_OPS, REAL_BRANDS, RecordingBuilder, signature } from '../rural/fakes';
 import { deptStore, STOCKMANS_STAFF } from './stockmans';
 
@@ -44,7 +45,7 @@ function local(x: number, z: number): [number, number] {
 function ground(x: number, z: number): number {
   const [lx, lz] = local(x, z);
   const natural = FLOOR + Math.max(0, -lz - 18) * 0.18 + Math.max(0, lx - 18) * 0.4;
-  return Math.abs(lx) < 21.5 && lz > -24.5 && lz < 19.6 ? Math.min(natural, FLOOR - 0.04) : natural;
+  return Math.abs(lx) < 21.5 && lz > -24.5 && lz < 19.6 ? Math.min(natural, FLOOR - CUT_DROP) : natural;
 }
 
 function build() {
@@ -56,7 +57,7 @@ function build() {
 
 /** Collider AABBs in the local frame, y above the shop floor. */
 function boxes(out: Recorder): number[][] {
-  const y0 = FLOOR - 0.04;
+  const y0 = FLOOR;
   return out.boxes.map((corners) => {
     const b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
     for (const v of corners) {
@@ -75,7 +76,7 @@ const hits = (b: number[], q: number[]) => b[0] < q[3] && b[3] > q[0] && b[1] < 
 
 describe('Stockmans department store', () => {
   const out = build();
-  const local3 = (v: THREE.Vector3) => [...local(v.x, v.z), v.y - (FLOOR - 0.04)];
+  const local3 = (v: THREE.Vector3) => [...local(v.x, v.z), v.y - FLOOR];
 
   it('builds cleanly within budget', () => {
     expect(out.problems).toEqual([]);

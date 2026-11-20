@@ -71,6 +71,9 @@ export interface TerrainCut {
   y: number;
 }
 
+/** How far below the platform height the ground inside a cut lies, so a floor laid on the platform clears it. */
+export const CUT_DROP = 0.15;
+
 /** How far beyond a cut footprint's back and sides the ground is also taken down: more than one terrain cell. */
 export const CUT_MARGIN = 4.5;
 
@@ -313,7 +316,7 @@ export class TerrainModel {
         const hit = this.graph?.nearest(x, z, 20, (e) => !e.bridge);
         if (hit && hit.distance < hit.edge.width / 2 + (hit.edge.footpaths ? 3.4 : 1.4) + 4.2) continue;
       }
-      h = Math.min(h, c.y - 0.04);
+      h = Math.min(h, c.y - CUT_DROP);
     }
     return h;
   }

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { LandmarkBuilder, LandmarkPlacement } from '../../../core/types';
+import { CUT_DROP } from '../../height';
 import { fakeMaterials, fakeWorld, type FakeWorldOptions, PRIMITIVE_OPS, REAL_BRANDS, RecordingBuilder, signature } from '../rural/fakes';
 import { DEKKO_STAFF, discountStore } from './dekko';
 import { MILLSTONE_DOOR, nightclub } from './millstone';
@@ -22,7 +23,8 @@ function build(builder: LandmarkBuilder, placement: LandmarkPlacement, world: Fa
   const out = new ColliderRecorder(fakeMaterials(), w);
   const slices = builder(placement, out);
   if (slices) while (!slices.next().done);
-  return { out, siteY: w.groundAt(placement.x, placement.z) };
+  // A shop on a cut platform stands on the platform, just above the cut ground (see Site).
+  return { out, siteY: w.groundAt(placement.x, placement.z) + (placement.footprint?.level ? CUT_DROP : 0) };
 }
 
 /** World point → the placement's local frame (x across the front, z towards the front). */
@@ -85,7 +87,7 @@ function dekkoGround(): (x: number, z: number) => number {
   return (x, z) => {
     const [lx, lz] = local(DEKKO, x, z);
     const h = natural(x, z);
-    return Math.abs(lx) < 16.5 && lz > -20.5 && lz < 15.6 ? Math.min(h, cut - 0.04) : h;
+    return Math.abs(lx) < 16.5 && lz > -20.5 && lz < 15.6 ? Math.min(h, cut - CUT_DROP) : h;
   };
 }
 
