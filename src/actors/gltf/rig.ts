@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import type { Humanoid, HumanoidLook, HumanoidPose, MaterialLibrary } from '../../core/types';
 import type { BodyTemplate, ClipPair } from './assets';
+import { WOUNDS, bloodUniforms } from './blood';
 import { hatGeometry } from './hats';
 import { bodyVariant, hairOf, lookMaterials, shadowVariant, sleevesOf, type LookMaterials } from './looks';
 
@@ -73,6 +74,30 @@ const _p = new THREE.Vector3();
 const _m = new THREE.Matrix4();
 const _gait = { a: null as ClipPair | null, b: null as ClipPair | null, w: 0, cycle: 1, phaseA: 0, phaseB: 0 };
 
+/** The bones a hit is placed against (each from a joint to the next, with how far its skin is from that line), to find where on the body it landed. */
+const LIMBS: readonly [string, string, number][] = [
+  ['pelvis', 'spine_02', 0.12],
+  ['spine_02', 'neck_01', 0.12],
+  ['neck_01', 'Head', 0.06],
+  ['Head', 'Head', 0.1],
+  ['upperarm_l', 'lowerarm_l', 0.05],
+  ['lowerarm_l', 'hand_l', 0.04],
+  ['upperarm_r', 'lowerarm_r', 0.05],
+  ['lowerarm_r', 'hand_r', 0.04],
+  ['thigh_l', 'calf_l', 0.07],
+  ['calf_l', 'foot_l', 0.05],
+  ['thigh_r', 'calf_r', 0.07],
+  ['calf_r', 'foot_r', 0.05],
+];
+/** A stain spreads to its full size over this many seconds, and never past this many metres across. */
+const SOAK_SECONDS = 2.5;
+const STAIN_MAX = 0.36;
+const _sa = new THREE.Vector3();
+const _sb = new THREE.Vector3();
+const _sc = new THREE.Vector3();
+const _sd = new THREE.Vector3();
+const _sm = new THREE.Matrix4();
+
 export class GltfHumanoid implements Humanoid {
   readonly group = new THREE.Group();
   private model: THREE.Object3D;
@@ -112,6 +137,13 @@ export class GltfHumanoid implements Humanoid {
   private size: number;
   private snap = true;
   private mats: LookMaterials;
+  /** Blood on this figure (see blood.ts): the uniforms its own material copies read, and those copies once hurt. */
+  private blood = bloodUniforms();
+  private bloodList: THREE.MeshStandardMaterial[] | null = null;
+  /** Each stain's full radius (the uniform's radius grows towards it) and the next slot to use. */
+  private stainTo = new Float32Array(WOUNDS);
+  private stainCursor = 0;
+  private soaking = false;
   /** Stands in for the body in the shadow pass only: a tenth of the triangles in one draw call. */
   private shadow: THREE.SkinnedMesh;
   private hat: THREE.Mesh | null = null;
@@ -203,7 +235,7 @@ export class GltfHumanoid implements Humanoid {
     if (level !== this.level) {
       this.level = level;
       this.mesh.geometry = this.variant(level);
-      this.mesh.material = level >= 3 ? this.mats.far() : this.mats.list;
+      this.mesh.material = level >= 3 ? this.mats.far() : (this.bloodList ?? this.mats.list);
       if (this.hat) this.hat.visible = level < 3;
     }
     this.shadow.visible = shadow && !legacy;
@@ -250,6 +282,7 @@ export class GltfHumanoid implements Humanoid {
   }
 
   update(dt: number) {
+    if (this.soaking) this.soak(dt);
     this.pending = Math.min(this.pending + dt, 8);
     if (!this.awake || this.pending < TICK[this.level] * 0.9) return;
     const step = this.pending;
@@ -375,6 +408,7 @@ export class GltfHumanoid implements Humanoid {
   }
 
   dispose() {
+    this.clean();
     this.setHeld(null);
     this.mixer.stopAllAction();
     this.mixer.uncacheRoot(this.model);
@@ -384,6 +418,111 @@ export class GltfHumanoid implements Humanoid {
     // Geometry, materials and textures are shared; only the bone texture belongs to this figure.
     this.mesh.skeleton.dispose();
     this.mats.release();
+  }
+
+  // ───────────── blood ─────────────
+
+  stain(point: THREE.Vector3 | null, size: number, soot = 0) {
+    const wounds = this.blood.uWounds.value;
+    if (soot > 0) this.blood.uSoot.value = Math.min(1, Math.max(this.blood.uSoot.value, soot));
+    if (point && size > 0) {
+      const at = this.bindPoint(point, size);
+      if (!at) return;
+      const { x, y, z, r, max } = at;
+      // On top of an earlier stain: that one spreads instead.
+      let slot = -1;
+      for (let i = 0; i < WOUNDS; i++) {
+        const o = i * 4;
+        if (this.stainTo[i] > 0 && Math.hypot(wounds[o] - x, wounds[o + 1] - y, wounds[o + 2] - z) < this.stainTo[i] * 0.8) {
+          slot = i;
+          break;
+        }
+      }
+      if (slot >= 0) this.stainTo[slot] = Math.min(max, Math.hypot(this.stainTo[slot], r));
+      else {
+        slot = this.stainCursor;
+        this.stainCursor = (this.stainCursor + 1) % WOUNDS;
+        const o = slot * 4;
+        wounds[o] = x;
+        wounds[o + 1] = y;
+        wounds[o + 2] = z;
+        wounds[o + 3] = r * 0.35;
+        this.stainTo[slot] = Math.min(max, r);
+      }
+      this.soaking = true;
+    }
+    if (!this.bloodList) {
+      this.bloodList = this.mats.bloody(this.blood);
+      if (this.bloodList && this.level < 3) this.mesh.material = this.bloodList;
+    }
+  }
+
+  clean() {
+    this.blood.uWounds.value.fill(0);
+    this.blood.uSoot.value = 0;
+    this.stainTo.fill(0);
+    this.soaking = false;
+    if (!this.bloodList) return;
+    this.bloodList = null;
+    if (this.level < 3) this.mesh.material = this.mats.list;
+    this.mats.unbloody();
+  }
+
+  /** Stains spreading through the cloth towards their full size. */
+  private soak(dt: number) {
+    const wounds = this.blood.uWounds.value;
+    let growing = false;
+    for (let i = 0; i < WOUNDS; i++) {
+      const to = this.stainTo[i];
+      const o = i * 4 + 3;
+      if (wounds[o] >= to) continue;
+      wounds[o] = Math.min(to, wounds[o] + (to * dt) / SOAK_SECONDS);
+      growing = true;
+    }
+    this.soaking = growing;
+  }
+
+  /**
+   * Where world point `p` sits on the body in the bind pose, by the limb nearest it (as the skin follows that
+   * bone), with `size` metres and the largest stain converted to the same units. A hit reported on the outside
+   * of the body's collision capsule is brought in to the skin.
+   */
+  private bindPoint(p: THREE.Vector3, size: number): { x: number; y: number; z: number; r: number; max: number } | null {
+    const skeleton = this.mesh.skeleton;
+    let best = -1;
+    let bestD = Infinity;
+    let depth = 0;
+    for (const [from, to, skin] of LIMBS) {
+      const a = skeleton.getBoneByName(from);
+      const b = skeleton.getBoneByName(to);
+      if (!a || !b) continue;
+      a.getWorldPosition(_sa);
+      b.getWorldPosition(_sb);
+      const line = _sc.subVectors(_sb, _sa);
+      const len2 = line.lengthSq();
+      const t = len2 > 1e-8 ? THREE.MathUtils.clamp(_sb.subVectors(p, _sa).dot(line) / len2, 0, 1) : 0;
+      _sa.addScaledVector(line, t);
+      const d = _sa.distanceToSquared(p);
+      if (d < bestD) {
+        bestD = d;
+        best = skeleton.bones.indexOf(a);
+        depth = skin;
+        _sd.copy(_sa);
+      }
+    }
+    if (best < 0) return null;
+    // From the bone's line out towards the hit, as far as the skin.
+    const out = Math.sqrt(bestD);
+    _sb.copy(p);
+    if (out > depth) _sb.copy(_sd).addScaledVector(_sa.subVectors(p, _sd), depth / out);
+    // world = matrixWorld · bindMatrixInverse · bone.matrixWorld · boneInverse · bindMatrix · bind
+    const mesh = this.mesh;
+    _sm.copy(mesh.matrixWorld).multiply(mesh.bindMatrixInverse).multiply(skeleton.bones[best].matrixWorld).multiply(skeleton.boneInverses[best]).multiply(mesh.bindMatrix);
+    const scale = _sm.getMaxScaleOnAxis();
+    if (!(scale > 1e-6)) return null;
+    _sm.invert();
+    _sa.copy(_sb).applyMatrix4(_sm);
+    return { x: _sa.x, y: _sa.y, z: _sa.z, r: (size * 0.5) / scale, max: (STAIN_MAX * 0.5) / scale };
   }
 
   // ───────────── animation channels ─────────────

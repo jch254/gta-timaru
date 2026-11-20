@@ -1115,6 +1115,57 @@ describe('combat: blood and marks', () => {
     expect(splats(fx)).toBe(0);
   });
 
+  it('hits soak the clothes where they land: a round more than a punch, a bat in between, a blast sooting them', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    const stains: [THREE.Vector3 | null, number, number][] = [];
+    const figure = { stain: (point: THREE.Vector3 | null, size: number, soot = 0) => stains.push([point?.clone() ?? null, size, soot]) };
+    const ped = Object.assign(h.ped('ped', 0, 6, 1000), { figure });
+    const at = new THREE.Vector3(0, 1.3, 5.8);
+    h.events.emit('actorDamaged', { actor: ped, info: { amount: 26, kind: 'bullet', point: at, direction: new THREE.Vector3(0, 0, 1) } });
+    h.events.emit('actorDamaged', { actor: ped, info: { amount: 14, kind: 'melee', point: at } });
+    h.events.emit('actorDamaged', { actor: ped, info: { amount: 32, kind: 'melee', point: at } });
+    expect(stains).toHaveLength(3);
+    expect(stains[0][0]!.distanceTo(at)).toBeLessThan(1e-6);
+    expect(stains[0][1]).toBeGreaterThan(stains[2][1]);
+    expect(stains[2][1]).toBeGreaterThan(stains[1][1]);
+    stains.length = 0;
+    h.events.emit('actorDamaged', { actor: ped, info: { amount: 60, kind: 'explosion', point: at, direction: new THREE.Vector3(0, 0, 1) } });
+    expect(stains.length).toBeGreaterThan(0);
+    expect(stains[0][2]).toBeGreaterThan(0.5);
+    expect(fx).toBeDefined();
+  });
+
+  it('a cameo is never stained', () => {
+    const h = harness();
+    const stains: unknown[] = [];
+    const figure = { stain: (...args: unknown[]) => stains.push(args) };
+    const cameo = Object.assign(h.ped('scripted', 0, 6), { invulnerable: true, figure });
+    const car = h.car(0, 3);
+    car.velocity.set(0, 0, 14);
+    h.events.emit('actorDamaged', { actor: cameo, info: { amount: 26, kind: 'bullet', point: new THREE.Vector3(0, 1.3, 6) } });
+    h.events.emit('vehicleHitActor', { actor: cameo, vehicle: car, speed: 14, under: false });
+    h.events.emit('vehicleHitActor', { actor: cameo, vehicle: car, speed: 14, under: true });
+    expect(stains).toHaveLength(0);
+  });
+
+  it('a car leaves them bloodied front and legs; wheels over them, where the tyre went', () => {
+    const h = harness();
+    const stains: THREE.Vector3[] = [];
+    const figure = { stain: (point: THREE.Vector3 | null) => point && stains.push(point.clone()) };
+    const ped = Object.assign(h.ped('ped', 0, 6), { figure });
+    const car = h.car(0, 3);
+    car.velocity.set(0, 0, 14);
+    h.events.emit('vehicleHitActor', { actor: ped, vehicle: car, speed: 14, under: false });
+    expect(stains).toHaveLength(2);
+    expect(stains[0].y).toBeGreaterThan(stains[1].y);
+    expect(stains[0].z).toBeLessThan(6); // the side that faced the car
+    stains.length = 0;
+    h.events.emit('vehicleHitActor', { actor: ped, vehicle: car, speed: 6, under: true });
+    expect(stains.length).toBeGreaterThan(0);
+    expect(stains[0].y).toBeLessThan(0.5); // lying in the road
+  });
+
   it('a punch draws a little blood; the bat draws more', () => {
     const h = harness();
     const fx = fxOf(h);

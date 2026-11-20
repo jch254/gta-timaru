@@ -52,6 +52,7 @@ export class RigPool {
 
   give(look: number, rig: Humanoid) {
     rig.setHeld(null);
+    rig.clean?.();
     rig.group.removeFromParent();
     this.free[look].push(rig);
   }
@@ -126,6 +127,9 @@ export class Officer implements Actor {
   private body: RAPIER.RigidBody;
   private collider: RAPIER.Collider;
   private rig: Humanoid;
+  get figure(): Humanoid {
+    return this.rig;
+  }
   private weaponModel: THREE.Object3D | null = null;
   private drawn = false;
   // Reused every frame (no garbage in the hot path).

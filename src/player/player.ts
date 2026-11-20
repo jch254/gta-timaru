@@ -34,6 +34,9 @@ export class Player implements PlayerApi, System {
   sprinting = false;
   cameraHeading = Math.PI;
   humanoid: Humanoid;
+  get figure(): Humanoid {
+    return this.humanoid;
+  }
 
   private body: RAPIER.RigidBody;
   private collider: RAPIER.Collider;
@@ -185,6 +188,8 @@ export class Player implements PlayerApi, System {
     await ctx.world.whenLoaded(spot.x, spot.z);
     this.alive = true;
     this.health = this.maxHealth;
+    // Patched up and in clean clothes.
+    this.humanoid.clean?.();
     if (reason === 'died' || reason === 'busted') {
       this.armour = 0;
       // Hospital bill / bail.
