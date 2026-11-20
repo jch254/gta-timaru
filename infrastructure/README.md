@@ -61,8 +61,15 @@ so the zone's records and its Cloudflare token are kept here the way
 **CodeBuild deployment** (`codebuild-project` + `codebuild-terraform-role`)
 - On a push to `main`: runs the unit tests (a red suite aborts before anything
   deploys), applies this Terraform, runs `pnpm run build`, `aws s3 sync`s
-  `dist/` to the bucket, then invalidates the CloudFront distribution (see
-  `buildspec.yml` in the repo root)
+  `dist/` to the bucket, uploads `version.json` last, prunes old files, then
+  invalidates the CloudFront distribution (see `buildspec.yml` in the repo root)
+- `version.json` (the build's commit and time) is what running games read to
+  learn a new build is out and offer a reload (`src/core/update.ts`). It is
+  uploaded with `no-cache`, after every file it stands for.
+- The sync does not `--delete`: a tab opened before a deploy still asks for the
+  old build's hashed files. `prune-old-files.mjs` removes files the new build
+  no longer has once they have been unused for a week (`RETAIN_DAYS`). A
+  failed prune does not fail the deploy; the next one tries again.
 - `CLOUDFLARE_API_TOKEN` is read from SSM Parameter Store by `buildspec.yml`
 - Build results go to the shared-platform build notifier
 

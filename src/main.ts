@@ -1,6 +1,7 @@
 import './style.css';
 import { SAVE_KEY, migrateStorage } from './core/storage';
 import { deviceHints, isTouchFirst } from './core/device';
+import { updates } from './core/update';
 
 // The title screen. Everything here runs before the engine is downloaded, so it stays small: the page's own
 // markup and CSS paint first, the photograph fades in when it arrives, and the buttons work from the first frame.
@@ -68,6 +69,15 @@ if (photo) {
 
 let started = false;
 
+// A newer build deployed while this tab is open. On the title there is nothing to lose, so go and get it; once a
+// game is under way the pause screen offers it instead (src/ui).
+if (!import.meta.env.DEV) {
+  updates.onAvailable(() => {
+    if (!started) updates.reloadOnce();
+  });
+  updates.start();
+}
+
 async function start(load: boolean, town: Town = 'timaru') {
   if (started) return;
   started = true;
@@ -126,6 +136,13 @@ async function start(load: boolean, town: Town = 'timaru') {
       console.error('Audio failed to start', err);
     }
   } catch (err) {
+    // A deploy since this page opened can take the old build's files away from under it. When a newer build is
+    // out, that is the likely reason: load it instead of giving up.
+    if ((await updates.check(true)) && updates.reloadOnce()) {
+      status.textContent = 'Updating…';
+      colour.textContent = 'A new version of 03 Quest is out. Fetching it now.';
+      return;
+    }
     // Say so on the screen as well as in the console: there is nothing else left on it to press.
     status.textContent = 'Could not start';
     colour.textContent = 'Something went wrong while loading. Reload the page to try again.';
