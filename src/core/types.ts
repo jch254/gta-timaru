@@ -517,11 +517,36 @@ export interface LandmarkPlacement {
   x: number;
   z: number;
   heading: number;
-  /** Lots and props are kept out of this radius. */
+  /** Lots and props are kept out of this radius (or out of `footprint` when there is one). */
   clearRadius: number;
+  /**
+   * A rectangle in the placement's frame, centred on it (`w` along local x, `d` along local z), that lots and
+   * street dressing keep out of instead of the clear circle: a shop in a street frontage clears its own plot
+   * and no more. `clearRadius` is then the circle round it, kept for coarse queries.
+   */
+  footprint?: {
+    w: number;
+    d: number;
+    /**
+     * Cut the ground inside down to the footpath height at the middle of the frontage (and a cell's width beyond
+     * the back and sides), for a building with an interior on rising ground: no hillside through the floor.
+     */
+    level?: boolean;
+  };
   /** Visible from far away (kept loaded at any distance). */
   skyline?: boolean;
   params?: Record<string, number | string | boolean>;
+}
+
+/**
+ * A moving walkway or escalator: anyone standing on it is carried from `from` towards `to` (world space,
+ * the middle of each end at tread level) at `speed` metres a second along the slope.
+ */
+export interface Conveyor {
+  from: { x: number; y: number; z: number };
+  to: { x: number; y: number; z: number };
+  width: number;
+  speed: number;
 }
 
 /** A railway or tram line as a sampled path (for trains, trams, level crossings). */
@@ -565,6 +590,17 @@ export interface WorldApi {
   addFocus(x: number, z: number, radius: number): () => void;
   /** Resolves when the area around (x,z) is loaded. */
   whenLoaded(x: number, z: number): Promise<void>;
+  /**
+   * Velocity (m/s, written into `out`) of the conveyor under a pair of feet at (x, y, z), or false when there
+   * is none. Optional so test doubles need not provide it.
+   */
+  conveyorAt?(x: number, y: number, z: number, out: THREE.Vector3): boolean;
+  /**
+   * Height to stand on for someone at height `y`: the highest building floor (see `ChunkBuilder.floor`) at or a
+   * step below `y`, else the ground. `y` of Infinity asks for the top floor, -Infinity the lowest. Optional so test
+   * doubles need not provide it.
+   */
+  floorAt?(x: number, z: number, y: number): number;
 }
 
 // ───────────────────────────── Actors ─────────────────────────────
@@ -677,6 +713,10 @@ export interface PlayerApi extends Actor {
   playAction(pose: HumanoidPose, seconds: number): void;
   /** Kick the camera (recoil, explosions). 0..1. */
   shakeCamera(amount: number): void;
+  /**
+   * Seconds left of being a few drinks down: the view sways a little. Optional so test doubles need not provide it.
+   */
+  tipsy?: number;
   heal(amount: number): void;
   addArmour(amount: number): void;
   /** Respawn points are Places tagged 'hospital' / 'police'. */
@@ -803,6 +843,11 @@ export interface Vehicle {
   wheelsOnGround: number;
   /** Lateral slip 0..1 (for tyre squeal / smoke). */
   slip: number;
+  /**
+   * 0..1 while the driven wheels spin on the spot: a burnout, throttle and brake held together at a standstill.
+   * Optional so test doubles need not provide it.
+   */
+  readonly wheelspin?: number;
   siren: boolean;
   headlightsOn: boolean;
   /** Who owns the AI for this vehicle; systems use it to avoid fighting over controls. */
@@ -919,6 +964,8 @@ export interface CombatApi {
 export interface PedSpawnOptions {
   x: number;
   z: number;
+  /** Height of the floor to stand on, for someone inside a building on a raised or upper floor; default the ground. */
+  y?: number;
   heading?: number;
   look?: Partial<HumanoidLook>;
   kind?: ActorKind;
@@ -1159,8 +1206,21 @@ export interface ChunkBuilder {
    * UVs span 0..1 across the quad, or metres when `uvMetres` is set (tiling textures, office window grids).
    */
   quad(frame: THREE.Matrix4, cx: number, cy: number, cz: number, w: number, h: number, material: THREE.Material, yaw?: number, uvMetres?: boolean): void;
-  /** Static box collider in the same local frame (use for walls, big props). */
+  /**
+   * Static box collider in the same local frame (use for walls, big props). A frame that is tilted as well as
+   * turned (a ramp, an escalator) tilts the box with it.
+   */
   collider(frame: THREE.Matrix4, cx: number, cy: number, cz: number, w: number, h: number, d: number): void;
+  /**
+   * An escalator or moving walkway, ends given in the local frame at tread level: the world carries people
+   * standing on it and draws its moving steps. Optional so test doubles need not provide it.
+   */
+  conveyor?(frame: THREE.Matrix4, from: readonly [number, number, number], to: readonly [number, number, number], width: number, speed: number): void;
+  /**
+   * A level floor inside a building, `w` × `d` centred at (cx, cz) with its top at `cy` (local frame): people
+   * stand on it rather than on the terrain below (see `WorldApi.floorAt`). Optional so test doubles need not provide it.
+   */
+  floor?(frame: THREE.Matrix4, cx: number, cy: number, cz: number, w: number, d: number): void;
   /** Instanced vegetation / repeated props by kind (see world/props registry). */
   instance(kind: string, x: number, y: number, z: number, heading?: number, scale?: number, tint?: number): void;
   /** A point light that only exists at night near the player (street lamps, shop fronts). Budgeted; may be dropped. */

@@ -14,4 +14,9 @@ export const TUNING = {
   /** The explosion a burnt-out vehicle finally makes. */
   explosionRadius: 9,
   explosionDamage: 120,
+  /** Burnouts (throttle and brake together): only from below this speed, the creep stops above `burnoutCreep`. */
+  burnoutBelow: 4,
+  burnoutCreep: 1.6,
+  /** How hard the tail swings with the steering during one, per kilogram. */
+  burnoutSwing: 0.9,
 };

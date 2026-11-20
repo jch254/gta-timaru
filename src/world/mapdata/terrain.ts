@@ -34,6 +34,10 @@ export function buildTerrain(a: Author) {
     [4700, 700],
     [5000, 740],
     [5300, 760],
+    // Pātītī Point, the low headland south of the port with South Beach in its lee.
+    [5420, 752],
+    [5482, 792],
+    [5545, 744],
     [6144, 640],
   );
 

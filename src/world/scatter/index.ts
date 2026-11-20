@@ -6,5 +6,6 @@ import './country';
 import './hoardings';
 import './setpieces';
 import './shopstreets';
+import './chevrons';
 
 export { SCATTERERS } from './registry';

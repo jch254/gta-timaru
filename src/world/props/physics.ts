@@ -92,3 +92,10 @@ export const PROP_PHYSICS: Record<string, PropPhysics> = {
   'rugby-posts': { box: { hx: 2.95, hz: 0.17, height: 3 }, solidTo: 'vehicles' },
   'chch-rugby-posts': { box: { hx: 2.95, hz: 0.17, height: 3 }, solidTo: 'vehicles' },
 };
+
+// Curve warnings and chevron boards on open-road bends (scatter/chevrons.ts): breakaway posts.
+for (const turn of ['left', 'right']) {
+  PROP_PHYSICS[`chevron-pw67-${turn}`] = { box: post(0.05, 1.9), breakSpeed: 2, slow: 0.03, mass: 10 };
+  for (const v of [15, 25, 35, 45, 55, 65, 75, 85]) PROP_PHYSICS[`curve-warning-${turn}-${v}`] = { box: post(0.06, 2.7), breakSpeed: 2.5, slow: 0.04, mass: 16 };
+  for (const v of [15, 25, 35]) PROP_PHYSICS[`chevron-pw66-${turn}-${v}`] = { box: { hx: 0.66, hz: 0.06, height: 2.2 }, breakSpeed: 3, slow: 0.06, mass: 30 };
+}

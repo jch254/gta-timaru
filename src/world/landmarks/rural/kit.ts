@@ -42,6 +42,14 @@ export const CLEAR_RADIUS: Record<string, number> = {
   'rugby-field': 70,
   'rail-station-small': 30,
   marae: 50,
+  'timaru-dept-store': 27,
+  'timaru-discount-store': 20,
+  'timaru-arcade-mall': 27,
+  'timaru-nightclub': 21,
+  'royal-arcade': 29,
+  'northside-mall': 57,
+  'highfield-mall': 56,
+  'patiti-point': 55,
 };
 
 const _p = new THREE.Vector3();

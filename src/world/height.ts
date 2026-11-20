@@ -61,6 +61,19 @@ interface RiverHit {
  * bank or dune face, then about 25 m of dry sand, a swash zone where the waterline sits, and a shallow shelf
  * before the sea bed falls away.
  */
+/** A level platform cut into the ground for a building (see `TerrainModel.setCuts`). */
+export interface TerrainCut {
+  x: number;
+  z: number;
+  heading: number;
+  w: number;
+  d: number;
+  y: number;
+}
+
+/** How far beyond a cut footprint's back and sides the ground is also taken down: more than one terrain cell. */
+export const CUT_MARGIN = 4.5;
+
 function strand(d: number, land: number): number {
   const berm = Math.min(land, 2.2);
   if (d <= -30) return land;
@@ -271,6 +284,41 @@ export class TerrainModel {
 
   /** Final ground height. */
   height(x: number, z: number): number {
+    const h = this.unlevelled(x, z);
+    return this.cuts.length ? this.levelled(x, z, h) : h;
+  }
+
+  /**
+   * Building platforms cut into rising ground (see `LandmarkPlacement.footprint.level`): the ground inside a
+   * footprint, and one terrain cell beyond its back and sides, is taken down to the platform height. Never
+   * raised, and the frontage is left alone so the footpath outside keeps its own line.
+   */
+  setCuts(cuts: readonly TerrainCut[]) {
+    this.cuts = cuts.map((c) => ({ ...c, cos: Math.cos(c.heading), sin: Math.sin(c.heading), reach: Math.hypot(c.w, c.d) / 2 + CUT_MARGIN * 1.5 }));
+  }
+
+  private cuts: (TerrainCut & { cos: number; sin: number; reach: number })[] = [];
+
+  private levelled(x: number, z: number, h: number): number {
+    for (const c of this.cuts) {
+      const dx = x - c.x;
+      const dz = z - c.z;
+      if (Math.abs(dx) > c.reach || Math.abs(dz) > c.reach) continue;
+      const lx = dx * c.cos - dz * c.sin;
+      const lz = dx * c.sin + dz * c.cos;
+      if (Math.abs(lx) >= c.w / 2 + CUT_MARGIN || lz <= -c.d / 2 - CUT_MARGIN || lz >= c.d / 2 - 0.4) continue;
+      // Never under a road or its footpaths, nor a terrain cell short of them (the ground under a footpath's
+      // outer edge would sink between the cells): the margin stops there.
+      if (Math.abs(lx) > c.w / 2 || lz < -c.d / 2) {
+        const hit = this.graph?.nearest(x, z, 20, (e) => !e.bridge);
+        if (hit && hit.distance < hit.edge.width / 2 + (hit.edge.footpaths ? 3.4 : 1.4) + 4.2) continue;
+      }
+      h = Math.min(h, c.y - 0.04);
+    }
+    return h;
+  }
+
+  private unlevelled(x: number, z: number): number {
     const c = this.carved(x, z);
     if (!this.graph) return c.h;
     const hit = this.graph.nearest(x, z, 40, (e) => !e.bridge);

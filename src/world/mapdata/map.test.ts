@@ -2,6 +2,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { RoadEdge } from '../../core/types';
 import { WORLD_BOUNDS } from '../height';
+import { distanceToLandmark, landmarksOverlap } from '../clearance';
 import { generateLots } from '../lots';
 import { compileMap, type CompiledMap } from '../map';
 import type { MapSource } from '../mapsource';
@@ -92,7 +93,17 @@ const LANDMARKS: Record<string, number> = {
   'rugby-field': 70,
   'rail-station-small': 30,
   marae: 50,
+  'timaru-dept-store': 27,
+  'timaru-discount-store': 20,
+  'timaru-arcade-mall': 27,
+  'timaru-nightclub': 21,
+  'royal-arcade': 29,
+  'northside-mall': 57,
+  'highfield-mall': 56,
+  'patiti-point': 55,
 };
+/** Kinds standing in a street frontage, which clear a footprint rather than their circle. */
+const FOOTPRINTS = ['timaru-dept-store', 'timaru-discount-store', 'timaru-arcade-mall', 'timaru-nightclub', 'royal-arcade', 'northside-mall', 'highfield-mall'];
 const SKYLINE = ['chch-cathedral', 'sugarloaf-tower', 'gondola-summit', 'lyttelton-port', 'timaru-basilica', 'timaru-port', 'smithfield-works'];
 /** Kinds that stand on a road by nature. */
 const ON_ROAD = ['bridge-of-remembrance', 'tunnel-portal', 'tram-stop'];
@@ -149,6 +160,9 @@ describe('authored map', () => {
         expect(!!l.skyline, `landmark ${kind} skyline`).toBe(SKYLINE.includes(kind));
         expect(l.name.length, `landmark ${kind} name`).toBeGreaterThan(0);
         expect(map.terrain.natural(l.x, l.z), `landmark ${l.name} on dry land`).toBeGreaterThan(1.5);
+        expect(!!l.footprint, `landmark ${kind} footprint`).toBe(FOOTPRINTS.includes(kind));
+        // The clear circle is the circle round the footprint.
+        if (l.footprint) expect(l.clearRadius, `landmark ${kind} circle round its footprint`).toBeGreaterThanOrEqual(Math.hypot(l.footprint.w, l.footprint.d) / 2 - 0.5);
       }
     }
     for (const l of src.landmarks) expect(LANDMARKS[l.kind], `unknown landmark kind ${l.kind}`).toBeDefined();
@@ -165,8 +179,9 @@ describe('authored map', () => {
       for (const e of map.graph.edges) {
         if (e.cls === 'pedestrian' && PAVED.includes(l.kind)) continue;
         for (const s of e.samples) {
-          const d = Math.hypot(s.x - l.x, s.z - l.z) - e.width / 2;
-          if (d < l.clearRadius) worst.set(e.name, Math.min(worst.get(e.name) ?? Infinity, d));
+          // A footprint has to stay off the carriageway and its footpaths; a circle off the carriageway.
+          const d = l.footprint ? distanceToLandmark(l, s.x, s.z) - e.width / 2 - (e.footpaths ? 3 : 0) : Math.hypot(s.x - l.x, s.z - l.z) - e.width / 2 - l.clearRadius;
+          if (d < 0) worst.set(e.name, Math.min(worst.get(e.name) ?? Infinity, d + (l.footprint ? 0 : l.clearRadius)));
         }
       }
       for (const [name, d] of worst) problems.push(`${l.kind} "${l.name}" (r ${l.clearRadius}): ${name} comes within ${d.toFixed(1)} m`);
@@ -184,7 +199,7 @@ describe('authored map', () => {
         const b = src.landmarks[j];
         const kinds = [a.kind, b.kind].sort().join('+');
         if (kinds === 'cathedral-square+chch-cathedral') continue;
-        if (Math.hypot(a.x - b.x, a.z - b.z) < a.clearRadius + b.clearRadius) problems.push(`${a.name} overlaps ${b.name}`);
+        if (landmarksOverlap(a, b)) problems.push(`${a.name} overlaps ${b.name}`);
       }
     }
     expect(problems).toEqual([]);

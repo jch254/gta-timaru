@@ -15,6 +15,8 @@ const WRECK_SMOKE = 28;
 const SMOKE_BELOW = 0.35;
 /** Tyre smoke and skid marks start above this lateral slip. */
 const SLIP = 0.5;
+/** Tyre-smoke particles a second from a car doing a burnout flat out (see `Vehicle.wheelspin`). */
+const BURNOUT_SMOKE = 70;
 /** Metres a sliding wheel travels between tyre-mark segments. */
 const SKID_STEP = 0.75;
 /** Most particles one effect may emit for one vehicle in one frame. */
@@ -165,7 +167,9 @@ export class VehicleFx {
 
       // ── Wheels: tyre smoke and marks, dust, spray ──
       let skidding = false;
-      if (v.wheelsOnGround >= 2 && !v.destroyed && moving > 2) {
+      // A burnout smokes (or throws dirt) with the car standing still.
+      const spin = v.wheelspin ?? 0;
+      if (v.wheelsOnGround >= 2 && !v.destroyed && (moving > 2 || spin > 0.15)) {
         const surface = s.surface;
         const sealed = surface === 'road' || surface === 'footpath' || surface === 'paving';
         let tyreRate = 0;
@@ -179,10 +183,14 @@ export class VehicleFx {
             tyreRate = 40 * (v.slip - 0.25) * (1 - 0.6 * wetness);
             skidding = true;
           }
-        } else if (surface !== 'water' && moving > 3) {
+          if (spin > 0.15) {
+            tyreRate = Math.max(tyreRate, BURNOUT_SMOKE * spin * (1 - 0.6 * wetness));
+            skidding = true;
+          }
+        } else if (surface !== 'water' && (moving > 3 || spin > 0.15)) {
           const loose = surface === 'gravel' ? 1 : surface === 'sand' ? 0.9 : surface === 'shingle' ? 0.7 : 0.35;
           dustStyle = surface === 'sand' ? DUST_SAND : surface === 'gravel' || surface === 'shingle' ? DUST_GRAVEL : DUST_GRASS;
-          dustRate = Math.min(30, moving * 1.4) * loose * (1 - 0.85 * wetness) * (1 + v.slip);
+          dustRate = Math.min(30, moving * 1.4 + spin * 24) * loose * (1 - 0.85 * wetness) * (1 + v.slip);
         }
         if (tyreRate > 0 || dustRate > 0 || sprayRate > 0) {
           s.tyre += tyreRate * lod * dt;

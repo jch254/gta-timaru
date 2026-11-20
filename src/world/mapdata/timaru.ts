@@ -1,9 +1,36 @@
 import type { Pt } from '../mapsource';
-import { type Author, mark } from './helpers';
+import { DEKKO_STAFF } from '../landmarks/timaru/dekko';
+import { MILLSTONE_DOOR } from '../landmarks/timaru/millstone';
+import { RINK_MALL_STAFF } from '../landmarks/timaru/rinkmall';
+import { STOCKMANS_STAFF } from '../landmarks/timaru/stockmans';
+import { type Author, facing, mark } from './helpers';
 import { beside, sh1At } from './highway';
 
 const TI = 'timaru' as const;
 const WD = 'washdyke' as const;
+
+/** A spot in a landmark's own frame (x across its front, z towards it, heading from its front). */
+interface LocalSpot {
+  x: number;
+  z: number;
+  heading: number;
+  upstairs?: boolean;
+}
+
+/**
+ * Places for the people who belong in a landmark (shop staff behind their counters, the door of a club), from
+ * spots the landmark's builder publishes in its own frame. Tagged for the town-life system (missions/townlife.ts).
+ */
+function spots(a: Author, id: string, name: string, at: Pt, towards: Pt, list: readonly LocalSpot[], tags: string[]) {
+  const h = facing(at, towards);
+  const c = Math.cos(h);
+  const s = Math.sin(h);
+  list.forEach((p, i) => {
+    const x = at[0] + p.x * c + p.z * s;
+    const z = at[1] - p.x * s + p.z * c;
+    a.b.place(`${id}-${i + 1}`, name, Math.round(x * 100) / 100, Math.round(z * 100) / 100, h + p.heading, TI, [...tags, ...(p.upstairs ? ['upstairs'] : [])]);
+  });
+}
 
 /** Washdyke and Smithfield, then Timaru: the hill town, Caroline Bay, the port. Finishes the railway. */
 export function buildTimaru(a: Author, rail: Pt[]) {
@@ -46,7 +73,8 @@ export function buildTimaru(a: Author, rail: Pt[]) {
   b.road('Strathallan Street', 'street', [[60, 4905], [200, 4905], [305, 4905], [378, 4905], [445, 4905], [505, 4905]]);
   b.road('George Street', 'street', [[200, 5000], [308, 5000], [381, 5000], [452, 5000], [505, 5000]]);
   b.road('Church Street', 'street', [[60, 5095], [200, 5095], [305, 5095], [385, 5095], [455, 5095]]);
-  b.road('North Street', 'street', [[60, 5190], [200, 5190], [303, 5190], [385, 5190], [452, 5190]]);
+  // North Street runs on past Stafford Street and down the bank to the old flour mill by the railway.
+  b.road('North Street', 'street', [[60, 5190], [200, 5190], [303, 5190], [385, 5190], [452, 5190], [492, 5193], [532, 5196]]);
   b.road('Canon Street', 'street', [[385, 5285], [420, 5285]]);
   b.road('Arthur Street', 'street', [[177, 5380], [392, 5380]]);
   b.road('Station Street', 'street', [[505, 4905], [505, 5000]]);
@@ -62,6 +90,8 @@ export function buildTimaru(a: Author, rail: Pt[]) {
   b.road('Wilson Street', 'street', [[165, 5600], [420, 5600]]);
   b.road('Hayes Street', 'street', [[392, 5380], [420, 5600], [420, 5800]]);
   b.road('Beverley Road', 'street', [[156, 5800], [420, 5800]]);
+  // South Street, out along the top of the cliffs to the car park at Pātītī Point.
+  b.road('South Street', 'street', [[404.5, 5480], [560, 5482], [702, 5478]]);
 
   // ── Caroline Bay below the Bay Hill, and the port on its moles and reclamation to the south-east.
   b.road('Virtue Avenue', 'street', [[565, 4735], [600, 4700], [606, 4480]], { footpaths: false, speed: 30 });
@@ -85,6 +115,26 @@ export function buildTimaru(a: Author, rail: Pt[]) {
   mark(a, 'school', 'Highfield School', [-128, 4802], [-128, 4712]);
   mark(a, 'rugby-field', 'Fraser Park', [296, 5700], [296, 5600]);
   mark(a, 'service-station', 'Evans Street Service Station', [232, 4737], [264, 4720]);
+
+  // ── The shops people remember (docs/research/11-timaru-landmarks.md), under invented names: the department
+  // store and the discount store side by side on Stafford Street at Church Street, the arcade mall across the
+  // road from them on the bank above the railway, the nightclub in the old flour mill at the bottom of North
+  // Street, the Royal Arcade (under restoration in 1995), and the two suburban malls.
+  mark(a, 'timaru-dept-store', 'Stockmans', [425.2, 5128], [454, 5128]);
+  mark(a, 'timaru-discount-store', 'Dekko', [428.4, 5159], [453, 5159]);
+  mark(a, 'timaru-arcade-mall', 'The Rink Mall', [482.7, 5122], [454.2, 5122]);
+  mark(a, 'timaru-nightclub', 'The Millstone', [510, 5214.8], [510, 5190]);
+  spots(a, 'staff-stockmans', 'Stockmans', [425.2, 5128], [454, 5128], STOCKMANS_STAFF, ['staff', 'shop:stockmans']);
+  spots(a, 'staff-dekko', 'Dekko', [428.4, 5159], [453, 5159], DEKKO_STAFF, ['staff', 'shop:dekko']);
+  spots(a, 'staff-rink', 'The Rink Mall', [482.7, 5122], [454.2, 5122], RINK_MALL_STAFF, ['staff', 'shop:rink']);
+  spots(a, 'millstone-door', 'The Millstone', [510, 5214.8], [510, 5190], [MILLSTONE_DOOR], ['club-door']);
+  // Friday and Saturday nights the boy racers park up at the Church Street lights and give it a bit.
+  a.b.place('church-stafford', 'Church and Stafford', 455, 5095, 0, TI, ['burnouts']);
+  mark(a, 'royal-arcade', 'Royal Arcade', [418.3, 5048], [453.6, 5048]);
+  mark(a, 'northside-mall', 'Northside Mall', [290.7, 4680.7], [253.4, 4700]);
+  mark(a, 'highfield-mall', 'Highfield Shopping Centre', [0, 4744.5], [3.5, 4697]);
+  // ── Pātītī Point: the headland south of the port, its reserve, lookout and car park, South Beach below.
+  mark(a, 'patiti-point', 'Patiti Point', [762, 5480], [700, 5478]);
 
   a.place('timaru-spawn', 'The Bay Hill', [503, 4756], [500, 4750], TI, ['spawn']);
   a.place('timaru-chipshop', "Aunty Rena's Chip Shop", [489, 4765], [485, 4758], TI, ['safehouse', 'mission']);
@@ -119,4 +169,6 @@ export function buildTimaru(a: Author, rail: Pt[]) {
   a.rect('gleniti', 'Gleniti', TI, 'statehouse', -1150, -340, 4750, 5050, 2);
   a.rect('parkside', 'Parkside', TI, 'statehouse', 120, 480, 5400, 5960, 3);
   a.rect('watlington', 'Watlington', TI, 'statehouse', -480, 120, 5300, 5960, 2);
+  a.rect('south-beach', 'South Beach', TI, 'beach', 755, 840, 5305, 5445, 5);
+  a.rect('patiti-point', 'Patiti Point', TI, 'park', 600, 840, 5445, 5525, 5, 'Pātītī');
 }

@@ -28,6 +28,8 @@ export interface PedWorld {
 export interface PedSetup {
   x: number;
   z: number;
+  /** Floor height for someone put indoors on a raised or upper floor (see `WorldApi.floorAt`). */
+  y?: number;
   heading: number;
   look: HumanoidLook;
   kind: ActorKind;
@@ -222,7 +224,8 @@ export class Ped implements PedHandle {
     this.group.add(this.humanoid.group);
     ctx.scene.add(this.group);
 
-    const y = ctx.world.groundAt(setup.x, setup.z);
+    // Indoors on an upper or raised floor, the floor they were put on; otherwise the ground.
+    const y = setup.y !== undefined ? (ctx.world.floorAt?.(setup.x, setup.z, setup.y) ?? setup.y) : ctx.world.groundAt(setup.x, setup.z);
     this.groundY = y;
     this.position.set(setup.x, y, setup.z);
     this.homeX = this.roamX = setup.x;
@@ -646,7 +649,7 @@ export class Ped implements PedHandle {
       this.groundTimer -= dt;
       if (this.groundTimer <= 0) {
         this.groundTimer = this.moved > 3 || this.react === 'down' || !this.alive ? 0.07 : 0.2;
-        this.groundY = ctx.world.groundAt(p.x, p.z);
+        this.groundY = ctx.world.floorAt ? ctx.world.floorAt(p.x, p.z, p.y) : ctx.world.groundAt(p.x, p.z);
       }
     }
     p.y = Math.abs(this.groundY - p.y) > 1.5 ? this.groundY : damp(p.y, this.groundY, 16, dt);

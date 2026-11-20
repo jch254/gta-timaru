@@ -16,6 +16,7 @@ export class ChaseCamera {
   private zoom = 1;
   private shake = 0;
   private fov = 60;
+  private sway = 0;
 
   constructor(private ctx: GameContext) {
     ctx.events.on('vehicleCrash', ({ vehicle, speed }) => {
@@ -112,6 +113,10 @@ export class ChaseCamera {
       camera.position.y += (Math.random() - 0.5) * this.shake * 0.35;
       this.shake = damp(this.shake, 0, 7, dt);
     }
+    // A few drinks down: the world drifts, slowly, and steadies as it wears off.
+    const tipsy = clamp((player.tipsy ?? 0) / 60, 0, 1);
+    this.sway += dt;
+    const lean = tipsy * (Math.sin(this.sway * 0.9) * 0.6 + Math.sin(this.sway * 0.37) * 0.4);
     // Look slightly ahead of the subject so there is road in view.
     if (!vehicle && player.aiming) {
       const ce = Math.cos(aimElevation);
@@ -120,6 +125,10 @@ export class ChaseCamera {
     } else {
       _dir.set(sin, 0, cos);
       camera.lookAt(_target.addScaledVector(_dir, vehicle ? 2.5 : 0.5));
+    }
+    if (tipsy > 0) {
+      camera.rotateZ(lean * 0.07);
+      camera.rotateY(Math.sin(this.sway * 0.53) * tipsy * 0.03);
     }
   }
 }

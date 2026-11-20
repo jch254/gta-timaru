@@ -3,6 +3,7 @@ import { hashInts, Rng } from '../../core/rng';
 import type { LandmarkPlacement, RailLine, RoadEdge, RoadGraph, Scatterer } from '../../core/types';
 import { Geo } from '../landmarks/rural/kit';
 import { GATE_HALF, POLE_WIRES, PROP } from '../landmarks/rural/props';
+import { inLandmark as insideLandmark } from '../clearance';
 import { SCATTERERS } from './registry';
 import { DRESSING_OFF, ROUND3_OFF } from './util';
 
@@ -229,7 +230,7 @@ export const ruralScatterer: Scatterer = (area, out) => {
   };
   const markers = world.places.filter((q) => q.x > minX - 20 && q.x < maxX + 20 && q.z > minZ - 20 && q.z < maxZ + 20);
   const inLandmark = (x: number, z: number, pad: number): boolean => {
-    for (const l of landmarks) if (Math.hypot(l.x - x, l.z - z) < l.clearRadius + pad) return true;
+    for (const l of landmarks) if (insideLandmark(l, x, z, pad)) return true;
     // Mission markers get the same berth as a landmark of radius 12: no fence across a lay-by or a forecourt.
     for (const q of markers) if (Math.hypot(q.x - x, q.z - z) < 12 + pad) return true;
     return false;

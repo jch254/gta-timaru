@@ -5,7 +5,8 @@ import { fbm, hash2 } from '../core/rng';
 import { CollisionGroup, type District, type GameContext, type GfxApi, type GroundSurface, type LandmarkPlacement, type Lot, type PhysicsApi, type Place, type RailLine, type RoadGraph, type System, type WorldApi } from '../core/types';
 import { Breakables, type Breakable } from './breakables';
 import { buildLot } from './buildings';
-import { ChunkBuilderImpl, type ChunkLight, type ColliderBox } from './chunkbuilder';
+import { ChunkBuilderImpl, type ChunkLight, type ColliderBox, type FloorRect } from './chunkbuilder';
+import { Escalators } from './escalators';
 import { Ground, GroundAttributes } from './ground';
 import { SEA_LEVEL, WORLD_BOUNDS, type TerrainModel } from './height';
 import { LANDMARKS, runLandmark } from './landmarks';
@@ -88,6 +89,9 @@ export class World implements WorldApi, System {
   private root = new THREE.Group();
   private time = 0;
   private breakables: Breakables;
+  private escalators: Escalators;
+  /** Building floors from loaded chunks, by the chunk that built them (see `floorAt`). */
+  private floors = new Map<number, FloorRect[]>();
   private ctx: GameContext | null = null;
 
   constructor(
@@ -139,6 +143,7 @@ export class World implements WorldApi, System {
     this.root.add(this.ground.sea);
     scene.add(this.root);
     this.breakables = new Breakables(this.root, physics, (b, chunk) => this.onPropBroken(b, chunk));
+    this.escalators = new Escalators(this.root, gfx.materials);
   }
 
   // ───────────── Loading ─────────────
@@ -425,6 +430,8 @@ export class World implements WorldApi, System {
     for (const d of chunk.disposables) d.dispose();
     for (const c of chunk.colliders) this.physics.world.removeCollider(c, false);
     this.breakables.dropChunk(chunk.key);
+    this.escalators.drop(chunk.key);
+    this.floors.delete(chunk.key);
   }
 
   private runJobs(budgetMs: number) {
@@ -602,6 +609,7 @@ export class World implements WorldApi, System {
     this.updateLamps(dt, this.gfx.night, this.gfx.lampCount);
     this.updateGlints(this.gfx.night, this.gfx.wetness);
     this.breakables.update(dt);
+    if (this.ctx) this.escalators.update(dt, this.ctx.camera.position);
     // Leaves move with the weather: barely in fog, hard in a nor'wester.
     if (this.ctx) {
       const wind = this.ctx.env.wind;
@@ -774,6 +782,8 @@ export class World implements WorldApi, System {
     }
     this.addInstances(built, chunk.group, chunk.disposables, chunk);
     chunk.lights = built.lights;
+    this.escalators.add(chunk.key, built.conveyors);
+    if (built.floors.length) this.floors.set(chunk.key, built.floors);
     yield 'finish';
 
     // Physics.
@@ -961,6 +971,31 @@ export class World implements WorldApi, System {
     const hit = this.graph.nearest(x, z, 12, (e) => e.bridge);
     if (hit && hit.distance < hit.edge.width / 2 + 0.7) return hit.y;
     return this.heightAt(x, z);
+  }
+
+  conveyorAt(x: number, y: number, z: number, out: THREE.Vector3): boolean {
+    return this.escalators.at(x, y, z, out);
+  }
+
+  floorAt(x: number, z: number, y: number): number {
+    const ground = this.groundAt(x, z);
+    let best = -Infinity;
+    let lowest = Infinity;
+    for (const list of this.floors.values()) {
+      for (const f of list) {
+        const dx = x - f.x;
+        const dz = z - f.z;
+        if (Math.abs(dx) > f.hw + f.hd || Math.abs(dz) > f.hw + f.hd) continue;
+        const c = Math.cos(f.heading);
+        const s = Math.sin(f.heading);
+        if (Math.abs(dx * c - dz * s) > f.hw || Math.abs(dx * s + dz * c) > f.hd) continue;
+        lowest = Math.min(lowest, f.y);
+        // A step up is allowed: someone walking in off a lower floor climbs onto it.
+        if (f.y <= y + 0.45 && f.y > best) best = f.y;
+      }
+    }
+    if (y === -Infinity) return lowest < Infinity ? Math.max(lowest, ground) : ground;
+    return best > -Infinity ? Math.max(best, ground) : ground;
   }
 
   normalAt(x: number, z: number, target = new THREE.Vector3()): THREE.Vector3 {
