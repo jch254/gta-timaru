@@ -1,3 +1,5 @@
+import { decodeTexture, surfaceUrl } from '../render/textureAssets';
+import { onPhone } from '../render/quality';
 import * as THREE from 'three';
 import { clamp, lerp, smooth } from '../core/math';
 import { mix3, type V3 } from '../core/vec3';
@@ -120,22 +122,19 @@ const L_ROCK = 4;
 const L_HARD = 5;
 const L_GRAVEL = 6;
 
-const layerFiles = {
-  ...(import.meta.glob('../assets/textures/ground/*.jpg', { query: '?url', import: 'default', eager: true }) as Record<string, string>),
-  ...(import.meta.glob('../assets/textures/{grass,sand,shingle,concrete,gravel}_{col,nor,rgh}.jpg', { query: '?url', import: 'default', eager: true }) as Record<string, string>),
-};
-
 async function pixels(name: string, size: number): Promise<Uint8ClampedArray> {
-  const url = layerFiles[`../assets/textures/${name}.jpg`];
+  const url = surfaceUrl(`${name}.jpg`);
   if (!url) throw new Error(`ground layer "${name}" is not in the bundle`);
-  const blob = await (await fetch(url)).blob();
-  const bitmap = await createImageBitmap(blob, { colorSpaceConversion: 'none' });
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const g = canvas.getContext('2d', { willReadFrequently: true })!;
-  g.drawImage(bitmap, 0, 0, size, size);
-  bitmap.close();
-  return g.getImageData(0, 0, size, size).data;
+  return decodeTexture(async () => {
+    const blob = await (await fetch(url)).blob();
+    const bitmap = await createImageBitmap(blob, { colorSpaceConversion: 'none' });
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const g = canvas.getContext('2d', { willReadFrequently: true })!;
+    g.drawImage(bitmap, 0, 0, size, size);
+    bitmap.close();
+    return g.getImageData(0, 0, size, size).data;
+  });
 }
 
 function arrayTexture(data: Uint8Array<ArrayBuffer>, size: number, depth: number, srgb: boolean, anisotropy: number): THREE.DataArrayTexture {
@@ -820,7 +819,7 @@ export class Ground {
   }
 
   private async loadLayers(anisotropy: number) {
-    const detailed = this.gfx.quality === 'high' || this.gfx.quality === 'ultra';
+    const detailed = !onPhone() && (this.gfx.quality === 'high' || this.gfx.quality === 'ultra');
     const size = detailed ? 1024 : 512;
     const nsize = detailed ? 512 : 256;
     const n = LAYERS.length;
