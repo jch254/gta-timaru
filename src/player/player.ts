@@ -54,6 +54,7 @@ export class Player implements PlayerApi, System {
   private respawning = false;
   private zoneTimer = 0;
   private zone = '';
+  private districtId = '';
 
   constructor(private ctx: GameContext) {
     this.id = ctx.actors.nextId();
@@ -394,9 +395,11 @@ export class Player implements PlayerApi, System {
       this.zoneTimer = 0.5;
       const p = this.vehicle ? this.vehicle.position : this.position;
       const name = ctx.world.locationName(p.x, p.z);
-      if (name !== this.zone) {
+      const district = ctx.world.districtAt(p.x, p.z);
+      if (name !== this.zone || district.id !== this.districtId) {
         this.zone = name;
-        ctx.events.emit('zoneChanged', { name, city: ctx.world.districtAt(p.x, p.z).city });
+        this.districtId = district.id;
+        ctx.events.emit('zoneChanged', { name, city: district.city });
       }
     }
   }

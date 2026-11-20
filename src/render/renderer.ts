@@ -8,7 +8,7 @@ import { AIR_HAZE, installAir } from './air';
 import { filmBloom, FilmGradeEffect, type FilmLook, SharpenEffect } from './film';
 import { Materials } from './materials';
 import { loadPhotoSurfaces } from './phototextures';
-import { onPhone, presetFor, QUALITY, type QualityPreset } from './quality';
+import { presetFor, QUALITY, type QualityPreset } from './quality';
 import { Atmosphere } from './sky';
 
 /** Renderer, post-processing stack, cascaded shadows and the atmosphere. */
@@ -77,15 +77,15 @@ export class Gfx implements GfxApi {
 
   /** Photographic surface textures, if the asset pack is present. Call before the world is built. */
   loadTextures(onProgress?: (fraction: number) => void): Promise<number> {
-    // A phone holds the 1K surface sets at half size: a quarter of the texture memory, which is what gets a
-    // tab killed on a phone, and nothing it can show at its size.
-    return loadPhotoSurfaces(Math.min(this.preset.anisotropy, this.renderer.capabilities.getMaxAnisotropy()), onProgress, onPhone() ? 512 : undefined);
+    return loadPhotoSurfaces(Math.min(this.preset.anisotropy, this.renderer.capabilities.getMaxAnisotropy()), onProgress);
   }
 
   setQuality(quality: QualityLevel) {
     this.quality = quality;
     this.preset = presetFor(quality);
     this.csm.remove();
+    // CSM.dispose removes shader hooks, but each light owns its rendered shadow targets.
+    for (const light of this.csm.lights) light.dispose();
     this.csm.dispose();
     this.composer.dispose();
     this.build();

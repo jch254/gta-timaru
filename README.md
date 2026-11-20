@@ -16,6 +16,14 @@ pnpm dev
 
 Then open the URL Vite prints. `pnpm build` type-checks and writes a self-contained `dist/` with relative asset paths and hashed filenames, suitable for an S3 bucket behind CloudFront. `pnpm preview` serves that build locally. `pnpm test` runs the unit tests.
 
+### Production browser gate
+
+After integrating changes, run `pnpm install --frozen-lockfile && pnpm test && pnpm build && pnpm test:browser`. The last command starts its own loopback preview of **the existing `dist/`**, plays in a fresh Chrome profile, and shuts both down. Set `CHROME_PATH` to the executable outside the standard macOS install. For Firefox, use `BROWSER=firefox FIREFOX_PATH=/path/to/firefox pnpm test:browser` (a WebGL2-capable display or Xvfb/Mesa on Linux).
+
+The gate checks failed Save feedback and preservation of the previous slot, reload → Continue, pause → Resume, a same-road district crossing under throttle, and checkpoint credit after swapping race cars. The production bundle’s existing `?dev` helpers position the scenarios; saving, loading, simulation, HUD and mission ticks run in the browser. There is no dev server or mocked engine. The failed-write case requires the save fix: a quota error must not look like a successful save.
+
+GitHub runs `Production gameplay (chrome)` and `Production gameplay (firefox)` on pull requests and pushes. CodeBuild waits for the matching push workflow to succeed on its exact source commit before it uploads anything. The check uses GitHub’s public API without a token and fails closed if it cannot verify the result. Require both browser checks in branch rules as well to catch regressions before merge. The workflow neither deploys nor needs AWS credentials.
+
 ## Controls
 
 | Action | Keyboard / mouse | Gamepad |
@@ -100,7 +108,7 @@ scripts/shot.mjs     headless screenshots and frame-rate measurements of the run
 scripts/gallery.sh   the same 24 views every time, for before-and-after comparisons
 scripts/playtest/    scripted play sessions and measurement tools for the running dev server
 infrastructure/      Terraform for S3, CloudFront, certificate, DNS and the CodeBuild deploy project
-buildspec.yml        what CodeBuild runs on a push to main: run the tests, apply Terraform, build, upload, invalidate
+buildspec.yml        what CodeBuild runs on a push to main: run the tests, build, upload, invalidate
 ```
 
 `docs/DESIGN.md` explains the architecture, the performance budget and (section 8) what changed after the first build, with measured frame rates. `docs/CONTRACT.md` is the interface contract between modules. `docs/REPORT.md` is the plain account of what works, what is rough and what was cut, with screenshots.
@@ -131,6 +139,6 @@ Both share `scripts/playtest/bot.js`, the honest test player they inject into th
 
 ## Deploying
 
-`infrastructure/` holds the Terraform for a private S3 bucket behind CloudFront, its certificate, the `03.quest` Cloudflare records (www redirects to the apex, as do the game's old addresses) and the token parameter they are edited with, and a CodeBuild project; `buildspec.yml` is what that project runs on each push to `main`: run the unit tests (a red suite stops everything), apply the Terraform, `pnpm run build`, sync `dist/` to the bucket, invalidate CloudFront. [infrastructure/README.md](infrastructure/README.md) has the settings and the one-off first deploy.
+`infrastructure/` holds the Terraform for a private S3 bucket behind CloudFront, its certificate, the `03.quest` Cloudflare records (www redirects to the apex, as do the game's old addresses) and the token parameter they are edited with, and a CodeBuild project; `buildspec.yml` is what that project runs on each push to `main`: run the unit tests, build the game, sync `dist/` to the bucket and invalidate CloudFront. Infrastructure changes require a separate operator plan and apply; see [bootstrap and migration](infrastructure/README.md#operator-workflow).
 
 To host it some other way, upload the contents of `dist/`. All asset URLs are relative, so it works from a bucket root or any prefix. Hashed files under `assets/` can be cached forever; serve `index.html` with a short cache lifetime. Serve `version.json` uncached: a running game reads it every few minutes and, when it names a newer build, offers the player a reload from the pause screen (on the title screen it just reloads). Keep the previous build's `assets/` for a while after a deploy so tabs still open on it keep working.

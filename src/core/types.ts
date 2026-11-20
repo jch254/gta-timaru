@@ -52,7 +52,7 @@ export interface GameContext {
 }
 
 /**
- * Pausing: set `clock.paused` and emit 'pausedChanged'. While paused only `lateUpdate` runs (so menus stay
+ * Pausing: use `setPauseHold` so overlapping pause owners compose. While paused only `lateUpdate` runs (so menus stay
  * live) and the frame is still rendered.
  */
 export interface GameClock {
@@ -1161,7 +1161,7 @@ export interface SaveApi {
   /** Is there a saved game. */
   exists(): boolean;
   /** Write the current game (called at safehouses, after missions, on pause). */
-  save(): void;
+  save(): { ok: true } | { ok: false; message: string };
   /** Load into the running game. Returns false if there is nothing to load. */
   load(): boolean;
   clear(): void;

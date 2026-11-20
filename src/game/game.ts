@@ -4,7 +4,10 @@ import { preloadCharacters } from '../actors/gltf';
 import { createAudio } from '../audio';
 import { createCombat } from '../combat';
 import { EventBus } from '../core/events';
+import { setPauseHold } from '../core/pause';
 import { Input } from '../core/input';
+import { loadInitialRegion } from './initialRegion';
+import type { Snapshot } from '../core/saveFormat';
 import { Save } from '../core/save';
 import { Settings } from '../core/settings';
 import type { Actor, ActorsApi, GameClock, GameContext, GameEvents, System } from '../core/types';
@@ -22,8 +25,7 @@ import { createTram } from '../rail/tram';
 import { createTouch } from '../touch';
 import { plantField } from '../world/props/foliage';
 import { World } from '../world/world';
-
-const STEP = 1 / 60;
+import { FrameClock } from './frame-clock';
 
 class Actors implements ActorsApi {
   all = new Set<Actor>();
@@ -43,7 +45,7 @@ class Actors implements ActorsApi {
 export interface StartOptions {
   canvas: HTMLCanvasElement;
   /** Continue from the save file instead of starting fresh. */
-  load: boolean;
+  snapshot?: Snapshot;
   /** Place id a new game begins at (the map's spawn if left out or not on the map). Ignored when continuing. */
   spawnAt?: string;
   onProgress(stage: string, fraction: number): void;
@@ -57,8 +59,7 @@ export class Game {
   private physics!: Physics;
   private world!: World;
   private input!: Input;
-  private accumulator = 0;
-  private last = 0;
+  private frameClock = new FrameClock();
   private running = false;
 
   static async start(options: StartOptions): Promise<Game> {
@@ -67,7 +68,7 @@ export class Game {
     return game;
   }
 
-  private async init({ canvas, load, spawnAt, onProgress }: StartOptions) {
+  private async init({ canvas, snapshot, spawnAt, onProgress }: StartOptions) {
     onProgress('Starting physics', 0);
     const physics = (this.physics = await Physics.create());
     const settings = new Settings();
@@ -165,30 +166,19 @@ export class Game {
     await world.buildFar((f) => onProgress('Raising the Alps', 0.1 + f * 0.35));
     for (const s of this.systems) await s.init?.();
 
-    const chosen = !load && spawnAt ? world.places.find((p) => p.id === spawnAt) : undefined;
-    const spawn = chosen ?? world.placesTagged('spawn')[0] ?? { x: 0, z: 0, heading: 0 };
-    await world.loadAround(spawn.x, spawn.z, (f) => onProgress('Building the streets', 0.45 + f * 0.5));
-    ctx.player.teleport(spawn.x, spawn.z, spawn.heading);
-    if (load && save.load()) {
-      const p = ctx.player.position;
-      await world.loadAround(p.x, p.z, (f) => onProgress('Finding where you left off', 0.95 + f * 0.05));
-      ctx.player.teleport(p.x, p.z, ctx.player.heading);
-      events.emit('playerRespawned', { reason: 'load' });
-      if (save.loadProblems.length) ctx.ui.toast('The save file was damaged; some progress may be missing.', 8);
-    } else {
-      events.emit('playerRespawned', { reason: 'new' });
-    }
+    const spawn = await loadInitialRegion(world, snapshot, spawnAt, f => onProgress('Building the streets', 0.45 + f * 0.55));
+    if (snapshot) save.apply(snapshot); // Player restoration teleports onto the loaded terrain.
+    else ctx.player.teleport(spawn.x, spawn.z, spawn.heading);
+    events.emit('playerRespawned', { reason: snapshot ? 'load' : 'new' });
     onProgress('Ready', 1);
 
     this.running = true;
-    this.last = performance.now();
+    document.addEventListener('visibilitychange', () => this.frameClock.reset());
     requestAnimationFrame((t) => this.frame(t));
   }
 
   setPaused(paused: boolean) {
-    if (this.ctx.clock.paused === paused) return;
-    this.ctx.clock.paused = paused;
-    this.ctx.events.emit('pausedChanged', { paused });
+    setPauseHold(this.ctx, 'external', paused);
   }
 
   /** Extra per-slice callbacks (development tools). */
@@ -209,28 +199,17 @@ export class Game {
   private frame(now: number) {
     if (!this.running) return;
     requestAnimationFrame((t) => this.frame(t));
-    // Up to a second of catching up per frame: a throttled background tab still plays in real time.
-    const real = Math.min(1, (now - this.last) / 1000);
-    this.last = now;
-    const dt = Math.min(0.1, real);
+    if (document.hidden) return;
+    const dt = this.frameClock.elapsed(now);
     const { ctx } = this;
     this.frameCost = {};
-    this.input.poll();
+    this.input.poll(dt);
 
     if (!ctx.clock.paused) {
-      // Simulate in slices of at most 1/30 s so the world keeps real time even when frames are slow
-      // (a busy machine, a background tab), up to a quarter of a second per frame.
-      let remaining = real;
-      let first = true;
-      while (remaining > 1e-5) {
-        const h = Math.min(remaining, 1 / 30);
-        remaining -= h;
-        this.accumulator += h;
-        while (this.accumulator >= STEP) {
-          for (const s of this.systems) if (s.fixedUpdate) this.time(s.name, () => s.fixedUpdate!(STEP));
-          this.time('physics', () => this.physics.step());
-          this.accumulator -= STEP;
-        }
+      this.frameClock.simulate(dt, (step) => {
+        for (const s of this.systems) if (s.fixedUpdate) this.time(s.name, () => s.fixedUpdate!(step));
+        this.time('physics', () => this.physics.step());
+      }, (h, more) => {
         for (const s of this.systems) if (s.update) this.time(s.name, () => s.update!(h));
         for (const hook of this.hooks) hook(h);
         const p = ctx.player.position;
@@ -240,15 +219,13 @@ export class Game {
         const before = Math.floor(ctx.clock.hour);
         ctx.clock.advanceHours(h / ctx.clock.secondsPerHour);
         if (Math.floor(ctx.clock.hour) !== before) ctx.events.emit('hourChanged', { hour: Math.floor(ctx.clock.hour) });
-        // Key presses and mouse movement belong to the first slice only.
-        if (first && remaining > 1e-5) this.input.suspend();
-        first = false;
-      }
+        if (more) this.input.suspend();
+      }, (elapsed) => this.time(this.world.name, () => this.world.streamFrame(elapsed)));
     }
     this.input.resume();
     // UI and camera keep running while paused so menus stay live.
     for (const s of this.systems) if (s.lateUpdate) this.time(s.name, () => s.lateUpdate!(dt));
-    this.time('render', () => this.gfx.render(real));
+    this.time('render', () => this.gfx.render(dt));
     this.input.endFrame();
     for (const [name, ms] of Object.entries(this.frameCost)) this.profile[name] = (this.profile[name] ?? ms) * 0.95 + ms * 0.05;
   }

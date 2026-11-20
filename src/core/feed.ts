@@ -142,6 +142,10 @@ export class TouchFeed {
   releaseAll() {
     this.down.clear();
     this.queued.clear();
+    this.hits.clear();
+    this.stash = null;
+    this.used = false;
+    this.lookX = this.lookY = 0;
     this.moveX = this.moveZ = this.throttle = this.brake = 0;
     this.dragX = this.dragY = 0;
     for (const repeat of this.repeats.values()) repeat.left = repeat.every;

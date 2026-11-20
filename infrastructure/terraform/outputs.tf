@@ -25,5 +25,5 @@ output "codebuild_project_name" {
 
 output "codebuild_role_arn" {
   description = "ARN of the IAM role used by the CodeBuild deploy project."
-  value       = module.codebuild_role.role_arn
+  value       = aws_iam_role.publisher.arn
 }

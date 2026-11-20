@@ -50,6 +50,8 @@ export class VehicleImpl implements Vehicle {
   private burnTimer = 0;
   private upsideDown = 0;
   private spawnGrace = 0.6;
+  private safePose: { x: number; y: number; z: number; heading: number } | null = null;
+  private waitingForGround = false;
   private wheelSpin = 0;
   private squirm = 0;
   /** Extra turn of the driven wheels while they spin on the spot. */
@@ -161,6 +163,14 @@ export class VehicleImpl implements Vehicle {
     const spec = this.spec;
     const c = this.controls;
     const body = this.body;
+    if (this.waitingForGround) {
+      if ((this.driver || this.passengers.length) && !this.ctx.world.isLoaded(this.position.x, this.position.z)) {
+        body.sleep();
+        return;
+      }
+      this.waitingForGround = false;
+      body.wakeUp();
+    }
     const lv = body.linvel();
     this.velocity.set(lv.x, lv.y, lv.z);
     const rot = body.rotation();
@@ -241,6 +251,7 @@ export class VehicleImpl implements Vehicle {
     let grounded = 0;
     for (let i = 0; i < 4; i++) if (this.rig.wheelIsInContact(i)) grounded++;
     this.wheelsOnGround = grounded;
+    if ((this.driver || this.passengers.length) && this.guardTerrain(grounded)) return;
     this.slip = grounded ? clamp((Math.abs(lateral) - 1.2) / 6, 0, 1) * clamp(Math.abs(speed) / 6 + Math.abs(lateral) / 6, 0, 1) : 0;
 
     if (grounded >= 2) {
@@ -299,6 +310,34 @@ export class VehicleImpl implements Vehicle {
       this.destroyed = true;
       body.setLinearDamping(1.5);
     }
+  }
+
+  /** Sample the chassis alongside this step's wheel rays, not the previous render pose. */
+  private guardTerrain(grounded: number): boolean {
+    const { world } = this.ctx;
+    const { x, y, z } = this.body.translation();
+    const b = world.bounds;
+    const edge = Math.min(x - b.minX, b.maxX - x, z - b.minZ, b.maxZ - z);
+    // heightAt is the terrain, not a bridge deck that a car can legitimately pass underneath.
+    if (edge > 0 && (grounded || y >= world.heightAt(x, z) - 2)) {
+      if (grounded >= 2 && _up.y > 0.6 && edge >= 8 && world.isLoaded(x, z)) {
+        const pose = this.safePose ??= { x, y, z, heading: 0 };
+        pose.x = x;
+        pose.y = y - this.originY;
+        pose.z = z;
+        pose.heading = Math.atan2(_fwd.x, _fwd.z);
+      }
+      return false;
+    }
+
+    // Before the first safe contact (e.g. after a scripted teleport), land inside the streamable map.
+    const tx = this.safePose?.x ?? clamp(x, b.minX + 8, b.maxX - 8);
+    const tz = this.safePose?.z ?? clamp(z, b.minZ + 8, b.maxZ - 8);
+    const pose = this.safePose;
+    this.teleport(tx, pose?.y ?? world.groundAt(tx, tz), tz, pose?.heading ?? this.heading);
+    this.safePose = pose;
+    this.waitingForGround = !world.isLoaded(tx, tz);
+    return true;
   }
 
   /** Per frame: copy physics to the visuals and run timers. */
@@ -430,6 +469,10 @@ export class VehicleImpl implements Vehicle {
     this.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
     this.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
     this.prevVel.set(0, 0, 0);
+    this.velocity.set(0, 0, 0);
+    this.speed = this.wheelsOnGround = this.slip = 0;
+    this.safePose = null;
+    this.waitingForGround = false;
     this.spawnGrace = 0.6;
     this.syncVisual(1);
   }

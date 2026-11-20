@@ -1,5 +1,7 @@
 import './style.css';
-import { SAVE_KEY, migrateStorage } from './core/storage';
+import { archiveInvalid, readSlot } from './core/saveFormat';
+import { migrateStorage } from './core/storage';
+import { readGamepad } from './core/gamepad';
 import { deviceHints, isTouchFirst } from './core/device';
 import { updates } from './core/update';
 
@@ -52,13 +54,16 @@ type Town = keyof typeof TOWNS;
 if (isTouchFirst(deviceHints())) document.documentElement.classList.add('touch-first');
 
 migrateStorage();
-let hasSave = false;
-try {
-  hasSave = localStorage.getItem(SAVE_KEY) !== null;
-} catch {
-  // Storage unavailable: new games only.
+const notice = document.getElementById('save-notice')!;
+let slot = readSlot();
+const hasFile = () => slot.kind === 'ready' || slot.kind === 'invalid';
+function showSlot() {
+  continueBtn.hidden = !hasFile();
+  continueBtn.textContent = slot.kind === 'invalid' ? 'Download save for recovery' : 'Continue';
+  notice.textContent = slot.kind === 'invalid' ? `${slot.reason} Download the original or choose New game to start fresh.`
+    : slot.kind === 'unavailable' ? 'Browser storage is unavailable. Progress cannot be saved.' : '';
 }
-continueBtn.hidden = !hasSave;
+showSlot();
 
 // The photograph never holds anything up: the gradient behind it is the first paint, and it fades in over that.
 if (photo) {
@@ -80,11 +85,30 @@ if (!import.meta.env.DEV) {
 
 async function start(load: boolean, town: Town = 'timaru') {
   if (started) return;
+  slot = readSlot();
+  if (load && slot.kind !== 'ready') {
+    showSlot();
+    if (slot.kind === 'invalid') {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([slot.raw], { type: 'application/json' }));
+      a.download = '03-quest-recovery.json';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+    return;
+  }
+  if (!load && slot.kind === 'invalid') {
+    if (!window.confirm('Keep a recovery copy in this browser and start a fresh game?')) return;
+    if (!archiveInvalid(slot)) {
+      notice.textContent = 'Could not keep a recovery copy. Your original save has not been replaced.';
+      return;
+    }
+  }
+  const snapshot = load && slot.kind === 'ready' ? slot.snapshot : undefined;
   started = true;
   buttons.hidden = true;
   controls.hidden = true;
   if (load) {
-    // A saved game opens wherever it was left, which is not known until the world is up.
     document.getElementById('load-kicker')!.textContent = 'Picking up';
     document.getElementById('load-place')!.textContent = 'Where you left off';
     document.getElementById('load-reo')!.textContent = '';
@@ -105,7 +129,7 @@ async function start(load: boolean, town: Town = 'timaru') {
     const { Game } = await import('./game/game');
     const game = await Game.start({
       canvas,
-      load,
+      snapshot,
       spawnAt: load ? undefined : TOWNS[town].place,
       onProgress(stage, fraction) {
         const whole = Math.round(Math.min(1, Math.max(0, fraction)) * 100);
@@ -181,7 +205,7 @@ function toggleControls(show = controls.hidden) {
 function chooseTown(show: boolean) {
   choosingTown = show;
   toggleControls(false);
-  for (const b of menu) b.hidden = show || (b === continueBtn && !hasSave);
+  for (const b of menu) b.hidden = show || (b === continueBtn && !hasFile());
   for (const b of towns) b.hidden = !show;
   ask.hidden = !show;
   newBtn.setAttribute('aria-expanded', String(show));
@@ -212,11 +236,21 @@ window.addEventListener('keydown', onKey);
 
 // Gamepad: D-pad or left stick to choose, A to select, B to put the controls sheet away. Polled only while the
 // title is up; the game's own input takes over once it starts.
-let padHeld = true; // whatever is held as the page opens is ignored until released
+let padHeld = true; // ignore a button already held on entry, reconnect or refocus
+let titleFocused = true;
+let titlePad: number | undefined;
+window.addEventListener('blur', () => { titleFocused = false; titlePad = undefined; });
+window.addEventListener('focus', () => { titleFocused = true; });
+window.addEventListener('gamepaddisconnected', (e) => {
+  if (titlePad === e.gamepad.index) titlePad = undefined;
+});
 function pollPad() {
   if (started) return;
   requestAnimationFrame(pollPad);
-  const pad = navigator.getGamepads?.().find((p) => p && p.connected);
+  if (!titleFocused) return;
+  const pad = readGamepad();
+  if (titlePad !== pad?.index) padHeld = true;
+  titlePad = pad?.index;
   if (!pad) return;
   const down = (i: number) => !!pad.buttons[i]?.pressed;
   const axis = pad.axes[1] ?? 0;
@@ -230,7 +264,7 @@ function pollPad() {
   }
   padHeld = any;
 }
-if (typeof navigator.getGamepads === 'function') requestAnimationFrame(pollPad);
+requestAnimationFrame(pollPad);
 
 // Open on Continue when there is a game to go back to.
-select(hasSave ? continueBtn : newBtn);
+select(hasFile() ? continueBtn : newBtn);

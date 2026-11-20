@@ -1,6 +1,7 @@
 import type { GameContext, System, WeaponSpec } from '../core/types';
 import { fireLabel, fireRepeat, interactLabel, isPortrait, visibleButtons, type ButtonId, type ControlState } from './controls';
 import { deviceHints, isTouchFirst } from '../core/device';
+import { setPauseHold } from '../core/pause';
 import type { TouchFeed } from '../core/feed';
 import { Overlay } from './overlay';
 import { prepareTouchPage, watchViewport } from './page';
@@ -26,7 +27,7 @@ class TouchSystem implements System {
   private promptText: string | null = null;
   private word = 'USE';
   private wasPlay = false;
-  private heldForPortrait = false;
+
   private live: number[] = [];
 
   constructor(
@@ -116,7 +117,7 @@ class TouchSystem implements System {
     watchViewport();
     const on = feed.active;
     const portrait = on && isPortrait(window.innerWidth, window.innerHeight);
-    this.holdFor(portrait);
+    setPauseHold(ctx, 'portrait', portrait);
 
     const player = ctx.player;
     const vehicle = player.vehicle;
@@ -171,21 +172,6 @@ class TouchSystem implements System {
     if (!ctx.clock.paused) feed.tick(dt);
   }
 
-  /** In portrait there is no layout to play with: the game waits behind the "turn your phone" card. */
-  private holdFor(portrait: boolean) {
-    const { clock, events, ui } = this.ctx;
-    if (portrait && !this.heldForPortrait && !clock.paused) {
-      this.heldForPortrait = true;
-      clock.paused = true;
-      events.emit('pausedChanged', { paused: true });
-    } else if (!portrait && this.heldForPortrait) {
-      this.heldForPortrait = false;
-      if (clock.paused && !ui.menuOpen) {
-        clock.paused = false;
-        events.emit('pausedChanged', { paused: false });
-      }
-    }
-  }
 }
 
 /** Starts the on-screen controller. `feed` is `Input.touch`; `canvas` is the game's drawing surface. */

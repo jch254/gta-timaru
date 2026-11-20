@@ -738,7 +738,7 @@ const race: StepHandler<RaceStep> = {
     const cp = d.cps[d.next % count];
     const toCp = Math.hypot(p.x - cp.x, p.z - cp.z);
     let changed = false;
-    if (ctx.player.vehicle && toCp < d.radius) {
+    if (ctx.player.vehicle && (!step.vehicle || ctx.player.vehicle === run.vehicle(step.vehicle)) && toCp < d.radius) {
       d.next++;
       ctx.audio.play('pickup');
       if (d.next >= d.total) {

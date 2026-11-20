@@ -80,6 +80,7 @@ export const fourAvenues: MissionDef = {
     { kind: 'checkpoint', label: 'the grid', at: GRID },
     {
       kind: 'race',
+      vehicle: 'v8',
       grid: GRID,
       checkpoints: [CORNER_SE, CORNER_NE, CORNER_NW, PARK_CORNER, FINISH],
       radius: 24,

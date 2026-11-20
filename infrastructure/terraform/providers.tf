@@ -22,6 +22,5 @@ provider "aws" {
   }
 }
 
-# Authenticates from the CLOUDFLARE_API_TOKEN env var (loaded from SSM by
-# buildspec.yml in CodeBuild, or exported locally for a bootstrap apply).
+# The infrastructure operator supplies CLOUDFLARE_API_TOKEN; CodeBuild never reads it.
 provider "cloudflare" {}

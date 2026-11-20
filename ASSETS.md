@@ -2,7 +2,23 @@
 
 **Third-party art in the game, all of it CC0 (public domain dedication):** photographic surface textures ([Photographic textures](#photographic-textures), [Ground and water](#ground-and-water)), one atlas of photographed leaves ([Vegetation](#vegetation)), and the human figures and their animations ([Character models](#character-models)). Each section lists every asset with its source, author and licence. There is no third-party audio, music or font.
 
-Shipped size: 14 MB under `src/assets/` (textures 11 MB, character models 2.7 MB, foliage atlas 1.0 MB). Nothing is fetched at runtime; the scripts under `scripts/assets/` that downloaded and optimised these files are not needed to build or run the game.
+The game serves its art locally; no third-party downloads are needed to build or play. The checked-in surface photographs and foliage source sheets also drive the offline [texture tier bake](#texture-tiers-and-cold-start).
+
+### Texture tiers and cold start
+
+After changing the sources, run `node scripts/assets/bake-textures.mjs` with the lockfile's Sharp version. Commit the derivatives in `src/assets/phone-textures/` and `src/assets/foliage/mips/`. No network or build-time generation is required. `node scripts/assets/check-cold-assets.mjs` checks every phone map's dimensions, byte budgets, the complete mip chain, and per-cell coverage at alpha ≥ 128 against the **source sheets** (cells with at least 64 mip texels; maximum measured drift 1.93 percentage points).
+
+| Checked-in inputs selected per tier | Desktop | Phone |
+| --- | ---: | ---: |
+| Unique surface + terrain JPEGs | 11,080,669 bytes | 3,673,705 bytes |
+| Foliage WebPs, complete chain | 2,136,446 bytes | 773,818 bytes |
+| Foliage base | 2048 × 2560 | 1024 × 1280 |
+
+Phones use 512 px colour/normal and 256 px roughness maps regardless of the selected graphics preset. Terrain and tiling materials resolve the same URLs for shared photos. Three fetch/decode permits are shared with foliage. The baker joins the foliage strips, filters alpha-weighted colours, dilates empty texels and corrects coverage per cell before encoding each level. The phone skips level zero; both tiers upload the remaining levels without canvas readback or runtime float mip generation. The phone chain is 6,990,500 bytes at RGBA8 (not a measurement of total GPU or tab memory).
+
+**Local production-boot probe:** `pnpm build && node scripts/playtest/cold-assets.mjs` starts and closes its own preview server and fresh headless Chrome profile. It clicks New game → Timaru and checks that the surface, terrain and foliage requests match the phone files byte-for-byte. Chrome emulated an iPhone UA, 844 × 390, DPR 3, touch, default Low; no network/CPU throttling. At `41ed414` one run saw 74 matching image resource entries, 16,085,699 summed encoded-body bytes, and 4,266 ms from start click to title dismissal/game ready. After the bake: 86 entries, 5,592,055 bytes, and 3,578 / 4,004 / 4,002 ms in three runs. Encoded-body totals include repeat resource entries, not all page traffic or on-wire bytes. The individual mips add requests but reduce bytes. These localhost timings are a smoke check, not evidence of a physical-phone speedup.
+
+### Runtime art
 
 Everything else is generated at runtime by code in this repository:
 

@@ -234,56 +234,13 @@ resource "cloudflare_ruleset" "old_site_redirect" {
 
 # --- CodeBuild: build the game, sync dist/ to S3, invalidate CloudFront -------
 
-module "codebuild_role" {
-  source = "github.com/jch254/terraform-modules//codebuild-terraform-role?ref=1.19.1"
-
-  name        = var.codebuild_project_name
-  environment = var.environment
-
-  enable_acm             = true
-  codebuild_project_arns = ["*"]
-
-  # Read the Cloudflare API token used by the Terraform cloudflare provider
-  # (and manage the placeholder parameter that holds it).
-  ssm_parameter_arns = [module.cloudflare_api_token_parameter.arn]
-
-  # The build manages its own IAM role and the EventBridge rule behind its
-  # build notifications (both named with the project prefix). Without
-  # event_rule the role cannot read that rule, so every plan run by CodeBuild
-  # fails on events:DescribeRule.
-  prefix_managed_services = ["iam_role", "event_rule"]
-
-  # The build-notifications subscription adds an EventBridge invoke permission
-  # on the shared formatter Lambda, which isn't covered by the prefix grants.
-  lambda_permission_function_arns = [local.build_notifier_lambda_function_arn]
-
-  additional_policy_statements = [
-    # Terraform manages the bucket + CloudFront distribution; the build syncs
-    # objects to S3 and creates a CloudFront invalidation after each deploy.
-    {
-      Effect   = "Allow"
-      Action   = ["s3:*"]
-      Resource = ["*"]
-    },
-    {
-      Effect   = "Allow"
-      Action   = ["cloudfront:*"]
-      Resource = ["*"]
-    },
-    {
-      Effect   = "Allow"
-      Action   = ["logs:*"]
-      Resource = ["*"]
-    },
-  ]
-}
 
 module "codebuild_project" {
   source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.19.1"
 
   name               = var.codebuild_project_name
   description        = "Build 03 Quest and deploy it to S3/CloudFront"
-  codebuild_role_arn = module.codebuild_role.role_arn
+  codebuild_role_arn = aws_iam_role.publisher.arn
   build_docker_image = var.codebuild_build_docker_image
   build_docker_tag   = var.codebuild_build_docker_tag
   build_compute_type = var.codebuild_build_compute_type
@@ -294,6 +251,8 @@ module "codebuild_project" {
 
   environment_variables = [
     { name = "AWS_DEFAULT_REGION", value = var.aws_region },
+    { name = "SITE_BUCKET", value = module.site.s3_bucket_id },
+    { name = "DISTRIBUTION_ID", value = module.site.cloudfront_distribution_id },
   ]
 
   webhook_enabled = var.codebuild_webhook_enabled

@@ -185,9 +185,9 @@ export class Services {
       const [min, max] = TUNING.kipHours;
       ctx.clock.advanceHours(min + Math.random() * (max - min));
       player.heal(player.maxHealth);
-      ctx.save.save();
+      const result = ctx.save.save();
       await settle(ctx.ui.fade(false, 0.8), 2500);
-      ctx.ui.toast(`Game saved. It's ${clockText(ctx.clock.hour)}.`, 4);
+      ctx.ui.toast(!result.ok ? result.message : `Game saved. It's ${clockText(ctx.clock.hour)}.`, 4);
     } finally {
       player.controlsEnabled = true;
     }

@@ -3,7 +3,8 @@ import { fbm, ridged } from '../core/rng';
 import type { GroundSurface, RoadGraph, RoadHit } from '../core/types';
 import { packCell, type Pt, type TerrainSource } from './mapsource';
 
-export const WORLD_BOUNDS = { minX: -3072, maxX: 3072, minZ: -6144, maxZ: 6144 };
+import { WORLD_BOUNDS } from './bounds';
+export { WORLD_BOUNDS } from './bounds';
 export const SEA_LEVEL = 0;
 /** How far onto built land (0..1, see `TerrainModel.quay`) the quay wall stands. */
 const QUAY_LINE = 0.5;
