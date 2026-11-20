@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../core/rng';
-import { damageAtRange, explosionFalloff, explosionShake, spreadDirection } from './ballistics';
+import { damageAtRange, explosionFalloff, explosionShake, rayToSegment, spreadDirection } from './ballistics';
 import { WEAPONS } from './weapons';
 
 describe('spreadDirection', () => {
@@ -140,5 +140,33 @@ describe('explosionShake', () => {
     expect(explosionShake(27, 9)).toBeCloseTo(0.55, 6);
     expect(explosionShake(47, 9)).toBe(0);
     expect(explosionShake(5, 0)).toBe(0);
+  });
+});
+
+describe('rayToSegment', () => {
+  const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+  const out = { t: 0, gap2: 0 };
+
+  it('finds where a ray passes a segment and how close it comes', () => {
+    // Along +z at chest height past an upright segment 0.2 m to one side, 10 m on.
+    rayToSegment(v(0, 1, 0), v(0, 0, 1), v(0.2, 0.5, 10), v(0.2, 1.5, 10), out);
+    expect(out.t).toBeCloseTo(10, 6);
+    expect(Math.sqrt(out.gap2)).toBeCloseTo(0.2, 6);
+  });
+
+  it('measures to the nearer end when the ray passes beyond the segment', () => {
+    rayToSegment(v(0, 2, 0), v(0, 0, 1), v(0, 0.5, 6), v(0, 1.5, 6), out);
+    expect(out.t).toBeCloseTo(6, 6);
+    expect(Math.sqrt(out.gap2)).toBeCloseTo(0.5, 6);
+  });
+
+  it('copes with a ray running along the segment, and with points behind the origin', () => {
+    rayToSegment(v(0, 0, 0), v(0, 1, 0), v(0.1, 3, 0), v(0.1, 4, 0), out);
+    expect(Math.sqrt(out.gap2)).toBeCloseTo(0.1, 6);
+    expect(out.t).toBeGreaterThanOrEqual(3 - 1e-6);
+    expect(out.t).toBeLessThanOrEqual(4 + 1e-6);
+    rayToSegment(v(0, 1, 0), v(0, 0, 1), v(0, 0.5, -4), v(0, 1.5, -4), out);
+    expect(out.t).toBeCloseTo(-4, 6);
+    expect(out.gap2).toBeCloseTo(0, 6);
   });
 });

@@ -587,6 +587,8 @@ export interface Actor {
   alive: boolean;
   /** Vehicle currently occupied, if any. */
   vehicle: Vehicle | null;
+  /** Seat taken in `vehicle` (0 = driver), for those who say; a passenger who does not is taken to sit in turn. */
+  readonly seat?: number;
   /** Display name for barks / missions. */
   name?: string;
   /** Cannot be hurt (cameo characters): `takeDamage` changes nothing and a hit draws no blood. */
