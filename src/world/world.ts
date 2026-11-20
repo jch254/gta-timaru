@@ -570,15 +570,17 @@ export class World implements WorldApi, System {
     this.breakables.fixedUpdate(dt);
   }
 
-  update(dt: number) {
-    this.time += dt;
+  streamFrame(dt: number) {
     this.scheduleTimer -= dt;
     if (this.scheduleTimer <= 0) {
       this.scheduleTimer = 0.25;
       this.schedule();
     }
     this.runJobs(4);
+  }
 
+  update(dt: number) {
+    this.time += dt;
     // Far stand-ins are clipped out only where full-detail chunks are actually ready.
     let near = this.radius() * CHUNK;
     for (const q of this.queue) {
