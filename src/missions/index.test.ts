@@ -357,13 +357,14 @@ describe('gun shops', () => {
     await interact();
     expect(fake.ui.chooses[0].title).toBe('timaru gunshop');
     expect(fake.ui.chooses[0].body).toBe("You've got $1000.");
-    expect(fake.ui.chooses[0].options).toEqual(['bat  $45', 'pistol  $400', 'shotgun  $850', 'rifle  $1200', `Padded shooting vest  $${TUNING.armourPrice}`, 'Leave']);
+    // The knife is over the counter; the katana has no price and is not for sale.
+    expect(fake.ui.chooses[0].options).toEqual(['knife  $30', 'bat  $45', 'pistol  $400', 'shotgun  $850', 'rifle  $1200', `Padded shooting vest  $${TUNING.armourPrice}`, 'Leave']);
     expect(fake.combat.given).toEqual([{ id: 'pistol', ammo: 6 * TUNING.shopMagazines }]);
     expect(fake.player.money).toBe(600);
     expect(fake.audio.played).toContain('cash');
     // Came back round with rounds on offer instead of the gun, and the new balance.
     expect(fake.ui.chooses[1].body).toBe("You've got $600.");
-    expect(fake.ui.chooses[1].options[1]).toBe(`pistol rounds ×${6 * TUNING.shopMagazines}  $80`);
+    expect(fake.ui.chooses[1].options[2]).toBe(`pistol rounds ×${6 * TUNING.shopMagazines}  $80`);
   });
 
   it('sells rounds and a vest, and turns away the short of cash', async () => {

@@ -618,6 +618,80 @@ describe('combat: melee()', () => {
     h.player.vehicle = car;
     expect(h.combat.melee(h.player, 32, 2)).toBeNull();
   });
+
+  /** One swing of a named weapon at someone (or a car) standing in front of the player, in a fresh world. */
+  const swing = (weaponId: string, at: 'ped' | 'car') => {
+    const h = harness();
+    const spec = h.combat.weapons.get(weaponId)!;
+    const ped = at === 'ped' ? h.ped('ped', 0, 1.2, 1000) : null;
+    const car = at === 'car' ? h.car(0, 1.9) : null;
+    expect(h.combat.melee(h.player, spec.damage, spec.range, weaponId)).toBe(ped ?? car);
+    return { h, ped: ped!, car: car!, spray: (h.combat as unknown as { fx: Effects }).fx.smoke.alive };
+  };
+
+  it('a blade cuts where a club thumps: more blood, less of a shove, and no thud', () => {
+    const fists = swing('fists', 'ped');
+    const bat = swing('bat', 'ped');
+    const knife = swing('knife', 'ped');
+    const katana = swing('katana', 'ped');
+    // The damage is the weapon's, as ever.
+    for (const s of [fists, bat, knife, katana]) expect(s.ped.hits[0].kind).toBe('melee');
+    expect(knife.ped.hits[0].amount).toBe(26);
+    expect(katana.ped.hits[0].amount).toBe(55);
+    // Blood: a punch, then the bat, then the knife, and the katana most of all.
+    expect(bat.spray).toBeGreaterThan(fists.spray);
+    expect(knife.spray).toBeGreaterThan(bat.spray);
+    expect(katana.spray).toBeGreaterThan(knife.spray);
+    // Knock-back: the bat sends them flying; a blade goes in. Even the katana shoves less than the bat.
+    expect(bat.ped.velocity.z).toBeCloseTo(32 * TUNING.meleeKnock, 5);
+    expect(knife.ped.velocity.z).toBeLessThan(bat.ped.velocity.z / 2);
+    expect(katana.ped.velocity.z).toBeLessThan(bat.ped.velocity.z / 2);
+    expect(knife.ped.velocity.z).toBeGreaterThan(0);
+    // The thud is a fist's and a bat's (the cut is the audio module's to add).
+    expect(fists.h.audio).toHaveBeenCalledWith('punch', expect.anything());
+    expect(bat.h.audio).toHaveBeenCalledWith('punch', expect.anything());
+    expect(knife.h.audio).not.toHaveBeenCalledWith('punch', expect.anything());
+    expect(katana.h.audio).not.toHaveBeenCalledWith('punch', expect.anything());
+    // It is still an assault.
+    expect(katana.h.crimes()).toEqual(['assault']);
+  });
+
+  it('a blade barely marks a car that the bat dents', () => {
+    const bat = swing('bat', 'car');
+    const knife = swing('knife', 'car');
+    const katana = swing('katana', 'car');
+    expect(bat.car.damage[0]).toBe((32 - TUNING.meleeVehicleFloor) * TUNING.meleeVehicleScale);
+    for (const blade of [knife, katana]) {
+      expect(blade.car.damage).toEqual([TUNING.bladeVehicleDamage]);
+      expect(blade.car.damage[0]).toBeLessThan(bat.car.damage[0] / 5);
+      expect(blade.car.impulses[0].z).toBeLessThan(bat.car.impulses[0].z);
+      expect(blade.h.seen.impact![0].surface).toBe('vehicle');
+    }
+  });
+
+  it('knows a blade by the weapon named, from fire() too; callers that name none swing as they always did', () => {
+    // fire() with a melee id passes the weapon on.
+    const h = harness();
+    const ped = h.ped('gang', 0, 1.2, 1000);
+    expect(h.combat.fire(h.player, 'katana', muzzle(), ahead())).toBe(true);
+    expect(ped.hits[0].amount).toBe(55);
+    expect(ped.velocity.z).toBeLessThan(2);
+    expect(h.audio).not.toHaveBeenCalledWith('punch', expect.anything());
+    expect(h.count('gunshot')).toBe(0);
+    // The same damage and reach with no weapon named (pedestrians and police call it so) is a club: a full
+    // knock, a thud, a dent. An id nobody has heard of is treated the same way.
+    for (const id of [undefined, 'cutlass']) {
+      const old = harness();
+      const victim = old.ped('ped', 0, 1.2, 1000);
+      expect(old.combat.melee(old.player, 55, 2.4, id)).toBe(victim);
+      expect(victim.velocity.z).toBeCloseTo(TUNING.meleeKnockMax, 5);
+      expect(old.audio).toHaveBeenCalledWith('punch', expect.anything());
+    }
+    const old = harness();
+    const car = old.car(0, 1.9);
+    old.combat.melee(old.player, 55, 2.4);
+    expect(car.damage[0]).toBe((55 - TUNING.meleeVehicleFloor) * TUNING.meleeVehicleScale);
+  });
 });
 
 describe('combat: explode()', () => {
@@ -823,6 +897,65 @@ describe('combat: the player', () => {
     expect(ped.hits[2].amount).toBe(h.combat.weapons.get('bat')!.damage);
   });
 
+  it('swings the blade in hand: the knife quick, the katana hard, neither aimed like a gun', () => {
+    const h = harness();
+    const ped = h.ped('ped', 0, 1.2, 100000);
+    const knife = h.combat.weapons.get('knife')!;
+    const katana = h.combat.weapons.get('katana')!;
+    h.combat.give('knife', 0);
+    expect(h.combat.current.id).toBe('knife'); // drawn, since the player was unarmed
+    h.input.down.add('aim');
+    h.run(0.1);
+    expect(h.player.aiming).toBe(false);
+    expect(h.player.held.at(-1)?.name).toBe('weapon:knife');
+    h.input.down.delete('aim');
+    /** Press fire every frame for `seconds` and count the blows that land. */
+    const flurry = (seconds: number) => {
+      const before = ped.hits.length;
+      for (let t = 0; t < seconds - 1e-9; t += 1 / 60) {
+        h.input.hit.add('fire');
+        h.run(1 / 60);
+      }
+      h.run(TUNING.meleeHitDelay + 0.05);
+      return ped.hits.length - before;
+    };
+    // Two seconds of mashing: the knife lands a blow every third of a second, the bat every two thirds.
+    const stabs = flurry(2);
+    expect(stabs).toBeGreaterThanOrEqual(Math.floor(2 * knife.rate));
+    expect(ped.hits.at(-1)!.amount).toBe(knife.damage);
+    expect(h.player.actions.every((a) => a === 'punch')).toBe(true); // a swing, never an aim
+    expect(h.audio).not.toHaveBeenCalledWith('punch', expect.anything());
+    h.combat.give('bat', 0);
+    h.combat.select('bat');
+    h.run(1);
+    const blows = flurry(2);
+    expect(blows).toBeLessThan(stabs);
+    h.combat.give('katana', 0);
+    h.combat.select('katana');
+    h.run(1);
+    expect(h.player.held.at(-1)?.name).toBe('weapon:katana');
+    const cuts = flurry(2);
+    expect(cuts).toBeGreaterThan(blows);
+    expect(cuts).toBeLessThan(stabs);
+    expect(ped.hits.at(-1)!.amount).toBe(katana.damage);
+    // The katana reaches someone the knife cannot.
+    ped.position.z = 2.6;
+    h.targets.find((t) => t.owner === ped)!.centre.z = 2.6;
+    expect(flurry(0.5)).toBeGreaterThan(0);
+    h.combat.select('knife');
+    h.run(1);
+    expect(flurry(0.5)).toBe(0);
+    // The cycling order: fists, knife, bat, katana.
+    h.combat.select('fists');
+    const seen: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      h.input.hit.add('nextWeapon');
+      h.run(1 / 60);
+      seen.push(h.combat.current.id);
+    }
+    expect(seen).toEqual(['knife', 'bat', 'katana', 'fists']);
+  });
+
   it('in a vehicle: no model, pistol drive-by only, level with the car', () => {
     const h = harness();
     const car = h.car(0, 0);
@@ -921,6 +1054,97 @@ describe('combat: pickups', () => {
     // Placed pickups are not drops and are left alone by the cap.
     h.combat.spawnPickup('health', 50, 0);
     expect(live().length).toBe(TUNING.maxCashDrops + 1);
+  });
+
+  it('a stash lies low: flat on the ground, still, no halo, drawn only from close by, and found by walking onto it', () => {
+    const h = harness();
+    const live = () => (h.combat as unknown as { livePickups(): { kind: string; x: number; z: number; stash: boolean }[] }).livePickups();
+    const halo = (h.combat as unknown as { pickups: { halo: { mesh: THREE.Mesh } } }).pickups.halo.mesh.geometry as THREE.InstancedBufferGeometry;
+    const placed = (spawn: () => void): THREE.Object3D => {
+      const before = new Set(h.ctx.scene.children);
+      spawn();
+      return h.ctx.scene.children.find((c) => !before.has(c))!;
+    };
+    h.player.position.set(200, 0, 200); // well out of collecting range; the camera is at (0, 1, -3)
+    const near = placed(() => h.combat.spawnPickup('pistol', 0, 18, 12, 900, { stash: true }));
+    const sword = placed(() => h.combat.spawnPickup('katana', 3, 18, undefined, 0, { stash: true }));
+    const far = placed(() => h.combat.spawnPickup('rifle', 0, 60, 5, 900, { stash: true }));
+    const ordinary = placed(() => h.combat.spawnPickup('shotgun', 6, 60));
+    h.run(0.2);
+    // Seen from 21 m, not from 63 m; an ordinary pickup shows at that distance.
+    expect(TUNING.stashDrawDistance).toBeGreaterThanOrEqual(25);
+    expect(TUNING.stashDrawDistance).toBeLessThanOrEqual(30);
+    expect(near.visible).toBe(true);
+    expect(sword.visible).toBe(true);
+    expect(far.visible).toBe(false);
+    expect(ordinary.visible).toBe(true);
+    // Lying on the ground, flat: nothing of it higher than a hand's breadth, nothing under the surface.
+    for (const stash of [near, sword]) {
+      stash.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(stash);
+      expect(box.min.y).toBeGreaterThan(0);
+      expect(box.min.y).toBeLessThan(0.05);
+      expect(box.max.y).toBeLessThan(0.15);
+    }
+    expect(new THREE.Box3().setFromObject(sword).getSize(new THREE.Vector3()).length()).toBeGreaterThan(1); // all of it, laid out
+    expect(ordinary.position.y).toBeGreaterThan(TUNING.pickupHeight - 0.1);
+    // Still: it neither turns nor bobs, while the ordinary one does both.
+    const pose = near.quaternion.clone();
+    const height = near.position.y;
+    const turned = ordinary.rotation.y;
+    h.run(1);
+    expect(near.quaternion.angleTo(pose)).toBeLessThan(1e-9);
+    expect(near.position.y).toBe(height);
+    expect(ordinary.rotation.y).not.toBe(turned);
+    // The same way round every time it is put there.
+    const again = placed(() => h.combat.spawnPickup('pistol', 0, 18, 12, 900, { stash: true }));
+    h.run(0.1);
+    expect(again.quaternion.angleTo(near.quaternion)).toBeLessThan(1e-9);
+    // A glint, not a halo: three small faint sprites for the three stashes in view, one big bright one.
+    expect(halo.instanceCount).toBe(4);
+    const size = halo.getAttribute('iSize').array as Float32Array;
+    const colour = halo.getAttribute('iColor').array as Float32Array;
+    const sprites = [0, 1, 2, 3].map((i) => ({ size: size[i * 2], alpha: colour[i * 4 + 3] })).sort((a, b) => a.size - b.size);
+    expect(sprites[3].size).toBeGreaterThan(1);
+    expect(sprites[3].alpha).toBeCloseTo(0.32, 5);
+    for (const glint of sprites.slice(0, 3)) {
+      expect(glint.size).toBeLessThan(0.6);
+      expect(glint.alpha).toBeGreaterThan(0);
+      expect(glint.alpha).toBeLessThanOrEqual(TUNING.stashGlint + TUNING.stashTwinkle + 1e-6);
+    }
+    expect(TUNING.stashGlint).toBeLessThan(0.32 / 3);
+    // The dev tools can tell them apart.
+    expect(live().filter((p) => p.stash).map((p) => p.kind).sort()).toEqual(['katana', 'pistol', 'pistol', 'rifle']);
+    expect(live().find((p) => p.kind === 'shotgun')!.stash).toBe(false);
+    // Walking onto it is how it is found: the weapon and its rounds, and then it is gone until its timer.
+    h.player.position.set(0.4, 0, 18.3);
+    h.run(0.1);
+    expect(h.combat.has('pistol')).toBe(true);
+    expect(h.combat.ammo('pistol')).toEqual({ clip: 9, reserve: 3 + 12 });
+    expect(h.seen.pickup).toEqual([
+      { kind: 'pistol', amount: 12 },
+      { kind: 'pistol', amount: 12 },
+    ]);
+    expect(near.visible).toBe(false);
+    expect(live().filter((p) => p.kind === 'pistol')).toEqual([]);
+    // The katana is a one-off (no timer): taken, it is removed for good.
+    h.player.position.set(3, 0, 18);
+    h.run(0.1);
+    expect(h.combat.has('katana')).toBe(true);
+    expect(sword.parent).toBeNull();
+  });
+
+  it('a stash on a slope lies with the slope', () => {
+    const h = harness();
+    const world = h.ctx.world as unknown as { normalAt: (x: number, z: number, t: THREE.Vector3) => THREE.Vector3 };
+    const slope = new THREE.Vector3(0.3, 1, 0).normalize();
+    world.normalAt = (_x, _z, t) => t.copy(slope);
+    h.player.position.set(200, 0, 200);
+    const before = new Set(h.ctx.scene.children);
+    h.combat.spawnPickup('bat', 0, 10, undefined, 0, { stash: true });
+    const bat = h.ctx.scene.children.find((c) => !before.has(c))!;
+    h.run(0.1);
+    expect(new THREE.Vector3(0, 1, 0).applyQuaternion(bat.quaternion).angleTo(slope)).toBeLessThan(1e-6);
   });
 
   it('ignores unknown kinds and stays out of marae', () => {

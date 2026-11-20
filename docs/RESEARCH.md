@@ -137,13 +137,14 @@ Full notes: [research file 06](research/06-crime-and-policing.md).
 - **Banned names**: research file 06 lists the real gangs of the period so that the invented crew resembles none of them.
 - **Not found** **(unverified)**: waterfront pilfering after 1989, illegal bookmakers, loan sharks, meat theft from the works, 1995 pursuit policy, rural and sole-charge station practice, anything specific to Timaru.
 
-## The roster: thirty vehicles, each one real
+## The roster: forty-two vehicles, each one real
 
-Approved 19 November 2026 (all of the proposal but the tractor). Each invented badge sounds like the real
+Thirty approved 19 November 2026 (all of the proposal but the tractor); twelve quick cars and old classics
+added 21 November 2026 at the owner's request, every one taken from research files 08 and 09. Each invented badge sounds like the real
 maker's country and decade; the marque map is fixed so one invented make always stands for one real one:
 Holbrook=Holden, Lachlan=Ford, Carrington=Chrysler, Pemberton=the British group, Stanmore=Triumph,
 Hinode=Toyota, Sagami=Nissan/Datsun, Kashima=Mitsubishi, Minato=Mazda, Kiyose=Honda, Tanzawa=Subaru,
-Akagi=Suzuki, Tateyama=Hino, Brenner=MAN, Zarya=Lada. Dimensions, weights and recognition features per car
+Akagi=Suzuki, Tateyama=Hino, Brenner=MAN, Zarya=Lada, Isar=BMW. Dimensions, weights and recognition features per car
 are in research files [08](research/08-vehicle-reference-australian-british.md) and
 [09](research/09-vehicle-reference-japanese.md); the street-mix evidence is files
 [01](research/01-fleet-statistics.md) and [02](research/02-street-photographs.md).
@@ -180,6 +181,22 @@ are in research files [08](research/08-vehicle-reference-australian-british.md) 
 | `farmbike` | Honda XR200 class | Kiyose Trailhand 200 | The farm bike on the gravel |
 | `police` | Holden Commodore VR, white 1995 livery | Holbrook Chancellor Police | The documented 1995 patrol car |
 | `trafficcar` | Mitsubishi V3000 ex-MoT, black and white | Kashima V30 Police | Ex-traffic cars still worked the highways after the 1992 merger |
+| `commodore` | Holden Commodore VR SS 5.0 V8, 1993 to 1995 | Holbrook Chancellor S V8 | The quick Holden of the day; VR dimensions are not in the file, so the VP's are used |
+| `falcon` | Ford Falcon EF XR8 5.0 V8, 1994 to 1996 | Lachlan Taipan SR V8 | The quick Ford of the day: four lamps, no grille, 170 kW |
+| `gtr` | Nissan Skyline R32 GT-R, 1989 to 1994 | Sagami Altair Twin Turbo | New Zealand was one of its only export markets, in 1991 |
+| `rx7` | Mazda RX-7 FC turbo, 1985 to 1991, import | Minato Senpu Rotary | The rotary of the used-import years |
+| `ae86` | Toyota Sprinter Trueno / Corolla Levin AE86, 1983 to 1987, import | Hinode Vesper Twin Cam | The "Sprinter twin cam" of the boy-racer accounts |
+| `crx` | Honda CR-X, 1987 to 1991, import | Kiyose Scherzo 1.6 | The "CRX twin-cam" of the same accounts |
+| `legacy` | Subaru Legacy RS turbo, 1989 to 1994 | Tanzawa Bequest RS Turbo | The Group A 4WD turbo sedans that "flowed across our borders" |
+| `m325` | BMW E30 M325i, 1986 to 1990 | Isar 325 Sport | A New Zealand-only model, about 100 imported |
+| `escort` | Ford Escort Mk II 1600 Sport, 1975 to 1980 | Lachlan Outrider 1600 Sport | Seaview-assembled; "often topped the car monthly sales lists" |
+| `monaro` | Holden HQ Monaro GTS, 1971 to 1974 | Holbrook Kiandra GTS | The HQ's two-door, always fully imported |
+| `charger` | Chrysler Valiant Charger 770, 1971 to 1973 | Carrington Hussar 770 | Todd built one Charger model at Petone; unbeatable at Pukekohe |
+| `morrie` | Morris Minor 1000, to 1974 | Pemberton Minim 1000 | "The Morrie", assembled at Newmarket until 1974 |
+
+The Falcon and the Commodore are in the game five times over: the Commodore as `statesman` (VN six),
+`commodore` (VR SS V8) and `police` (VR patrol car); the Falcon as `v8sedan` (XD/XE V8), `falcon` (EF XR8),
+`wagon` (XF wagon) and `taxi` (XF cab).
 
 Cut from the proposal: the tractor (its big rear wheels fight the vehicle physics; owner agreed).
 

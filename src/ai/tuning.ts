@@ -214,7 +214,8 @@ export const TRAFFIC = {
   /** Boy racers. */
   racerAggression: 1.7,
   racerCruise: 34,
-  racerSpecs: ['v8sedan', 'coupe'],
+  /** What the pack drives: the old V8 and the turbo coupe, and the quick cars of the day (those the roster has). */
+  racerSpecs: ['v8sedan', 'coupe', 'gtr', 'rx7', 'ae86', 'crx', 'legacy', 'commodore', 'falcon'],
   racerAvenues: ['Bealey', 'Fitzgerald', 'Moorhouse', 'Deans'],
   racerSpacing: 17,
   /** Buses. */

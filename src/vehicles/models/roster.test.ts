@@ -13,7 +13,13 @@ const ADDED_IDS = [
   'trafficcar', 'taxi', 'kingswood', 'valiant', 'cortina', 'mini', 'triumph', 'corolla', 'corona', 'sigma',
   'accord', 'datsun', 'leone', 'hothatch', 'import', 'lada', 'landrover', 'stocktruck', 'farmbike',
 ];
-const CONTRACT_IDS = [...ORIGINAL_IDS, ...ADDED_IDS];
+/**
+ * The twelve quick cars and old classics added after that: five in specs-sports.ts, five in
+ * specs-classics.ts, and the 1995 V8 Commodore and Falcon beside their older selves in specs.ts.
+ */
+const SPORTS_IDS = ['gtr', 'rx7', 'ae86', 'crx', 'legacy', 'commodore', 'falcon'];
+const CLASSIC_IDS = ['escort', 'monaro', 'charger', 'morrie', 'm325'];
+const CONTRACT_IDS = [...ORIGINAL_IDS, ...ADDED_IDS, ...SPORTS_IDS, ...CLASSIC_IDS];
 
 /** Real marques and model names that must never appear in a vehicle name. */
 const REAL_NAMES = [
@@ -39,6 +45,8 @@ const REAL_NAMES = [
   'vincent', 'velocette', 'matchless', 'ariel', 'enfield', 'bonneville', 'commando', 'sportster', 'katana', 'ninja', 'goldwing', 'vespa', 'lambretta', 'bultaco', 'husqvarna', 'ktm',
   'massey', 'ferguson', 'fordson', 'deere', 'case', 'fiat', 'zetor', 'kubota', 'nuffield', 'steyr', 'studebaker', 'rambler', 'plymouth', 'buick', 'cadillac', 'mercury', 'lincoln', 'jeep', 'amc',
   'chrysler', 'valiant', 'dodge', 'chevrolet', 'pontiac', 'bmw', 'mercedes', 'audi', 'volkswagen', 'vw', 'kombi', 'porsche', 'fiat', 'peugeot', 'renault', 'citroen', 'saab', 'lada', 'skoda',
+  // Added with the quick cars and the classics.
+  'charger', 'pacer', 'regal', 'ranger', 'sandman', 'liberty', 'rx7', 'ae86', 'gtr', 'm325i', 'm3', 'mexico', 'rs2000',
 ];
 
 /**
@@ -112,7 +120,7 @@ describe('vehicle roster', () => {
     if ((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.VEHICLE_COUNTS) console.log('\n' + rows.join('\n'));
   });
 
-  it('has exactly the thirty contract ids, once each, the original eleven among them', () => {
+  it('has exactly the forty-two contract ids, once each, the original eleven among them', () => {
     for (const id of ORIGINAL_IDS) expect(VEHICLE_SPECS.some((s) => s.id === id), id).toBe(true);
     expect(VEHICLE_SPECS.map((s) => s.id).sort()).toEqual([...CONTRACT_IDS].sort());
   });

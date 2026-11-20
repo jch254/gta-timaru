@@ -214,6 +214,11 @@ interface CommodoreOptions {
   top: number;
   /** Rounded-off 1993 facelift (the patrol car): softer corners, raised tail lamps. */
   round?: boolean;
+  /**
+   * The V8 sports model: boot spoiler, chin spoiler, sill skirts, driving lamps, twin pipes. 'ss' keeps the
+   * Commodore's nose; 'xr' is the Falcon's, four round lamps in a grille-less panel and red bumper strips.
+   */
+  sport?: 'ss' | 'xr';
   wheel: WheelStyle;
   rim?: number;
   cloth: number;
@@ -233,6 +238,7 @@ function commodorePlan(spec: VehicleSpec, o: CommodoreOptions): CarPlan {
   const ar = r + 0.05;
   const top = o.top;
   const round = o.round ?? false;
+  const sport = o.sport;
   const seats = [
     { x: -0.38, y: 0.3, z: 0.05 },
     { x: 0.38, y: 0.3, z: 0.05 },
@@ -295,15 +301,23 @@ function commodorePlan(spec: VehicleSpec, o: CommodoreOptions): CarPlan {
       // Moulded plastic bumpers, body colour with a full-width dark rub strip.
       const moulding: Pt[] = [[-0.03, -0.14], [0.025, -0.145], [0.05, -0.11], [0.056, -0.03], [0.056, 0.05], [0.04, 0.085], [-0.03, 0.09]];
       const insert: Pt[] = [[0.0565, -0.012], [0.064, 0.012], [0.0565, 0.036]];
+      const strip = sport === 'xr' ? tint(0xb5141c, 'gloss') : DARK;
       for (const end of ['front', 'rear'] as const) {
         const zStart = (end === 'front' ? 1 : -1) * (ax + ar + 0.03);
         bumper(k, shell, end, PAINT, moulding, { zStart, y: 0.43, bow: 0.02 });
-        bumper(k, shell, end, DARK, insert, { zStart, y: 0.43, bow: 0.02 });
+        bumper(k, shell, end, strip, insert, { zStart, y: 0.43, bow: 0.02 });
       }
       // Nose: near-flush rectangular lamps the full width, a slot of a grille between them.
-      if (round) F.headlamps(0.43, 0.64, 0.37, 0.11, { depth: 0.035 });
-      else F.headlamps(0.45, 0.64, 0.44, 0.115, { depth: 0.035 });
-      F.grille(0, 0.64, round ? 0.36 : 0.34, round ? 0.075 : 0.09, { bars: round ? 1 : 2, surface: round ? PAINT : PLASTIC, depth: 0.05, badge: [0.06, 0.045] });
+      if (sport === 'xr') {
+        // The sports Falcon: four round lamps in a body-colour panel, no grille, a slot under the bonnet lip.
+        F.roundLamps(0.53, 0.645, 0.062);
+        F.roundLamps(0.375, 0.645, 0.062);
+        F.grille(0, 0.625, 0.4, 0.03, { bars: 1, surface: DARK, depth: 0.03, badge: [0.075, 0.035] });
+      } else {
+        if (round) F.headlamps(0.43, 0.64, 0.37, 0.11, { depth: 0.035 });
+        else F.headlamps(0.45, 0.64, 0.44, 0.115, { depth: 0.035 });
+        F.grille(0, 0.64, round ? 0.36 : 0.34, round ? 0.075 : 0.09, { bars: round ? 1 : 2, surface: round ? PAINT : PLASTIC, depth: 0.05, badge: [0.06, 0.045] });
+      }
       cornerLens(k, shell, 'front', AMBER, 0.64, 0.09, 0.22);
       // Tail: wide clusters joined by an applique panel; the facelift carries them high on the boot.
       const ty = round ? 0.77 : 0.71;
@@ -329,6 +343,20 @@ function commodorePlan(spec: VehicleSpec, o: CommodoreOptions): CarPlan {
       aerial(k, -(shell.sx(1.5) - 0.09), shell.deckY(1.5, shell.sx(1.5) - 0.09), 1.5, 0.45);
       exhaust(k, 0.5, 0.26, -h - 0.04);
       fuelFlap(k, shell, -1.96, 0.76);
+      if (sport) {
+        // Driving lamps and an intake in the bumper, a chin spoiler under it, skirts along the sills.
+        F.box(DARK, 0.5, 0.06, 0, 0.36, 0.02, 0.058);
+        F.both(CLEAR_LENS, 0.14, 0.055, 0.45, 0.36, 0.012, 0.06);
+        k.pad(PAINT, 2 * W - 0.34, 0.05, 0.12, 0, 0.285, h - 0.03, 0.02);
+        for (const s of [1, -1]) k.pad(PAINT, 0.05, 0.1, spec.wheelbase - 2 * ar - 0.05, s * (shell.F(0, 0.26) + 0.004), 0.25, 0, 0.02);
+        // A wing standing on the boot lid, and the second pipe.
+        if (!k.lo) {
+          const sy = shell.deckY(-h + 0.19, 0) + 0.075;
+          k.pad(PAINT, 2 * W - 0.46, 0.03, 0.2, 0, sy, -h + 0.18, 0.012, [0.09, 0, 0], true);
+          k.boxes(PAINT, 0.07, 0.07, 0.13, W - 0.4, sy - 0.04, -h + 0.19);
+        }
+        exhaust(k, 0.37, 0.26, -h - 0.04);
+      }
       o.extras?.(k, shell, cab);
     },
   };
@@ -347,6 +375,30 @@ export function buildSedan(spec: VehicleSpec, color: number, m: MaterialLibrary)
   return assemble(spec, color, m, spec.id, plan, (k) => {
     fit(k, spec.id, fittings);
     k.plates(h + 0.095, 0.43, -h - 0.012, 0.6, 'any');
+  }).model;
+}
+
+/**
+ * Holden Commodore VR SS stand-in: the rounded 1993 body with the V8, the body kit and alloys. The quick
+ * Holden of 1995, nearly new.
+ */
+export function buildCommodoreSS(spec: VehicleSpec, color: number, m: MaterialLibrary): VehicleModel {
+  const h = spec.length / 2 - 0.07;
+  const plan = commodorePlan(spec, { top: spec.height, round: true, sport: 'ss', wheel: 'alloy', cloth: 0x2c2e33, ageing: CHERISHED });
+  return assemble(spec, color, m, spec.id, plan, (k) => {
+    k.plates(h + 0.095, 0.43, -h - 0.012, 0.6, 'new');
+  }).model;
+}
+
+/**
+ * Ford Falcon EF XR8 stand-in: the same size and shape of car from the other camp (a rounded six-light
+ * four-door), told apart by its four round lamps, the missing grille and the red strips in its bumpers.
+ */
+export function buildFalconXR(spec: VehicleSpec, color: number, m: MaterialLibrary): VehicleModel {
+  const h = spec.length / 2 - 0.07;
+  const plan = commodorePlan(spec, { top: spec.height, round: true, sport: 'xr', wheel: 'alloy', cloth: 0x2a2c30, ageing: CHERISHED });
+  return assemble(spec, color, m, spec.id, plan, (k) => {
+    k.plates(h + 0.095, 0.43, -h - 0.012, 0.6, 'new');
   }).model;
 }
 
@@ -1372,6 +1424,8 @@ export function buildTrafficcar(spec: VehicleSpec, color: number, m: MaterialLib
 /** The builders this file owns, keyed by `VehicleSpec.model`. */
 export const SEDAN_MODELS: Record<string, (spec: VehicleSpec, color: number, m: MaterialLibrary) => VehicleModel> = {
   sedan: buildSedan,
+  commodore: buildCommodoreSS,
+  falcon: buildFalconXR,
   v8sedan: buildV8Sedan,
   wagon: buildWagon,
   police: buildPolice,

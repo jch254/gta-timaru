@@ -1,7 +1,7 @@
 import type { WeaponSpec } from '../core/types';
 
 /** The fixed weapon ids (docs/CONTRACT.md), in the order the player cycles through them. */
-export const WEAPON_ORDER = ['fists', 'bat', 'pistol', 'shotgun', 'rifle'] as const;
+export const WEAPON_ORDER = ['fists', 'knife', 'bat', 'katana', 'pistol', 'shotgun', 'rifle'] as const;
 export type WeaponId = (typeof WEAPON_ORDER)[number];
 
 /**
@@ -9,11 +9,17 @@ export type WeaponId = (typeof WEAPON_ORDER)[number];
  * half-angle in radians before the stance multipliers in TUNING.
  *
  * Display names are 1995 Canterbury flavour only (the club target pistol, the duck-season pump, the
- * farm .22); ids and every number are fixed by the contract and playtest.
+ * farm .22, the knife off the boning room belt); ids and every number are fixed by the contract and playtest.
+ *
+ * The two blades (`blade: true`) cut rather than club: see TUNING.bladeKnock / bladeVehicleDamage and the
+ * `blood` in WEAPON_FEEL. The knife is quick and short; the katana is the best thing there is to swing, is
+ * not for sale (price 0) and is only ever found (src/missions/stashes.ts).
  */
 export const WEAPONS: readonly WeaponSpec[] = [
   { id: 'fists', name: 'Fists', kind: 'fists', damage: 14, rate: 2.4, range: 1.5, magazine: 0, reloadTime: 0, spread: 0, pellets: 1, automatic: false, driveBy: false, price: 0 },
+  { id: 'knife', name: 'Boning Knife', kind: 'melee', damage: 26, rate: 3, range: 1.6, magazine: 0, reloadTime: 0, spread: 0, pellets: 1, automatic: false, driveBy: false, price: 30, blade: true },
   { id: 'bat', name: 'Cricket Bat', kind: 'melee', damage: 32, rate: 1.5, range: 2, magazine: 0, reloadTime: 0, spread: 0, pellets: 1, automatic: false, driveBy: false, price: 45 },
+  { id: 'katana', name: 'Katana', kind: 'melee', damage: 55, rate: 1.9, range: 2.4, magazine: 0, reloadTime: 0, spread: 0, pellets: 1, automatic: false, driveBy: false, price: 0, blade: true },
   { id: 'pistol', name: 'Target Pistol', kind: 'pistol', damage: 26, rate: 3.6, range: 70, magazine: 9, reloadTime: 1.5, spread: 0.02, pellets: 1, automatic: false, driveBy: true, price: 400 },
   { id: 'shotgun', name: 'Duck Gun', kind: 'shotgun', damage: 13, rate: 1, range: 30, magazine: 5, reloadTime: 2.8, spread: 0.085, pellets: 8, automatic: false, driveBy: false, price: 850 },
   { id: 'rifle', name: '.22 Rabbit Rifle', kind: 'rifle', damage: 70, rate: 0.8, range: 240, magazine: 5, reloadTime: 2.6, spread: 0.003, pellets: 1, automatic: false, driveBy: false, price: 1200 },
@@ -46,7 +52,9 @@ export interface WeaponFeel {
 
 export const WEAPON_FEEL: Record<WeaponId, WeaponFeel> = {
   fists: { recoil: 0, kick: 0, barrel: 0, pickupAmmo: 0, maxReserve: 0, vehicleScale: 0, falloffStart: 1, falloffMin: 1, flash: 0, blood: 0.3, carryTilt: 0 },
+  knife: { recoil: 0, kick: 0, barrel: 0, pickupAmmo: 0, maxReserve: 0, vehicleScale: 0, falloffStart: 1, falloffMin: 1, flash: 0, blood: 1.25, carryTilt: 0 },
   bat: { recoil: 0, kick: 0, barrel: 0, pickupAmmo: 0, maxReserve: 0, vehicleScale: 0, falloffStart: 1, falloffMin: 1, flash: 0, blood: 1, carryTilt: 0 },
+  katana: { recoil: 0, kick: 0, barrel: 0, pickupAmmo: 0, maxReserve: 0, vehicleScale: 0, falloffStart: 1, falloffMin: 1, flash: 0, blood: 1.5, carryTilt: 0 },
   pistol: { recoil: 0.1, kick: 0.016, barrel: 0.2, pickupAmmo: 18, maxReserve: 180, vehicleScale: 0.45, falloffStart: 0.5, falloffMin: 0.6, flash: 1, blood: 1, carryTilt: 0.1 },
   shotgun: { recoil: 0.38, kick: 0.06, barrel: 0.75, pickupAmmo: 10, maxReserve: 60, vehicleScale: 0.4, falloffStart: 0.3, falloffMin: 0.25, flash: 1.8, blood: 0.5, carryTilt: 0.3 },
   rifle: { recoil: 0.2, kick: 0.036, barrel: 0.7, pickupAmmo: 10, maxReserve: 60, vehicleScale: 0.5, falloffStart: 0.7, falloffMin: 0.8, flash: 1.25, blood: 1.3, carryTilt: 0.3 },
@@ -80,8 +88,12 @@ export const TUNING = {
   /** A swing does (damage − floor) × scale to a vehicle: fists barely mark a car, the bat dents it. */
   meleeVehicleFloor: 10,
   meleeVehicleScale: 0.5,
-  /** Melee swings at or above this damage draw a bat's worth of blood; lighter ones (fists) a punch's worth. */
+  /** Melee swings at or above this damage draw a bat's worth of blood; lighter ones (fists) a punch's worth. (A swing that names its weapon draws that weapon's.) */
   meleeBloodDamage: 25,
+  /** A blade goes in rather than sending them flying: its share of a club's knock-back (and of the shove it gives a car). */
+  bladeKnock: 0.35,
+  /** All a blade does to a vehicle, whatever it does to a person: a scratch in the paint. */
+  bladeVehicleDamage: 1,
   /** Shove (m/s) a bullet gives per point of damage, and its cap. */
   bulletKnock: 0.04,
   bulletKnockMax: 2,
@@ -120,6 +132,17 @@ export const TUNING = {
   pickupRadius: 1.4,
   pickupHeight: 0.8,
   pickupDrawDistance: 110,
+  /**
+   * Hidden pickups (`spawnPickup(…, { stash: true })`): the gap between the thing and the ground it lies on, how
+   * close the camera must be before it is drawn at all, and its glint: a sprite this many metres across, at this
+   * resting opacity, plus this much more in the brief twinkle it gives every few seconds. (An ordinary pickup's
+   * halo is 1.15 m across at 0.32, seen from 110 m.)
+   */
+  stashClearance: 0.02,
+  stashDrawDistance: 28,
+  stashGlintSize: 0.34,
+  stashGlint: 0.07,
+  stashTwinkle: 0.3,
   healthPickup: 50,
   armourPickup: 50,
   cashPickup: 50,

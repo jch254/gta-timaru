@@ -46,7 +46,8 @@ Registries: `src/world/landmarks/registry.ts` exports `LANDMARKS` and `src/world
 
 ### Vehicle spec ids (`VehicleSpec.id`)
 
-Thirty ids since the Canterbury-1995 roster pass. The original eleven keep their ids (missions, saves, dev
+Forty-two ids: thirty since the Canterbury-1995 roster pass, and twelve quick cars and old classics added
+after it. The original eleven keep their ids (missions, saves, dev
 tools and playtests use them); each now stands for one specific real vehicle, recorded with years and source
 in a comment on its spec and in docs/RESEARCH.md. Names in the game stay invented.
 
@@ -82,16 +83,43 @@ in a comment on its spec and in docs/RESEARCH.md. Names in the game stay invente
 | `landrover` | ute | Land Rover Series III, 1971 to 1985 |
 | `stocktruck` | truck | Hino-class cab-over with multi-deck stock crate, late 1980s |
 | `farmbike` | bike | Honda XR200 class farm bike |
+| `commodore` | sedan | Holden Commodore VR SS 5.0 V8, 1993 to 1995: body kit, boot spoiler, alloys |
+| `falcon` | sedan | Ford Falcon EF XR8 5.0 V8, 1994 to 1996: four round lamps, no grille, red bumper strips |
+| `gtr` | coupe | Nissan Skyline R32 GT-R, 1989 to 1994, sold new here in 1991 |
+| `rx7` | coupe | Mazda RX-7 FC turbo, 1985 to 1991, used import |
+| `ae86` | coupe | Toyota Sprinter Trueno / Corolla Levin AE86 twin cam, 1983 to 1987, used import |
+| `crx` | coupe | Honda CR-X second generation, 1987 to 1991, used import |
+| `legacy` | sedan | Subaru Legacy RS turbo 4WD, 1989 to 1994 |
+| `m325` | sedan | BMW E30 M325i, the New Zealand-only model, 1986 to 1990 |
+| `escort` | sedan | Ford Escort Mk II 1600 Sport, 1975 to 1980, Seaview-assembled |
+| `monaro` | coupe | Holden HQ Monaro GTS, 1971 to 1974 |
+| `charger` | coupe | Chrysler Valiant Charger 770, 1971 to 1973, Petone-assembled |
+| `morrie` | sedan | Morris Minor 1000, assembled here to 1974 |
 
-`VEHICLE_SPECS` is composed from three files so lanes do not collide: `specs.ts` (Australian and British cars
-and the patrol cars), `specs-cars.ts` (the other cars), `specs-working.ts` (utes, vans, trucks, bus, bikes).
-`VEHICLE_MODELS` likewise from `models/cars.ts`, `models/compact.ts`, `models/working.ts`.
+`VEHICLE_SPECS` is composed from five files so lanes do not collide: `specs.ts` (Australian and British cars
+and the patrol cars), `specs-cars.ts` (the other cars), `specs-sports.ts` (the quick imports),
+`specs-classics.ts` (the old classics and the European), `specs-working.ts` (utes, vans, trucks, bus, bikes).
+`VEHICLE_MODELS` likewise from `models/cars.ts`, `models/compact.ts`, `models/sports.ts`,
+`models/classics.ts`, `models/working.ts`.
 `VehicleSpec.spawnBy` multiplies `spawn` per town (`CityId` or `'country'`), so Timaru's mix differs from
 Christchurch's. Engine sounds: `four | six | v6 | v8 | boxer | turbo | diesel | bike | single | electric`.
 
 ### Weapon ids (`WeaponSpec.id`)
 
-`fists`, `bat` (cricket bat, melee), `pistol`, `shotgun`, `rifle`.
+`fists`, `knife` (boning knife, melee), `bat` (cricket bat, melee), `katana` (melee, never sold: found only), `pistol`, `shotgun`, `rifle`.
+The knife and the katana are blades (`WeaponSpec.blade`): they cut rather than club, so more blood, less
+knock-back and no dent in a car.
+
+Thirty weapons are hidden round the back of buildings (`src/missions/stashes.ts`): pickups spawned with
+`options.stash`, which lie on the ground with a faint glint instead of floating in a halo, are drawn only
+from close by and have no blip. Guns come back fifteen minutes after being taken; the two katanas are found once.
+
+### Scenery cars
+
+The prop kinds `car-parked`, `car-parked-wagon` and `van-parked` (car parks, car yards, marked bays) are
+stand-ins: within about 40 m of the player each becomes a real vehicle of a fitting class, the same one
+every time, and goes back to scenery when left untouched (`src/world/standins.ts`). Do not lay a separate
+collider over them.
 
 ### Place ids (map places them; missions, police, UI rely on them)
 

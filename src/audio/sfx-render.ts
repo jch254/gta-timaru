@@ -149,6 +149,17 @@ const punch: Renderer = (r) => {
   return finish(b, 1.4);
 };
 
+/** A blade landing: the swish of the edge coming round, the bright tick as it bites, and the short wet tear under it. */
+const slash: Renderer = (r) => {
+  const b = buf(0.3);
+  const v = r.range(0.9, 1.12);
+  addNoise(b, r, { dur: 0.1, amp: 0.5, type: 'bp', f0: 1800 * v, f1: 5400 * v, q: 1.4, attack: 0.03, hold: 0.015, decay: 0.02 });
+  addNoise(b, r, { at: 0.05, dur: 0.05, amp: 0.9, type: 'hp', f0: 3800, decay: 0.008 });
+  addNoise(b, r, { at: 0.055, dur: 0.16, amp: 0.7, type: 'bp', f0: 950 * v, f1: 380, q: 0.9, decay: 0.035 });
+  addTone(b, { at: 0.055, dur: 0.1, amp: 0.3, f0: 210 * v, f1: 90, sweep: 0.03, decay: 0.03 });
+  return finish(b, 1.3);
+};
+
 const bodyHit: Renderer = (r) => {
   const b = buf(0.32);
   const v = r.range(0.9, 1.1);
@@ -991,6 +1002,7 @@ export const RENDERERS = {
   magpie,
   scream,
   // Internal extras (not part of the public SfxId list).
+  slash,
   pain,
   deathCry,
   crunch,

@@ -38,9 +38,11 @@ export const VEHICLE_IDS = [
   // Added with the 1995 roster (docs/CONTRACT.md).
   'trafficcar', 'taxi', 'kingswood', 'valiant', 'cortina', 'mini', 'triumph', 'corolla', 'corona', 'sigma',
   'accord', 'datsun', 'leone', 'hothatch', 'import', 'lada', 'landrover', 'stocktruck', 'farmbike',
+  // The quick cars and the old classics.
+  'gtr', 'rx7', 'ae86', 'crx', 'legacy', 'commodore', 'falcon', 'escort', 'monaro', 'charger', 'morrie', 'm325',
 ] as const;
 
-export const WEAPON_IDS = ['fists', 'bat', 'pistol', 'shotgun', 'rifle'] as const;
+export const WEAPON_IDS = ['fists', 'knife', 'bat', 'katana', 'pistol', 'shotgun', 'rifle'] as const;
 
 /** Kinds `ctx.combat.spawnPickup` understands besides weapon ids. */
 export const PICKUP_KINDS = ['health', 'armour', 'cash'] as const;

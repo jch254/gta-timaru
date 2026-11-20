@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../../core/rng';
-import { footSound, gunSound, strideLength } from '../index';
+import { footSound, gunSound, meleeSound, strideLength } from '../index';
 import { STATIONS, STATION_DEFS, nextStation, programItem, stationName, type Item } from './dial';
 import type { Kit } from './kit';
 import { makeMotif, realize, row, type Ev } from './song';
@@ -264,6 +264,18 @@ describe('event mapping helpers', () => {
     expect(gunSound('rifle')).toBe('rifle');
     expect(gunSound('bat', 'melee')).toBeNull();
     expect(gunSound('fists', 'fists')).toBeNull();
+    expect(gunSound('knife', 'melee')).toBeNull();
+    expect(gunSound('katana', 'melee')).toBeNull();
+  });
+
+  it('gives a blade its cut and leaves fists, clubs and guns alone', () => {
+    expect(meleeSound({ kind: 'melee', blade: true })).toBe('slash');
+    expect(meleeSound({ kind: 'melee' })).toBeNull();
+    expect(meleeSound({ kind: 'melee', blade: false })).toBeNull();
+    expect(meleeSound({ kind: 'fists' })).toBeNull();
+    expect(meleeSound({ kind: 'pistol', blade: true })).toBeNull();
+    expect(meleeSound(undefined)).toBeNull();
+    expect(meleeSound(null)).toBeNull();
   });
 
   it('walks at about two steps a second and sprints at about three and a half', () => {

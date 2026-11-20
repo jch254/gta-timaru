@@ -1,5 +1,7 @@
 import type { VehicleSpec } from '../core/types';
 import { CAR_SPECS } from './specs-cars';
+import { CLASSIC_SPECS } from './specs-classics';
+import { SPORTS_SPECS } from './specs-sports';
 import { WORKING_SPECS } from './specs-working';
 
 /**
@@ -89,6 +91,84 @@ const AUSSIE_SPECS: VehicleSpec[] = [
     colors: [0xb5141c, 0xf0f0ec, 0x101114, 0x1b4fa8, 0x14463a, 0x4b2060, 0xd9a70f, 0x8a8f96],
     value: 6500,
     spawn: { statehouse: 3, villa: 2, shops: 1, cbd: 1, township: 1, industrial: 1, beach: 2, rural: 0.5 },
+    engineSound: 'v8',
+    traffic: true,
+  },
+  // Holden Commodore VR SS 5.0 V8, July 1993 to April 1995, imported built-up from Australia: the rounded
+  // restyle with the tail lamps raised into the boot lid, and the SS kit of front and rear lips, side
+  // skirts, boot spoiler and driving lights. 5.0 V8 165 kW (a 185 kW version was optional). The research
+  // file has no VR dimensions or weight: the body figures are the VP's (4891 x 1812 x 1403 mm, 1332 kg
+  // for the six) on the VN wheelbase, and the V8's mass is an estimate.
+  // https://en.wikipedia.org/wiki/Holden_Commodore_(VR)
+  {
+    id: 'commodore',
+    name: 'Holbrook Chancellor S V8',
+    cls: 'sedan',
+    model: 'commodore',
+    length: 4.891,
+    width: 1.812,
+    height: 1.403,
+    mass: 1420,
+    wheelRadius: 0.325,
+    wheelWidth: 0.23,
+    wheelbase: 2.731,
+    track: 1.55,
+    wheelCount: 4,
+    engineForce: 9700,
+    topSpeed: 62,
+    reverseSpeed: 13,
+    drive: 'rwd',
+    brakeForce: 1.12,
+    steerLock: 0.58,
+    grip: 1.07,
+    rearGripBias: 0.88,
+    suspensionStiffness: 36,
+    suspensionDamping: 1.15,
+    suspensionTravel: 0.18,
+    comDrop: 0.4,
+    seats: 4,
+    health: 105,
+    colors: [0xb5141c, 0xf0f0ec, 0x101114, 0x14463a, 0x1b4fa8, 0x8a8f96],
+    value: 14000,
+    spawn: { statehouse: 1, villa: 1, cbd: 0.6, shops: 0.6, township: 0.6, beach: 0.8, industrial: 0.4 },
+    engineSound: 'v8',
+    traffic: true,
+  },
+  // Ford Falcon EF XR8 5.0 V8, August 1994 to October 1996, imported built-up from Australia (the EB II
+  // was the last Falcon assembled at Wiri): 4906 x 1861 x 1453 mm, wheelbase 2791, 1536 kg, 170 kW at
+  // 4500 rpm. The XR cars have twin (quad) headlamps, no grille and red or black bumper strips.
+  // https://en.wikipedia.org/wiki/Ford_Falcon_(EF)
+  {
+    id: 'falcon',
+    name: 'Lachlan Taipan SR V8',
+    cls: 'sedan',
+    model: 'falcon',
+    length: 4.906,
+    width: 1.861,
+    height: 1.453,
+    mass: 1536,
+    wheelRadius: 0.325,
+    wheelWidth: 0.23,
+    wheelbase: 2.791,
+    track: 1.56,
+    wheelCount: 4,
+    engineForce: 10000,
+    topSpeed: 62,
+    reverseSpeed: 13,
+    drive: 'rwd',
+    brakeForce: 1.12,
+    steerLock: 0.58,
+    grip: 1.06,
+    rearGripBias: 0.86,
+    suspensionStiffness: 34,
+    suspensionDamping: 1.12,
+    suspensionTravel: 0.19,
+    comDrop: 0.42,
+    seats: 4,
+    health: 110,
+    colors: [0xb5141c, 0xf0f0ec, 0x101114, 0x1b4fa8, 0x4b2060, 0xd9a70f],
+    value: 15000,
+    spawn: { statehouse: 1, villa: 1, cbd: 0.6, shops: 0.6, township: 0.6, beach: 0.8, industrial: 0.4 },
     engineSound: 'v8',
     traffic: true,
   },
@@ -422,5 +502,8 @@ const AUSSIE_SPECS: VehicleSpec[] = [
   },
 ];
 
-/** The whole roster: the Australian, British and patrol cars above, the other cars, then the working vehicles. */
-export const VEHICLE_SPECS: VehicleSpec[] = [...AUSSIE_SPECS, ...CAR_SPECS, ...WORKING_SPECS];
+/**
+ * The whole roster: the Australian, British and patrol cars above, the other cars, the quick ones, the old
+ * classics, then the working vehicles.
+ */
+export const VEHICLE_SPECS: VehicleSpec[] = [...AUSSIE_SPECS, ...CAR_SPECS, ...SPORTS_SPECS, ...CLASSIC_SPECS, ...WORKING_SPECS];
