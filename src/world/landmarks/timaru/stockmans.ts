@@ -377,7 +377,8 @@ function facade(s: Site, it: Interior, lift: number): void {
   // The middle pediment with the name and the date in relief.
   g(plaster).box(0, top + 0.45, OZ + 0.06, 8.2, 0.8, 0.2);
   pediment(g(trim), 0, top + 0.85, OZ + 0.18, 8.6, 1.5, 0.3);
-  s.sign(f, 'CORONATION BUILDINGS', 0, top - 0.55, OZ + 0.18, 7.4, 12, { bg: '#e2d6bc', fg: '#7a6a50', style: 'paint', border: false });
+  // Between the middle bay's pilasters (inner faces at ±2.6), which stand proud of it.
+  s.sign(f, 'CORONATION BUILDINGS', 0, top - 0.55, OZ + 0.18, 5.0, 12, { bg: '#e2d6bc', fg: '#7a6a50', style: 'paint', border: false });
   s.sign(f, '1902', 0, top + 1.25, OZ + 0.2, 1.2, 2.6, { bg: '#c4b494', fg: '#6a5a40', style: 'paint', border: false });
   // The store's own board across the middle, and its name up the open side over the lane.
   g(red).box(0, H0 + 0.6, OZ + 0.3, 13, 0.95, 0.12);
