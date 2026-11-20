@@ -18,6 +18,8 @@ Then open the URL Vite prints. `pnpm build` type-checks and writes a self-contai
 
 ### Production browser gate
 
+See the [November gameplay audit handoff](docs/AUDIT-HANDOFF.md) for the shipped revision and the remaining physical iPhone Safari checks.
+
 After integrating changes, run `pnpm install --frozen-lockfile && pnpm test && pnpm build && pnpm test:browser`. The last command starts its own loopback preview of **the existing `dist/`**, plays in a fresh Chrome profile, and shuts both down. Set `CHROME_PATH` to the executable outside the standard macOS install. For Firefox, use `BROWSER=firefox FIREFOX_PATH=/path/to/firefox pnpm test:browser` (a WebGL2-capable display or Xvfb/Mesa on Linux).
 
 The gate checks failed Save feedback and preservation of the previous slot, reload → Continue, pause → Resume, a same-road district crossing under throttle, and checkpoint credit after swapping race cars. The production bundle’s existing `?dev` helpers position the scenarios; saving, loading, simulation, HUD and mission ticks run in the browser. There is no dev server or mocked engine. The failed-write case requires the save fix: a quota error must not look like a successful save.
