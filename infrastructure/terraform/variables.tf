@@ -47,7 +47,7 @@ variable "cloudflare_api_token_parameter_name" {
 }
 
 variable "manage_dns" {
-  description = "Whether Terraform manages the Cloudflare DNS records for the game (and, served from the apex, the www redirect)."
+  description = "Whether Terraform manages the Cloudflare DNS records and zone settings for the game (and, served from the apex, the www redirect)."
   type        = bool
   default     = true
 }

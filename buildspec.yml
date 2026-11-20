@@ -33,11 +33,13 @@ phases:
     commands:
       - test "$CODEBUILD_BUILD_SUCCEEDING" = 1 || exit 1
       - echo Syncing dist/ to s3://$SITE_BUCKET ...
-      # Everything except index.html and version.json has a content hash in its name, so it can be cached
-      # forever; index.html must always be revalidated.
+      # Everything under assets/ has a content hash in its name, so it can be cached forever. The icons
+      # and the manifest keep their names from build to build, so they get an hour; index.html must
+      # always be revalidated.
       # No --delete: tabs opened before this deploy still fetch the old build's files, so those stay until
       # prune-old-files.mjs (below) finds them unused for a week.
-      - aws s3 sync dist/ "s3://$SITE_BUCKET" --exclude "*.html" --exclude "version.json" --cache-control "public,max-age=31536000,immutable"
+      - aws s3 sync dist/ "s3://$SITE_BUCKET" --exclude "*" --include "assets/*" --cache-control "public,max-age=31536000,immutable"
+      - aws s3 sync dist/ "s3://$SITE_BUCKET" --exclude "assets/*" --exclude "*.html" --exclude "version.json" --cache-control "public,max-age=3600"
       - aws s3 sync dist/ "s3://$SITE_BUCKET" --exclude "*" --include "*.html" --cache-control "public,max-age=0,must-revalidate"
       # Last, once every file it points to is up: running games read this to learn a new build is out
       # (src/core/update.ts), so it must never be cached.
