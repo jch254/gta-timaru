@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { GameContext, GroundSurface, Vehicle } from '../core/types';
 import type { Decals } from './decals';
 import type { ParticlePool, ParticleStyle } from './particles';
-import { DECAL_BURN, DECAL_SKID, DUST_GRASS, DUST_GRAVEL, DUST_SAND, FLAME, SMOKE_BLACK, SMOKE_DARK, SMOKE_GREY, SMOKE_TYRE, WATER_SPRAY } from './styles';
+import { DECAL_BLOOD_TYRE, DECAL_BURN, DECAL_SKID, DUST_GRASS, DUST_GRAVEL, DUST_SAND, FLAME, SMOKE_BLACK, SMOKE_DARK, SMOKE_GREY, SMOKE_TYRE, WATER_SPRAY } from './styles';
 
 /** Vehicles further than this from the camera get no effects; beyond HALF they emit at half rate. */
 const RANGE = 130;
@@ -19,6 +19,8 @@ const SLIP = 0.5;
 const SKID_STEP = 0.75;
 /** Most particles one effect may emit for one vehicle in one frame. */
 const BURST = 4;
+/** Metres of road a tyre that went through blood keeps printing it, fading all the way. */
+const BLOOD_TRACK = 24;
 
 /** Height of the chassis centre above the bottom of the tyres (the vehicle rig uses wheel radius + 0.28). */
 const rideHeight = (v: Vehicle) => v.spec.wheelRadius + 0.28;
@@ -40,6 +42,8 @@ interface State {
   scorched: boolean;
   side: number;
   skidding: boolean;
+  /** Metres of red tyre print left in the tread. */
+  blood: number;
   /** Last tyre-mark points for the rear-left and rear-right wheels. */
   marks: Float32Array;
 }
@@ -50,6 +54,7 @@ const _left = new THREE.Vector3();
 const _p = new THREE.Vector3();
 const _a = new THREE.Vector3();
 const _d = new THREE.Vector3();
+const _n = new THREE.Vector3();
 const rnd = () => Math.random() * 2 - 1;
 
 /**
@@ -69,6 +74,21 @@ export class VehicleFx {
     private splash: (position: THREE.Vector3, size: number) => void,
   ) {}
 
+  /** The vehicle's tyres went through blood: they print it on the road for a while. */
+  bloody(vehicle: Vehicle, metres = BLOOD_TRACK) {
+    const s = this.state(vehicle);
+    s.blood = Math.max(s.blood, metres);
+  }
+
+  private state(v: Vehicle): State {
+    let s = this.states.get(v);
+    if (!s) {
+      s = { smoke: 0, flame: 0, tyre: 0, dust: 0, spray: 0, sample: Math.random() * SAMPLE, surface: 'road', depth: 0, waterY: -1e9, wet: null, wreck: 0, scorched: false, side: 1, skidding: false, blood: 0, marks: new Float32Array(6) };
+      this.states.set(v, s);
+    }
+    return s;
+  }
+
   update(dt: number) {
     const { ctx } = this;
     const cam = ctx.camera.position;
@@ -80,11 +100,7 @@ export class VehicleFx {
       const dz = v.position.z - cam.z;
       const d2 = dx * dx + dz * dz;
       if (d2 > RANGE * RANGE) continue;
-      let s = this.states.get(v);
-      if (!s) {
-        s = { smoke: 0, flame: 0, tyre: 0, dust: 0, spray: 0, sample: Math.random() * SAMPLE, surface: 'road', depth: 0, waterY: -1e9, wet: null, wreck: 0, scorched: false, side: 1, skidding: false, marks: new Float32Array(6) };
-        this.states.set(v, s);
-      }
+      const s = this.state(v);
       const lod = d2 > HALF * HALF ? 0.5 : 1;
       const vel = v.velocity;
       const moving = Math.hypot(vel.x, vel.z);
@@ -208,7 +224,9 @@ export class VehicleFx {
           if (s.spray > BURST) s.spray = BURST;
         }
       }
-      this.tyreMarks(v, s, ride, skidding && lod === 1);
+      // Bloody tread prints on anything but water, slide or no slide.
+      const printing = s.blood > 0 && !wet && !v.destroyed && v.wheelsOnGround >= 2 && moving > 0.5;
+      this.tyreMarks(v, s, ride, (skidding && lod === 1) || printing, skidding);
     }
   }
 
@@ -237,9 +255,9 @@ export class VehicleFx {
       .addScaledVector(_up, -ride);
   }
 
-  /** Lay tyre marks behind the rear wheels while the vehicle slides on a sealed surface. */
-  private tyreMarks(v: Vehicle, s: State, ride: number, skidding: boolean) {
-    if (!skidding) {
+  /** Lay tyre marks behind the rear wheels while the vehicle slides on a sealed surface, or prints blood. */
+  private tyreMarks(v: Vehicle, s: State, ride: number, marking: boolean, skidding: boolean) {
+    if (!marking) {
       s.skidding = false;
       return;
     }
@@ -262,10 +280,20 @@ export class VehicleFx {
       marks[o + 1] = _p.y;
       marks[o + 2] = _p.z;
       if (length > 6) continue; // teleported or airborne in between: no mark
-      // Centre of the segment, sat on the road.
+      // Centre of the segment, sat on the road and lying in it (not in the plane of a pitching, rolling body).
       _a.addScaledVector(_d, 0.5);
-      _a.y = this.ctx.world.groundAt(_a.x, _a.z);
-      this.decals.add(DECAL_SKID, this.ctx.clock.elapsed, _a, _up, _d, length / 2 + 0.06, v.spec.wheelWidth * 0.5);
+      const ground = this.ctx.world.groundAt(_a.x, _a.z);
+      _a.y = ground;
+      if (Math.abs(ground - this.ctx.world.heightAt(_a.x, _a.z)) > 0.25) _n.set(0, 1, 0);
+      else this.ctx.world.normalAt(_a.x, _a.z, _n);
+      const now = this.ctx.clock.elapsed;
+      if (skidding) this.decals.add(DECAL_SKID, now, _a, _n, _d, length / 2 + 0.06, v.spec.wheelWidth * 0.5);
+      if (s.blood > 0) {
+        const left = s.blood / BLOOD_TRACK;
+        this.decals.add(DECAL_BLOOD_TYRE, now, _a, _n, _d, length / 2 + 0.06, v.spec.wheelWidth * 0.45, DECAL_BLOOD_TYRE.alpha * Math.min(1, left * 1.4));
+        // The tread wears clean as it goes (counted once, off the first wheel).
+        if (w === 0) s.blood = Math.max(0, s.blood - length);
+      }
     }
     s.skidding = true;
   }
