@@ -208,23 +208,10 @@ export function walkRoad(graph: RoadGraph, edge: RoadEdge, s: number, dir: 1 | -
   return _walk.left;
 }
 
-const junctionCache = new WeakMap<RoadGraph, Map<string, RoadNode | null>>();
+const junctionCache = new WeakMap<RoadGraph, Map<string, RoadNode[]>>();
 
-/**
- * The node where a road matching `a` meets one matching `b`. With several candidates (dual carriageways,
- * a road that crosses twice) the one nearest the hint wins. If the two roads never share a node, the closest
- * pair of their nodes within 90 m counts.
- */
-export function findJunction(graph: RoadGraph, a: RoadName, b: RoadName, hintX = NaN, hintZ = NaN): RoadNode | null {
-  const key = `${String(a)}|${String(b)}`;
-  let cache = junctionCache.get(graph);
-  if (!cache) junctionCache.set(graph, (cache = new Map()));
-  const known = cache.get(key);
-  if (known !== undefined) return known;
-
-  const hinted = Number.isFinite(hintX) && Number.isFinite(hintZ);
-  let best: RoadNode | null = null;
-  let bestD = Infinity;
+function junctionCandidates(graph: RoadGraph, a: RoadName, b: RoadName): RoadNode[] {
+  const shared: RoadNode[] = [];
   const onA: RoadNode[] = [];
   const onB: RoadNode[] = [];
   for (const node of graph.nodes) {
@@ -238,27 +225,44 @@ export function findJunction(graph: RoadGraph, a: RoadName, b: RoadName, hintX =
     }
     if (hasA) onA.push(node);
     if (hasB) onB.push(node);
-    if (hasA && hasB) {
-      const d = hinted ? Math.hypot(node.x - hintX, node.z - hintZ) : 0;
-      if (d < bestD) {
-        bestD = d;
-        best = node;
+    if (hasA && hasB) shared.push(node);
+  }
+  if (shared.length) return shared;
+
+  let closest: RoadNode | null = null;
+  let gap = 90;
+  for (const p of onA) {
+    for (const q of onB) {
+      const d = Math.hypot(p.x - q.x, p.z - q.z);
+      if (d < gap) {
+        gap = d;
+        closest = p;
       }
     }
   }
-  if (!best) {
-    let gap = 90;
-    for (const p of onA) {
-      for (const q of onB) {
-        const d = Math.hypot(p.x - q.x, p.z - q.z);
-        if (d < gap) {
-          gap = d;
-          best = p;
-        }
-      }
+  return closest ? [closest] : [];
+}
+
+/** Choose the shared node nearest the hint (first in graph order without a hint or on ties).
+ * If none are shared, use road A's node from the closest pair strictly under 90 m apart. */
+export function findJunction(graph: RoadGraph, a: RoadName, b: RoadName, hintX = NaN, hintZ = NaN): RoadNode | null {
+  const key = JSON.stringify([a, b]);
+  let cache = junctionCache.get(graph);
+  if (!cache) junctionCache.set(graph, (cache = new Map()));
+  let candidates = cache.get(key);
+  if (!candidates) cache.set(key, (candidates = junctionCandidates(graph, a, b)));
+
+  if (candidates.length < 2 || !Number.isFinite(hintX) || !Number.isFinite(hintZ)) return candidates[0] ?? null;
+  let best = candidates[0];
+  let bestD = Math.hypot(best.x - hintX, best.z - hintZ);
+  for (let i = 1; i < candidates.length; i++) {
+    const node = candidates[i];
+    const d = Math.hypot(node.x - hintX, node.z - hintZ);
+    if (d < bestD) {
+      best = node;
+      bestD = d;
     }
   }
-  cache.set(key, best);
   return best;
 }
 
