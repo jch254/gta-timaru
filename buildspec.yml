@@ -1,6 +1,6 @@
 version: 0.2
 
-# Builds THE 03 and deploys it to S3 behind CloudFront.
+# Builds 03 Quest and deploys it to S3 behind CloudFront.
 # Triggered by CodeBuild on pushes to the source branch (see infrastructure/).
 
 env:
@@ -10,7 +10,7 @@ env:
     REMOTE_STATE_REGION: "ap-southeast-4"
     TF_STATE_KEY: "timmaz-hard-prod-infrastructure"
   parameter-store:
-    CLOUDFLARE_API_TOKEN: "/timmaz-hard/cloudflare-api-token"
+    CLOUDFLARE_API_TOKEN: "/03-quest/cloudflare-api-token"
 
 phases:
   install:

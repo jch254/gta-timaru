@@ -6,7 +6,7 @@
 # build carried on and reported success.
 set -ex
 
-echo Deploying THE 03 infrastructure via Terraform...
+echo Deploying 03 Quest infrastructure via Terraform...
 
 cd "$(dirname "$0")/terraform"
 
@@ -20,4 +20,4 @@ terraform init \
 terraform plan -out main.tfplan
 terraform apply -auto-approve main.tfplan
 
-echo Finished deploying THE 03 infrastructure
+echo Finished deploying 03 Quest infrastructure

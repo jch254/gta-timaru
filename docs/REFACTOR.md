@@ -57,9 +57,9 @@ No lead was found on the dark-planes glitch, and no resource leaks: chunk, vehic
 **Infrastructure and scripts.**
 
 - `pnpm dev` now serves port 5195 — the port every script and doc already dialled. (The gap was real: a fresh `pnpm dev` used to serve 5173 and every tool connected to nothing.)
-- Package renamed from the stale `south-island-90s` (renamed again since, with the title: it is `the-03` today).
+- Package renamed from the stale `south-island-90s` (renamed again since, with the title: it is `03-quest` today).
 - `@dimforge/rapier3d-compat` moved to devDependencies — it is type-only plus the node-side physics tests and ships nothing.
-- New `scripts/lib.mjs`: the Chrome path, dev address, iPhone UA, GPU flags and `--flag` parser that were copy-pasted across five scripts, plus the settings localStorage key (now `the-03.settings.v2`) that three scripts hardcoded (a settings-schema bump would have silently broken their presets). Launch flags beyond the shared prefix stay per-script on purpose.
+- New `scripts/lib.mjs`: the Chrome path, dev address, iPhone UA, GPU flags and `--flag` parser that were copy-pasted across five scripts, plus the settings localStorage key (now `03-quest.settings.v2`) that three scripts hardcoded (a settings-schema bump would have silently broken their presets). Launch flags beyond the shared prefix stay per-script on purpose.
 
 **Docs** brought in line with the code: CONTRACT's allowed-helpers list covers what world modules actually lean on (`batchHint`, the new core modules), the deleted `vehicles/models/common.ts` references are gone, the stale `--dir src` test advice is fixed, `recklessDriving` joins the crime list, a heat-vs-wanted glossary line and a note that nothing calls the systems' own `dispose()` (the game starts once per page and has no teardown path); DESIGN's tree no longer claims `systems.ts` exists or puts autopilot under vehicles; ASSETS names the right physics package and the full dev-dependency list; both READMEs mention the CI test gate; the README documents all 22 playtest scripts; `title-still`'s usage strings use its real name.
 

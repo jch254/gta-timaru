@@ -1,10 +1,10 @@
-# THE 03: where it stands
+# 03 Quest: where it stands
 
 Canterbury, 1995. An original open-world crime sandbox for the browser: Vite, TypeScript, Three.js, Rapier. This is the plain account: what works, what is rough, what was cut, and what was measured.
 
 `pnpm dev` runs it. `pnpm build` type-checks and writes a self-contained `dist/` (21 MB, 135 files, hashed names, relative paths). 1,276 unit tests pass.
 
-It is live at <https://the-03.603.nz>: a private S3 bucket behind CloudFront, deployed from `main` by CodeBuild (`infrastructure/README.md`). Behind the URL, the bucket, state key, SSM parameter and CodeBuild project still carry the previous `timmaz-hard` slug; renaming those creates new resources rather than renaming the old ones, so it stays a separate exercise.
+It is live at <https://03.quest>: a private S3 bucket behind CloudFront, deployed from `main` by CodeBuild (`infrastructure/README.md`). Behind the URL, the bucket, state key and CodeBuild project still carry the original `timmaz-hard` slug; renaming those creates new resources rather than renaming the old ones, so it stays a separate exercise.
 
 ## What works
 

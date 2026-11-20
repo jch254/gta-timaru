@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- 03 Quest mark: a motorway sign. Green plate, white keyline, 03 large over QUEST small.
+       All lettering is drawn (rects and stroked paths), never font text, so it renders the same everywhere.
+       Source of truth for the favicon in index.html and the icons in public/ (node scripts/assets/icons.mjs). -->
+  <rect width="32" height="32" rx="7" fill="#0f6b47"/>
+  <rect x="2.6" y="2.6" width="26.8" height="26.8" rx="4.8" fill="none" stroke="#fff" stroke-width="1.9"/>
+  <!-- 03 -->
+  <g fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round">
+    <ellipse cx="11.6" cy="12.7" rx="3.2" ry="5.1"/>
+    <path d="M17.9 7.6h2.6a2.75 2.55 0 0 1 0 5.1h-1.3m1.3 0a2.75 2.55 0 0 1 0 5.1h-2.6"/>
+  </g>
+  <!-- QUEST: E and T filled, Q U S stroked, all 4.6 tall -->
+  <g fill="#fff">
+    <path d="M14.55 21h3v1.2h-1.7v0.5h1.5v1.2h-1.5v0.5h1.7v1.2h-3z"/>
+    <path d="M22.15 21h3.6v1.3h-1.15v3.3h-1.3v-3.3h-1.15z"/>
+  </g>
+  <g fill="none" stroke="#fff" stroke-width="1.3">
+    <ellipse cx="8.05" cy="23.3" rx="1.15" ry="1.65"/>
+    <path d="M8.45 23.95l1.45 1.65"/>
+    <path d="M11.25 21v3a0.95 0.95 0 0 0 1.9 0v-3"/>
+    <path d="M20.75 21.6h-0.9a0.85 0.85 0 0 0 0 1.7a0.85 0.85 0 0 1 0 1.7h-0.9" stroke-width="1.2"/>
+  </g>
+</svg>

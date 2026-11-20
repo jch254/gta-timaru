@@ -10,8 +10,8 @@
  */
 
 /* The page itself: no scrolling, bouncing, zooming, selecting or long-press menus over the game. */
-html.the03-page,
-html.the03-page body {
+html.q03-page,
+html.q03-page body {
   overscroll-behavior: none;
   touch-action: none;
   -webkit-touch-callout: none;
@@ -19,18 +19,18 @@ html.the03-page body {
   -webkit-tap-highlight-color: transparent;
 }
 
-html.the03-page body {
+html.q03-page body {
   position: fixed;
   inset: 0;
   width: 100%;
 }
 
-.the03-touch {
-  --the03-l: max(12px, env(safe-area-inset-left, 0px));
-  --the03-r: max(12px, env(safe-area-inset-right, 0px));
-  --the03-t: max(8px, env(safe-area-inset-top, 0px));
-  --the03-b: max(10px, env(safe-area-inset-bottom, 0px));
-  --the03-gold: #e8b43a;
+.q03-touch {
+  --q03-l: max(12px, env(safe-area-inset-left, 0px));
+  --q03-r: max(12px, env(safe-area-inset-right, 0px));
+  --q03-t: max(8px, env(safe-area-inset-top, 0px));
+  --q03-b: max(10px, env(safe-area-inset-bottom, 0px));
+  --q03-gold: #e8b43a;
 
   position: fixed;
   inset: 0;
@@ -49,25 +49,25 @@ html.the03-page body {
   color: #fff;
 }
 
-.the03-touch.the03-on {
+.q03-touch.q03-on {
   display: block;
 }
 
 /* Free space: the stick on the left, look on the right. Only takes touches while the game is being played. */
-.the03-pad {
+.q03-pad {
   position: absolute;
   inset: 0;
   pointer-events: none;
   touch-action: none;
 }
 
-.the03-touch.the03-play .the03-pad {
+.q03-touch.q03-play .q03-pad {
   pointer-events: auto;
 }
 
 /* ───────────── Buttons ───────────── */
 
-.the03-btn {
+.q03-btn {
   position: absolute;
   display: flex;
   align-items: center;
@@ -91,27 +91,27 @@ html.the03-page body {
 }
 
 /* A little more to hit than there is to see. */
-.the03-btn::after {
+.q03-btn::after {
   content: '';
   position: absolute;
   inset: -6px;
 }
 
-.the03-btn.the03-show {
+.q03-btn.q03-show {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
 }
 
-.the03-btn.the03-down {
+.q03-btn.q03-down {
   background: rgba(232, 180, 58, 0.62);
   border-color: #fff;
   transform: scale(0.95);
 }
 
 /* Something to use is in reach. */
-.the03-btn.the03-hot {
-  border-color: var(--the03-gold);
+.q03-btn.q03-hot {
+  border-color: var(--q03-gold);
   background: rgba(232, 180, 58, 0.3);
   box-shadow:
     0 0 0 3px rgba(232, 180, 58, 0.35),
@@ -120,20 +120,20 @@ html.the03-page body {
 
 /* ───────────── Always there: top-left ───────────── */
 
-.the03-b-pause,
-.the03-b-map,
-.the03-b-camera {
-  top: var(--the03-t);
+.q03-b-pause,
+.q03-b-map,
+.q03-b-camera {
+  top: var(--q03-t);
   width: 44px;
   height: 44px;
   font-size: 10px;
 }
 
-.the03-b-pause {
-  left: var(--the03-l);
+.q03-b-pause {
+  left: var(--q03-l);
 }
 
-.the03-b-pause::before {
+.q03-b-pause::before {
   content: '';
   width: 12px;
   height: 14px;
@@ -142,29 +142,29 @@ html.the03-page body {
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7));
 }
 
-.the03-b-map {
-  left: calc(var(--the03-l) + 52px);
+.q03-b-map {
+  left: calc(var(--q03-l) + 52px);
 }
 
-.the03-b-camera {
-  left: calc(var(--the03-l) + 104px);
+.q03-b-camera {
+  left: calc(var(--q03-l) + 104px);
 }
 
 /* Only while someone is talking: fourth in the row, and gold so it is noticed. */
-.the03-b-skip {
-  left: calc(var(--the03-l) + 156px);
-  top: var(--the03-t);
+.q03-b-skip {
+  left: calc(var(--q03-l) + 156px);
+  top: var(--q03-t);
   width: 72px;
   height: 44px;
-  border-color: var(--the03-gold);
+  border-color: var(--q03-gold);
   border-radius: 22px;
   font-size: 11px;
 }
 
 /* The way out of a menu. */
-.the03-b-back {
-  right: var(--the03-r);
-  top: var(--the03-t);
+.q03-b-back {
+  right: var(--q03-r);
+  top: var(--q03-t);
   width: 96px;
   height: 44px;
   border-radius: 22px;
@@ -174,49 +174,49 @@ html.the03-page body {
 
 /* ───────────── On foot: bottom-right ───────────── */
 
-.the03-b-fire {
-  right: calc(var(--the03-r) + 6px);
-  bottom: calc(var(--the03-b) + 52px);
+.q03-b-fire {
+  right: calc(var(--q03-r) + 6px);
+  bottom: calc(var(--q03-b) + 52px);
   width: 78px;
   height: 78px;
   font-size: 14px;
 }
 
-.the03-b-jump {
-  right: calc(var(--the03-r) + 98px);
-  bottom: calc(var(--the03-b) + 46px);
+.q03-b-jump {
+  right: calc(var(--q03-r) + 98px);
+  bottom: calc(var(--q03-b) + 46px);
   width: 60px;
   height: 60px;
   font-size: 12px;
 }
 
-.the03-b-aim {
-  right: calc(var(--the03-r) + 92px);
-  bottom: calc(var(--the03-b) + 118px);
+.q03-b-aim {
+  right: calc(var(--q03-r) + 92px);
+  bottom: calc(var(--q03-b) + 118px);
   width: 56px;
   height: 56px;
   font-size: 12px;
 }
 
-.the03-b-reload {
-  right: calc(var(--the03-r) + 14px);
-  bottom: calc(var(--the03-b) + 142px);
+.q03-b-reload {
+  right: calc(var(--q03-r) + 14px);
+  bottom: calc(var(--q03-b) + 142px);
   width: 52px;
   height: 52px;
   font-size: 10px;
 }
 
-.the03-b-nextWeapon {
-  right: calc(var(--the03-r) + 14px);
-  bottom: calc(var(--the03-b) + 204px);
+.q03-b-nextWeapon {
+  right: calc(var(--q03-r) + 14px);
+  bottom: calc(var(--q03-b) + 204px);
   width: 52px;
   height: 52px;
   font-size: 10px;
 }
 
-.the03-b-interact {
-  right: calc(var(--the03-r) + 170px);
-  bottom: calc(var(--the03-b) + 46px);
+.q03-b-interact {
+  right: calc(var(--q03-r) + 170px);
+  bottom: calc(var(--q03-b) + 46px);
   width: 62px;
   height: 62px;
   font-size: 14px;
@@ -224,62 +224,62 @@ html.the03-page body {
 
 /* ───────────── Driving: bottom-right ───────────── */
 
-.the03-b-gas {
-  right: calc(var(--the03-r) + 2px);
-  bottom: calc(var(--the03-b) + 44px);
+.q03-b-gas {
+  right: calc(var(--q03-r) + 2px);
+  bottom: calc(var(--q03-b) + 44px);
   width: 92px;
   height: 100px;
   border-radius: 20px;
   font-size: 17px;
 }
 
-.the03-b-brake {
-  right: calc(var(--the03-r) + 104px);
-  bottom: calc(var(--the03-b) + 44px);
+.q03-b-brake {
+  right: calc(var(--q03-r) + 104px);
+  bottom: calc(var(--q03-b) + 44px);
   width: 80px;
   height: 88px;
   border-radius: 18px;
   font-size: 13px;
 }
 
-.the03-b-handbrake {
-  right: calc(var(--the03-r) + 20px);
-  bottom: calc(var(--the03-b) + 152px);
+.q03-b-handbrake {
+  right: calc(var(--q03-r) + 20px);
+  bottom: calc(var(--q03-b) + 152px);
   width: 58px;
   height: 58px;
   font-size: 10px;
 }
 
-.the03-b-horn,
-.the03-b-radio,
-.the03-b-lookBack {
-  bottom: calc(var(--the03-b) + 216px);
+.q03-b-horn,
+.q03-b-radio,
+.q03-b-lookBack {
+  bottom: calc(var(--q03-b) + 216px);
   font-size: 10px;
 }
 
-.the03-b-horn {
-  right: calc(var(--the03-r) + 2px);
+.q03-b-horn {
+  right: calc(var(--q03-r) + 2px);
 }
 
-.the03-b-radio {
-  right: calc(var(--the03-r) + 58px);
+.q03-b-radio {
+  right: calc(var(--q03-r) + 58px);
 }
 
-.the03-b-lookBack {
-  right: calc(var(--the03-r) + 114px);
+.q03-b-lookBack {
+  right: calc(var(--q03-r) + 114px);
 }
 
-.the03-car .the03-b-interact {
-  right: calc(var(--the03-r) + 196px);
-  bottom: calc(var(--the03-b) + 44px);
+.q03-car .q03-b-interact {
+  right: calc(var(--q03-r) + 196px);
+  bottom: calc(var(--q03-b) + 44px);
   width: 54px;
   height: 54px;
   font-size: 12px;
 }
 
-.the03-car .the03-b-fire {
-  right: calc(var(--the03-r) + 112px);
-  bottom: calc(var(--the03-b) + 140px);
+.q03-car .q03-b-fire {
+  right: calc(var(--q03-r) + 112px);
+  bottom: calc(var(--q03-b) + 140px);
   width: 54px;
   height: 54px;
   font-size: 11px;
@@ -288,8 +288,8 @@ html.the03-page body {
 /* ───────────── The stick ───────────── */
 
 /* Where the stick is, before a thumb has found it. Fades for good once the stick has been used. */
-.the03-ghost,
-.the03-stick {
+.q03-ghost,
+.q03-stick {
   position: absolute;
   width: 120px;
   height: 120px;
@@ -300,14 +300,14 @@ html.the03-page body {
   transition: opacity 0.18s;
 }
 
-.the03-ghost {
-  left: calc(var(--the03-l) + 36px);
-  bottom: calc(var(--the03-b) + 36px);
+.q03-ghost {
+  left: calc(var(--q03-l) + 36px);
+  bottom: calc(var(--q03-b) + 36px);
   border-style: dashed;
 }
 
-.the03-ghost::after,
-.the03-knob {
+.q03-ghost::after,
+.q03-knob {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -319,41 +319,41 @@ html.the03-page body {
   background: rgba(255, 255, 255, 0.34);
 }
 
-.the03-ghost::after {
+.q03-ghost::after {
   content: '';
   opacity: 0.6;
 }
 
-.the03-touch.the03-play .the03-ghost.the03-show {
+.q03-touch.q03-play .q03-ghost.q03-show {
   opacity: 0.5;
 }
 
-.the03-stick {
+.q03-stick {
   left: -60px;
   top: -60px;
   will-change: transform;
 }
 
-.the03-stick.the03-show {
+.q03-stick.q03-show {
   opacity: 1;
   transition: none;
 }
 
-.the03-knob {
+.q03-knob {
   will-change: transform;
 }
 
-.the03-stick.the03-sprint {
-  border-color: var(--the03-gold);
+.q03-stick.q03-sprint {
+  border-color: var(--q03-gold);
 }
 
-.the03-stick.the03-sprint .the03-knob {
+.q03-stick.q03-sprint .q03-knob {
   background: rgba(232, 180, 58, 0.7);
 }
 
 /* ───────────── Portrait: turn the phone ───────────── */
 
-.the03-turn {
+.q03-turn {
   position: absolute;
   inset: 0;
   display: none;
@@ -370,26 +370,26 @@ html.the03-page body {
   letter-spacing: 0.02em;
 }
 
-.the03-touch.the03-portrait .the03-turn {
+.q03-touch.q03-portrait .q03-turn {
   display: flex;
 }
 
-.the03-turn-phone {
+.q03-turn-phone {
   width: 54px;
   height: 96px;
   border: 3px solid #efe7d3;
   border-radius: 10px;
-  animation: the03-turn 2.4s ease-in-out infinite;
+  animation: q03-turn 2.4s ease-in-out infinite;
 }
 
-.the03-turn-title {
+.q03-turn-title {
   font-size: 24px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #e8b43a;
 }
 
-.the03-turn-text {
+.q03-turn-text {
   max-width: 260px;
   font-size: 15px;
   font-weight: 500;
@@ -397,7 +397,7 @@ html.the03-page body {
   opacity: 0.85;
 }
 
-@keyframes the03-turn {
+@keyframes q03-turn {
   0%,
   25% {
     transform: rotate(0deg);
@@ -409,7 +409,7 @@ html.the03-page body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .the03-turn-phone {
+  .q03-turn-phone {
     animation: none;
     transform: rotate(-90deg);
   }
