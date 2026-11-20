@@ -84,6 +84,8 @@ export class Gfx implements GfxApi {
     this.quality = quality;
     this.preset = presetFor(quality);
     this.csm.remove();
+    // CSM.dispose removes shader hooks, but each light owns its rendered shadow targets.
+    for (const light of this.csm.lights) light.dispose();
     this.csm.dispose();
     this.composer.dispose();
     this.build();
