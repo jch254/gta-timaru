@@ -15,7 +15,8 @@ const RADIUS = CLEAR_RADIUS[KIND];
 /** Where the map puts it, and where South Street ends (just outside the clear circle, up the front). */
 const REAL = { x: 762, z: 5480, heading: -1.6030432092301505 };
 const ROAD_END = { x: 702, z: 5478 };
-const MACRONS = /[āēīōūĀĒĪŌŪ]/;
+/** Pātītī without its macrons, which would be a misspelling on a sign. */
+const BARE = /PATITI|Patiti/i;
 
 /** Clifftop at 10.5 m for local z > −10, a bank down to a 1 m berm by z = −22, the sea beyond z = −40. */
 const COAST = {
@@ -35,7 +36,7 @@ function check(out: RecordingBuilder, x: number, z: number) {
     if (r.op === 'instance') expect(getProp(r.kind!, materials), `prop kind ${r.kind}`).not.toBeNull();
     if (r.material?.kind === 'sign') {
       expect(r.material.text).not.toMatch(REAL_BRANDS);
-      expect(r.material.text).not.toMatch(MACRONS);
+      expect(r.material.text).not.toMatch(BARE);
     }
   }
 }
@@ -52,7 +53,7 @@ function clearOfRoadEnd(out: RecordingBuilder) {
   }
 }
 
-describe('Patiti Point', () => {
+describe('Pātītī Point', () => {
   it('is registered', () => {
     expect(LANDMARKS[KIND]).toBe(patitiPoint);
   });
@@ -60,7 +61,7 @@ describe('Patiti Point', () => {
   it('builds on flat ground without a railing or anything below a cliff', () => {
     const { out, placement } = buildLandmark(patitiPoint, KIND, RADIUS);
     check(out, placement.x, placement.z);
-    expect(texts(out)).toContain('PATITI POINT');
+    expect(texts(out)).toContain('PĀTĪTĪ POINT');
     expect(texts(out)).not.toContain('SOUTH BEACH');
     expect(texts(out)).not.toContain('SKUX');
   });
@@ -71,7 +72,7 @@ describe('Patiti Point', () => {
     check(out, placement.x, placement.z);
     expect(out.count('collider')).toBeGreaterThan(flat.out.count('collider') + 20);
     const t = texts(out);
-    for (const text of ['PATITI POINT', 'SOUTH BEACH', 'SKUX', 'TIMA RULES', 'HOONS', '03', 'WHALING STATION 1839']) expect(t).toContain(text);
+    for (const text of ['PĀTĪTĪ POINT', 'SOUTH BEACH', 'SKUX', 'TIMA RULES', 'HOONS', '03', 'WHALING STATION 1839']) expect(t).toContain(text);
     // Railing colliders stand on the clifftop just back from the bank, never out over the drop.
     const top = out.records.filter((r) => r.op === 'collider' && r.y > 10 && r.y < 12 && r.z < -5);
     expect(top.length).toBeGreaterThan(15);

@@ -74,7 +74,7 @@ function rock(g: Geo, rng: Rng, cx: number, cy: number, cz: number, rx: number, 
 }
 
 /**
- * Pātītī Point (signed PATITI POINT in 1995): the grassy headland reserve south of the port. South Street ends
+ * Pātītī Point (signed PĀTĪTĪ POINT, with its macrons): the grassy headland reserve south of the port. South Street ends
  * in a sealed car park behind a bluestone archway (Rotary plaque, 1990); a whale pot on a plinth recalls the
  * 1839 whaling station; a gravel path runs out to the lookout at the tip with a pipe railing along the cliff.
  * Below: a boulder revetment round the point, reef rocks, a derelict concrete shell covered in tags, and on the
@@ -187,7 +187,7 @@ export const patitiPoint: LandmarkBuilder = (p, out) => {
     out.collider(fa, 0, 4.2, 0, 8.2, 1.3, 0.9);
     a.g(bronze).box(4.65, 1.55, 0.565, 0.42, 0.3, 0.03);
     a.flush();
-    s.sign(fa, 'PATITI POINT', 0, cy + R + 0.375, 0.465, 2.6, 2.6 / 0.38, { bg: '#d6cfbd', fg: '#2c2b28', style: 'block', border: false });
+    s.sign(fa, 'PĀTĪTĪ POINT', 0, cy + R + 0.375, 0.465, 2.6, 2.6 / 0.38, { bg: '#d6cfbd', fg: '#2c2b28', style: 'block', border: false });
     for (const side of [-1, 1]) {
       s.prop('flax', side * 6.6, 51.2, side, 0.9);
       s.prop('flax', side * 7.4, 53.4, side * 2, 0.75);
@@ -267,7 +267,7 @@ export const patitiPoint: LandmarkBuilder = (p, out) => {
     g.g(timber).box(0, 2.06, -0.02, 2.1, 0.08, 0.3);
     g.flush();
     const board = { bg: '#2f4a3a', fg: '#efe8d2', style: 'block' as const, border: false };
-    s.sign(fb, 'PATITI POINT', 0, 1.82, 0.03, 1.4, 1.4 / 0.2, board);
+    s.sign(fb, 'PĀTĪTĪ POINT', 0, 1.82, 0.03, 1.4, 1.4 / 0.2, board);
     s.signStack(
       fb,
       [
