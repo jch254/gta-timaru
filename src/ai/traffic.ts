@@ -529,6 +529,8 @@ export class TrafficSystem implements TrafficApi, System {
     const z = _pt.z;
     if (!spawnAllowed(p.x, p.z, cam, x, z, minR, TRAFFIC.spawnMax, 20, TRAFFIC.coneHalfAngle, seeding ? minR : TRAFFIC.coneFarDistance)) return;
     if (!ctx.world.isLoaded(x, z) || ctx.vehicles.nearest(x, z, TRAFFIC.clearMoving)) return;
+    // Where a road crosses over a tunnel the ground below is the tunnel's: a car spawned there would drop in.
+    if (Math.abs(ctx.world.groundAt(x, z) - _pt.y) > 3) return;
     const district = ctx.world.districtAt(x, z);
     const hour = ctx.clock.hour;
     const wantBus = !this.hasBus && e.cls === 'arterial' && district.city === 'christchurch' && hour > 6.5 && hour < 19 && ctx.vehicles.specs.has('bus') && rng.chance(TRAFFIC.busChance);
@@ -570,6 +572,7 @@ export class TrafficSystem implements TrafficApi, System {
     const z = _pt.z - tx * offset;
     if (!spawnAllowed(p.x, p.z, cam, x, z, minR, TRAFFIC.spawnMax, 20, TRAFFIC.coneHalfAngle, seeding ? minR : TRAFFIC.coneFarDistance)) return;
     if (!ctx.world.isLoaded(x, z) || ctx.vehicles.nearest(x, z, TRAFFIC.clearParked)) return;
+    if (Math.abs(ctx.world.groundAt(x, z) - _pt.y) > 3) return;
     const v = ctx.vehicles.spawn(specId, x, z, Math.atan2(tx, tz), { controller: 'none', tags: ['parked'] });
     if (!v) return;
     v.controls.handbrake = true;

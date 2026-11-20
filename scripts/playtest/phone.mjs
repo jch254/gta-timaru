@@ -5,7 +5,7 @@
 //
 //   node scripts/playtest/phone.mjs [url] [--shots shots/round3/phone] [--size 932x430]
 //
-// It taps New game, pushes the stick, drags to look, jumps, walks to a car and gets in, drives, steers, brakes,
+// It taps New game and Timaru, pushes the stick, drags to look, jumps, walks to a car and gets in, drives, steers, brakes,
 // gets out, works the pause menu and the map, turns the phone to portrait and back, and checks a key press
 // hides the controller. Prints one line per check and exits non-zero if any failed.
 //
@@ -147,6 +147,10 @@ try {
   const titleButton = await at('#btn-new');
   note('title: New game is at least 44 px tall', titleButton && titleButton.h >= 44 && titleButton.w >= 44, titleButton && `${Math.round(titleButton.w)} x ${Math.round(titleButton.h)}`);
   await page.touchscreen.tap(titleButton.x, titleButton.y);
+  const townButton = await atSoon('#btn-start-timaru:not([hidden])');
+  await shot('11-start-in');
+  note('title: the Timaru post is at least 44 px tall', townButton && townButton.h >= 44 && townButton.w >= 44, townButton && `${Math.round(townButton.w)} x ${Math.round(townButton.h)}`);
+  await page.touchscreen.tap(townButton.x, townButton.y);
   await page.waitForFunction('window.dev !== undefined && document.querySelector("#title") === null', { timeout: 180000 });
   await sleep(1500);
 

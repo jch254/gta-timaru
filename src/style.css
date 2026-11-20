@@ -263,6 +263,30 @@ body {
   background: #ffe066;
 }
 
+/* New game's question, lettered on the pole above the two towns. */
+.title-ask {
+  margin: -0.2em 0 0.1em 0.2em;
+  font: 700 0.95em / 1.2 var(--q03-text);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #f3ead2;
+  text-shadow: 0 0.06em 0.35em rgba(0, 0, 0, 0.85);
+}
+
+.title-ask[hidden] {
+  display: none;
+}
+
+/* Christchurch is the longest word on any post. */
+#title-buttons button.town {
+  width: 12.6em;
+}
+
+#title-buttons button.town.sel,
+#title-buttons:not(:has(.sel)) button.town:is(:hover, :focus-visible) {
+  width: 14.4em;
+}
+
 /* Number-plate keycap, as in the HUD. */
 #title kbd {
   display: inline-block;

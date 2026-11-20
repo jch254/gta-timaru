@@ -729,6 +729,35 @@ const _basis = new THREE.Matrix4();
 const _left = new THREE.Vector3();
 const _up = new THREE.Vector3();
 const _fwd = new THREE.Vector3();
+const _side = new THREE.Vector3();
+
+/** A collider slab whose top runs through the quad c0, s0, c1, s1 (centreline to lip, at two samples). */
+function coverSlab(out: ChunkBuilderImpl, c0: P3, s0: P3, c1: P3, s1: P3) {
+  _fwd.set((c1[0] + s1[0] - c0[0] - s0[0]) / 2, (c1[1] + s1[1] - c0[1] - s0[1]) / 2, (c1[2] + s1[2] - c0[2] - s0[2]) / 2);
+  const len = _fwd.length();
+  if (len < 1e-3) return;
+  _fwd.multiplyScalar(1 / len);
+  _side.set((s0[0] + s1[0] - c0[0] - c1[0]) / 2, (s0[1] + s1[1] - c0[1] - c1[1]) / 2, (s0[2] + s1[2] - c0[2] - c1[2]) / 2);
+  const width = _side.length();
+  _side.addScaledVector(_fwd, -_side.dot(_fwd)).normalize();
+  _up.crossVectors(_fwd, _side);
+  if (_up.y < 0) {
+    _side.negate();
+    _up.negate();
+  }
+  _basis.makeBasis(_side, _up, _fwd);
+  const hy = 0.25;
+  out.colliders.push({
+    x: (c0[0] + s0[0] + c1[0] + s1[0]) / 4 - _up.x * hy,
+    y: (c0[1] + s0[1] + c1[1] + s1[1]) / 4 - _up.y * hy,
+    z: (c0[2] + s0[2] + c1[2] + s1[2]) / 4 - _up.z * hy,
+    hx: width / 2 + 0.5,
+    hy,
+    hz: len / 2 + 0.05,
+    heading: 0,
+    quat: new THREE.Quaternion().setFromRotationMatrix(_basis),
+  });
+}
 
 /**
  * Road surfaces, footpaths, markings and bridges for one chunk. A generator, one step per edge, so the
@@ -1055,29 +1084,37 @@ export function* buildChunkRoads(cx: number, cz: number, map: CompiledMap, edges
 
       if (e.tunnel) {
         // A covered cutting: concrete walls and roof wherever the hill stands well above the road,
-        // with the natural ground surface laid back over the top.
+        // with the surface over it (the hill, and Summit Road where it crosses) laid back over the top.
         const deep = (i: number) => terrain.natural(e.samples[i].x, e.samples[i].z) - e.samples[i].y > 7;
-        let lidL: P3[] = [];
-        let lidR: P3[] = [];
+        // Across the cover: tucked under the hillside at the outer edge, level with it from the lip of the
+        // cutting (TerrainModel.roadBlend: half + 1.2 + 5) over the middle.
+        const rim = half + 6.2;
+        const reach = half + 8;
+        const ACROSS = [reach, rim, 0, -rim, -reach];
+        const LIFT = [-0.25, 0, 0, 0, -0.25];
+        const cross = (i: number): P3[] => {
+          const a = e.samples[i];
+          return ACROSS.map((o, k): P3 => {
+            const x = a.x + a.tz * o;
+            const z = a.z - a.tx * o;
+            return [x, Math.max(terrain.cover(x, z), a.y + 7) + LIFT[k], z];
+          });
+        };
+        let lid: P3[][] = ACROSS.map(() => []);
+        let row: P3[] | null = null;
         for (let i = i0; i <= i1; i++) {
           const a = e.samples[i];
           const covered = deep(i);
+          const next = covered && i < i1 && deep(i + 1) ? cross(i + 1) : null;
           if (covered) {
-            const reach = half + 8;
-            const lx = a.x + a.tz * reach;
-            const lz = a.z - a.tx * reach;
-            const rx = a.x - a.tz * reach;
-            const rz = a.z + a.tx * reach;
-            const top = Math.max(terrain.natural(a.x, a.z), a.y + 7);
-            lidL.push([lx, Math.max(terrain.natural(lx, lz), top - 3) + 0.15, lz]);
-            lidR.push([rx, Math.max(terrain.natural(rx, rz), top - 3) + 0.15, rz]);
+            row ??= cross(i);
+            row.forEach((p, k) => lid[k].push(p));
           }
           if (!covered || i === i1) {
-            strip(out, lidL, lidR, m.lid);
-            lidL = [];
-            lidR = [];
+            for (let k = 0; k < ACROSS.length - 1; k++) strip(out, lid[k], lid[k + 1], m.lid);
+            lid = ACROSS.map(() => []);
           }
-          if (covered && i < i1 && deep(i + 1)) {
+          if (row && next) {
             const b = e.samples[i + 1];
             _fwd.set(b.x - a.x, b.y - a.y, b.z - a.z);
             const len = _fwd.length();
@@ -1093,7 +1130,12 @@ export function* buildChunkRoads(cx: number, cz: number, map: CompiledMap, edges
             if (i % 3 === 0) out.box(_basis, 0, 5.74, 0, 0.5, 0.12, 1.6, m.tunnelLight);
             // Roof collider keeps the chase camera inside.
             out.colliders.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 + 6.05, z: (a.z + b.z) / 2, hx: w / 2 + 0.5, hy: 0.25, hz: len / 2 + 0.05, heading: 0, quat: q });
+            // The cover is solid out to the lip of the cutting: whatever walks or drives over the top (Summit
+            // Road crosses here) stays up there instead of dropping into the cutting.
+            coverSlab(out, row[2], row[1], next[2], next[1]);
+            coverSlab(out, row[2], row[3], next[2], next[3]);
           }
+          row = next;
         }
       }
 

@@ -66,6 +66,8 @@ export const TUNING = {
 
   /** New-game nudge: seconds after the first spawn before Mack speaks. */
   introDelay: 2.5,
+  /** Starting further than this (m) from the first job, the nudge says which town it is in. */
+  introFar: 1500,
 
   /** Safehouse: hours slept (a random amount in this range). */
   kipHours: [6, 8] as const,

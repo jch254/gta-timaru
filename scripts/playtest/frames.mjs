@@ -11,7 +11,7 @@
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
-import { CHROME, DEV_URL, GPU_ARGS, IPHONE_UA, parseArgs, SETTINGS_KEY } from '../lib.mjs';
+import { CHROME, DEV_URL, GPU_ARGS, IPHONE_UA, newGame, parseArgs, SETTINGS_KEY } from '../lib.mjs';
 
 const args = parseArgs();
 const url = args.url || DEV_URL;
@@ -49,9 +49,7 @@ try {
     }
   }, SETTINGS_KEY, args.quality ? String(args.quality) : null);
   await page.goto(url + '?dev', { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('#btn-new', { timeout: 30000 });
-  if (mobile) await page.tap('#btn-new');
-  else await page.click('#btn-new');
+  await newGame(page, { tap: !!mobile });
   await page.waitForFunction('window.dev !== undefined', { timeout: 120000 });
   const setup = await page.evaluate(async (o) => {
     const dev = window.dev;

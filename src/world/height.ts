@@ -73,6 +73,8 @@ function strand(d: number, land: number): number {
 
 export class TerrainModel {
   private graph: RoadGraph | null = null;
+  /** Where a tunnel's cutting can reach, so roads crossing over it are only checked near one. */
+  private bores: { minX: number; maxX: number; minZ: number; maxZ: number }[] = [];
   rivers: RiverPath[] = [];
   private riverCells = new Map<number, { river: RiverPath; i: number }[]>();
   private readonly RC = 128;
@@ -84,6 +86,19 @@ export class TerrainModel {
   attach(graph: RoadGraph, rivers: RiverPath[]) {
     this.graph = graph;
     this.rivers = rivers;
+    this.bores = [];
+    for (const e of graph.edges) {
+      if (!e.tunnel) continue;
+      const pad = e.width / 2 + 8;
+      const box = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
+      for (const s of e.samples) {
+        box.minX = Math.min(box.minX, s.x - pad);
+        box.maxX = Math.max(box.maxX, s.x + pad);
+        box.minZ = Math.min(box.minZ, s.z - pad);
+        box.maxZ = Math.max(box.maxZ, s.z + pad);
+      }
+      this.bores.push(box);
+    }
     for (const river of rivers) {
       river.samples.forEach((s, i) => {
         // Register in every cell the bed can reach.
@@ -259,6 +274,31 @@ export class TerrainModel {
     const c = this.carved(x, z);
     if (!this.graph) return c.h;
     const hit = this.graph.nearest(x, z, 40, (e) => !e.bridge);
+    if (!hit) return c.h;
+    const w = this.roadBlend(hit);
+    const h = w <= 0 ? c.h : lerp(c.h, hit.y, w);
+    if (hit.edge.tunnel) return h;
+    // A road crossing high over a tunnel (Summit Road over the Lyttelton bore) runs on the cover
+    // (`TerrainModel.cover`); the cutting under it stays open instead of filling back up to that road.
+    const bore = this.boreBelow(x, z, h);
+    return bore ? lerp(h, bore.y, this.roadBlend(bore)) : h;
+  }
+
+  /** The tunnel whose cutting runs well below `top` here, if any. */
+  private boreBelow(x: number, z: number, top: number): RoadHit | null {
+    if (!this.graph || !this.bores.some((b) => x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ)) return null;
+    const bore = this.graph.nearest(x, z, 20, (e) => e.tunnel);
+    return bore && top - bore.y > 7 && this.roadBlend(bore) > 0 ? bore : null;
+  }
+
+  /**
+   * The surface over a tunnel's covered cutting: the hill, and any road crossing it, as they would be with
+   * no tunnel underneath. Where there is no tunnel this is just `height`.
+   */
+  cover(x: number, z: number): number {
+    const c = this.carved(x, z);
+    if (!this.graph) return c.h;
+    const hit = this.graph.nearest(x, z, 40, (e) => !e.bridge && !e.tunnel);
     if (!hit) return c.h;
     const w = this.roadBlend(hit);
     return w <= 0 ? c.h : lerp(c.h, hit.y, w);

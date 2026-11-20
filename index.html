@@ -31,9 +31,14 @@
         </div>
         <div class="title-body">
           <div id="title-buttons">
-            <button id="btn-new" type="button">New game</button>
+            <button id="btn-new" type="button" aria-expanded="false">New game</button>
             <button id="btn-continue" type="button" hidden>Continue</button>
             <button id="btn-controls" type="button" aria-expanded="false" aria-controls="controls-panel">Controls</button>
+            <!-- New game asks where to start: Timaru, where the story begins, or straight into Christchurch. -->
+            <div class="title-ask" id="title-ask" hidden>Start in</div>
+            <button id="btn-start-timaru" class="town" type="button" hidden>Timaru</button>
+            <button id="btn-start-chch" class="town" type="button" hidden>Christchurch</button>
+            <button id="btn-back" class="town" type="button" hidden>Back</button>
             <div class="title-hint" aria-hidden="true"><kbd>&uarr;</kbd><kbd>&darr;</kbd><span>Choose</span><kbd>Enter</kbd><span>Select</span></div>
           </div>
           <div id="loading" hidden>

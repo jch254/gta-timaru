@@ -20,7 +20,7 @@
 //   skip-dialogue  holding skip through every line never wedges a mission
 import { readFileSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
-import { CHROME, DEV_URL, GPU_ARGS, parseArgs, SETTINGS_KEY } from '../lib.mjs';
+import { CHROME, DEV_URL, GPU_ARGS, newGame, parseArgs, SETTINGS_KEY } from '../lib.mjs';
 
 const args = parseArgs();
 const url = args.url || DEV_URL;
@@ -356,8 +356,11 @@ const results = [];
     }, SETTINGS_KEY);
     const start = async (button) => {
       await page.goto(url + (url.includes('?') ? '&' : '?') + 'dev', { waitUntil: 'domcontentloaded' });
-      await page.waitForSelector(button, { timeout: 30000 });
-      await page.click(button);
+      if (button === '#btn-new') await newGame(page);
+      else {
+        await page.waitForSelector(button, { timeout: 30000 });
+        await page.click(button);
+      }
       await page.waitForFunction('window.dev !== undefined', { timeout: 60000 });
       await page.evaluate(botSource);
       await page.evaluate(() => bot.sleep(3000).then(() => bot.ctx.missions?.dialogue?.clear?.()));

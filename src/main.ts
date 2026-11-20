@@ -12,6 +12,10 @@ const buttons = document.getElementById('title-buttons')!;
 const newBtn = document.getElementById('btn-new') as HTMLButtonElement;
 const continueBtn = document.getElementById('btn-continue') as HTMLButtonElement;
 const controlsBtn = document.getElementById('btn-controls') as HTMLButtonElement;
+const ask = document.getElementById('title-ask')!;
+const timaruBtn = document.getElementById('btn-start-timaru') as HTMLButtonElement;
+const chchBtn = document.getElementById('btn-start-chch') as HTMLButtonElement;
+const backBtn = document.getElementById('btn-back') as HTMLButtonElement;
 const controls = document.getElementById('controls-panel')!;
 const loading = document.getElementById('loading')!;
 const status = document.getElementById('load-status')!;
@@ -35,6 +39,13 @@ const COLOUR = [
 ];
 const COLOUR_SECONDS = 5;
 
+/** Where a new game can begin: the place it starts at and the sign on the loading card. */
+const TOWNS = {
+  timaru: { place: 'timaru-spawn', sign: 'The Bay Hill, Timaru', reo: 'Te Tihi-o-Maru' },
+  christchurch: { place: 'cathedral-square', sign: 'Cathedral Square, Christchurch', reo: 'Ōtautahi' },
+} as const;
+type Town = keyof typeof TOWNS;
+
 // A phone or tablet (the touch controller's own test): the title shows the on-screen controls, drops the key
 // hints, and asks for landscape, as the game does once it is running.
 if (isTouchFirst(deviceHints())) document.documentElement.classList.add('touch-first');
@@ -57,7 +68,7 @@ if (photo) {
 
 let started = false;
 
-async function start(load: boolean) {
+async function start(load: boolean, town: Town = 'timaru') {
   if (started) return;
   started = true;
   buttons.hidden = true;
@@ -67,6 +78,9 @@ async function start(load: boolean) {
     document.getElementById('load-kicker')!.textContent = 'Picking up';
     document.getElementById('load-place')!.textContent = 'Where you left off';
     document.getElementById('load-reo')!.textContent = '';
+  } else {
+    document.getElementById('load-place')!.textContent = TOWNS[town].sign;
+    document.getElementById('load-reo')!.textContent = TOWNS[town].reo;
   }
   let line = Math.floor(Math.random() * COLOUR.length);
   colour.textContent = load ? COLOUR[line] : 'Half past nine on a Friday morning, and the whole weekend still to ruin.';
@@ -82,6 +96,7 @@ async function start(load: boolean) {
     const game = await Game.start({
       canvas,
       load,
+      spawnAt: load ? undefined : TOWNS[town].place,
       onProgress(stage, fraction) {
         const whole = Math.round(Math.min(1, Math.max(0, fraction)) * 100);
         status.textContent = stage;
@@ -122,8 +137,11 @@ async function start(load: boolean) {
 
 // ───────────── Choosing: pointer, keyboard and gamepad all move one highlighted fingerpost ─────────────
 
-const posts = [newBtn, continueBtn, controlsBtn];
+const menu = [newBtn, continueBtn, controlsBtn];
+const towns = [timaruBtn, chchBtn, backBtn];
+const posts = [...menu, ...towns];
 const visiblePosts = () => posts.filter((b) => !b.hidden);
+let choosingTown = false;
 
 /** Highlights a post and gives it keyboard focus, so Enter and Space press it. */
 function select(button: HTMLButtonElement) {
@@ -142,19 +160,34 @@ function toggleControls(show = controls.hidden) {
   controlsBtn.setAttribute('aria-expanded', String(show));
 }
 
+/** New game swaps the posts for the two towns to start in (and Back); Back swaps them home again. */
+function chooseTown(show: boolean) {
+  choosingTown = show;
+  toggleControls(false);
+  for (const b of menu) b.hidden = show || (b === continueBtn && !hasSave);
+  for (const b of towns) b.hidden = !show;
+  ask.hidden = !show;
+  newBtn.setAttribute('aria-expanded', String(show));
+  select(show ? timaruBtn : newBtn);
+}
+
 for (const b of posts) {
   b.addEventListener('pointerenter', () => select(b));
   b.addEventListener('focus', () => select(b));
 }
-newBtn.addEventListener('click', () => void start(false));
+newBtn.addEventListener('click', () => chooseTown(true));
 continueBtn.addEventListener('click', () => void start(true));
 controlsBtn.addEventListener('click', () => toggleControls());
+timaruBtn.addEventListener('click', () => void start(false, 'timaru'));
+chchBtn.addEventListener('click', () => void start(false, 'christchurch'));
+backBtn.addEventListener('click', () => chooseTown(false));
 
 const onKey = (e: KeyboardEvent) => {
   if (started) return;
   if (e.code === 'ArrowDown' || e.code === 'ArrowRight' || e.code === 'KeyS') step(1);
   else if (e.code === 'ArrowUp' || e.code === 'ArrowLeft' || e.code === 'KeyW') step(-1);
   else if (e.code === 'Escape' && !controls.hidden) toggleControls(false);
+  else if ((e.code === 'Escape' || e.code === 'Backspace') && choosingTown) chooseTown(false);
   else return;
   e.preventDefault();
 };
@@ -174,7 +207,8 @@ function pollPad() {
   const any = move !== 0 || down(0) || down(1);
   if (any && !padHeld) {
     if (move) step(move);
-    else if (down(0)) (visiblePosts().find((b) => b.classList.contains('sel')) ?? newBtn).click();
+    else if (down(0)) (visiblePosts().find((b) => b.classList.contains('sel')) ?? visiblePosts()[0]).click();
+    else if (choosingTown) chooseTown(false);
     else toggleControls(false);
   }
   padHeld = any;

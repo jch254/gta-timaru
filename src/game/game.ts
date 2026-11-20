@@ -43,6 +43,8 @@ export interface StartOptions {
   canvas: HTMLCanvasElement;
   /** Continue from the save file instead of starting fresh. */
   load: boolean;
+  /** Place id a new game begins at (the map's spawn if left out or not on the map). Ignored when continuing. */
+  spawnAt?: string;
   onProgress(stage: string, fraction: number): void;
 }
 
@@ -64,7 +66,7 @@ export class Game {
     return game;
   }
 
-  private async init({ canvas, load, onProgress }: StartOptions) {
+  private async init({ canvas, load, spawnAt, onProgress }: StartOptions) {
     onProgress('Starting physics', 0);
     const physics = (this.physics = await Physics.create());
     const settings = new Settings();
@@ -162,7 +164,8 @@ export class Game {
     await world.buildFar((f) => onProgress('Raising the Alps', 0.1 + f * 0.35));
     for (const s of this.systems) await s.init?.();
 
-    const spawn = world.placesTagged('spawn')[0] ?? { x: 0, z: 0, heading: 0 };
+    const chosen = !load && spawnAt ? world.places.find((p) => p.id === spawnAt) : undefined;
+    const spawn = chosen ?? world.placesTagged('spawn')[0] ?? { x: 0, z: 0, heading: 0 };
     await world.loadAround(spawn.x, spawn.z, (f) => onProgress('Building the streets', 0.45 + f * 0.5));
     ctx.player.teleport(spawn.x, spawn.z, spawn.heading);
     if (load && save.load()) {

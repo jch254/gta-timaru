@@ -32,6 +32,8 @@ export const TUNING = {
   wadeFactor: 0.5,
   drownDepth: 1.5,
   drownPerSecond: 18,
+  /** Seated in a vehicle, the head is this far above the seat: under the water there, the driver drowns. */
+  seatedHead: 0.8,
   /** Vehicle-enter reach: a coarse search radius, refined to half the car's length plus an arm. */
   enterRadius: 4.2,
   enterReach: 2.2,

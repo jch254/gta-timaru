@@ -285,6 +285,30 @@ describe('authored map', () => {
     expect(map.graph.edges.filter((e) => e.tunnel).length).toBe(1);
   });
 
+  it('keeps the Lyttelton tunnel open end to end, with Summit Road carried over the top', () => {
+    // A car in the bore must never meet ground standing up out of the road (Summit Road crosses the bore on the
+    // crest at about 1300, -2800; the ground there once rose to that road's height, a wall across the tunnel).
+    const bore = map.graph.edges.find((e) => e.tunnel)!;
+    const walls: string[] = [];
+    for (let s = 0; s <= bore.length; s += 1) {
+      const p = map.graph.pointAt(bore, s);
+      for (const off of [-3, 0, 3]) {
+        const x = p.x + p.tz * off;
+        const z = p.z - p.tx * off;
+        const rise = map.terrain.height(x, z) - p.y;
+        if (rise > 0.5) walls.push(`${rise.toFixed(1)} m at ${Math.round(x)},${Math.round(z)}`);
+      }
+    }
+    expect(walls).toEqual([]);
+    // Over the top, the cover stands where Summit Road runs, so it stays drivable across the bore.
+    const summit = map.graph.nearest(1300, -2800, 20, (e) => e.name === 'Summit Road')!;
+    expect(summit).not.toBeNull();
+    expect(summit.y - bore.samples[0].y).toBeGreaterThan(50);
+    expect(Math.abs(map.terrain.cover(summit.x, summit.z) - summit.y)).toBeLessThan(0.1);
+    // Away from any tunnel the cover is just the ground.
+    expect(map.terrain.cover(0, -4215)).toBeCloseTo(map.terrain.height(0, -4215), 6);
+  });
+
   it('joins what it means to join: no stray dead ends beside another road, no slivers', () => {
     const g = map.graph;
     const near: string[] = [];

@@ -229,6 +229,14 @@ describe('missions system', () => {
     expect(fake.ui.objectiveText).not.toBe('See Aunty Rena at her chip shop on the Bay Hill');
   });
 
+  it('points a new game begun in Christchurch down the road to Timaru', async () => {
+    const { fake, tick } = await boot();
+    fake.moveTo(0, -4200);
+    fake.events.emit('playerRespawned', { reason: 'new' });
+    tick(TUNING.introDelay + 0.2);
+    expect(fake.ui.objectiveText).toBe('Head down SH1 to Timaru and see Aunty Rena at her chip shop on the Bay Hill');
+  });
+
   it('does not nudge on death or arrest respawns', async () => {
     const { fake, tick } = await boot();
     fake.events.emit('playerRespawned', { reason: 'died' });
