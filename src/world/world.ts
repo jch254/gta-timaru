@@ -19,6 +19,7 @@ import { PROP_PHYSICS } from './props/physics';
 import { foliageWind, plantModel } from './props/vegetation';
 import { buildChunkLines, buildChunkRoads, createRoadMaterials, type RoadMaterials } from './roadmesh';
 import { SCATTERERS } from './scatter';
+import { STAND_IN_KINDS, StandIns, type StandIn } from './standins';
 
 // Scratch for the per-frame wet-road glints.
 const UP_Y = new THREE.Vector3(0, 1, 0);
@@ -92,6 +93,8 @@ export class World implements WorldApi, System {
   private escalators: Escalators;
   /** Building floors from loaded chunks, by the chunk that built them (see `floorAt`). */
   private floors = new Map<number, FloorRect[]>();
+  /** Scenery cars that become real vehicles near the player (see standins.ts). */
+  private standIns: StandIns;
   private ctx: GameContext | null = null;
 
   constructor(
@@ -144,6 +147,7 @@ export class World implements WorldApi, System {
     scene.add(this.root);
     this.breakables = new Breakables(this.root, physics, (b, chunk) => this.onPropBroken(b, chunk));
     this.escalators = new Escalators(this.root, gfx.materials);
+    this.standIns = new StandIns((s, solid) => this.setStandInSolid(s, solid));
   }
 
   // ───────────── Loading ─────────────
@@ -432,6 +436,7 @@ export class World implements WorldApi, System {
     this.breakables.dropChunk(chunk.key);
     this.escalators.drop(chunk.key);
     this.floors.delete(chunk.key);
+    this.standIns.dropChunk(chunk.key);
   }
 
   private runJobs(budgetMs: number) {
@@ -564,6 +569,7 @@ export class World implements WorldApi, System {
   attach(ctx: GameContext) {
     this.ctx = ctx;
     this.breakables.attach(ctx);
+    this.standIns.attach(ctx);
   }
 
   fixedUpdate(dt: number) {
@@ -612,6 +618,7 @@ export class World implements WorldApi, System {
     this.updateGlints(this.gfx.night, this.gfx.wetness);
     this.breakables.update(dt);
     if (this.ctx) this.escalators.update(dt, this.ctx.camera.position);
+    this.standIns.update(dt);
     // Leaves move with the weather: barely in fog, hard in a nor'wester.
     if (this.ctx) {
       const wind = this.ctx.env.wind;
@@ -834,6 +841,7 @@ export class World implements WorldApi, System {
     const tint = new THREE.Color();
     const boxes: ColliderBox[] = [];
     const owners: (Breakable | null)[] = [];
+    const cars: (StandIn | null)[] = [];
     for (const [kind, list] of byKind) {
       const def = getProp(kind, this.gfx.materials);
       if (!def) continue;
@@ -888,6 +896,12 @@ export class World implements WorldApi, System {
               ? { kind, x: inst.x, y: inst.y, z: inst.z, heading: inst.heading, scale: inst.scale, tint: inst.tint, hx, hz, height, rule, def, meshes, index, collider: null, broken: false }
               : null,
           );
+          // A scenery car: a real vehicle takes its place while the player is near.
+          cars.push(
+            chunk && STAND_IN_KINDS[kind]
+              ? { kind, x: inst.x, y: inst.y, z: inst.z, heading: inst.heading, scale: inst.scale, tint: inst.tint, meshes, index, box: boxes[boxes.length - 1], collider: null, chunk: chunk.key, state: 'prop', vehicle: null, spec: null, wait: 0 }
+              : null,
+          );
         });
       }
     }
@@ -899,6 +913,26 @@ export class World implements WorldApi, System {
       b.collider = colliders[i];
       this.breakables.add(chunk.key, b);
     });
+    cars.forEach((s, i) => {
+      if (!s) return;
+      s.collider = colliders[i];
+      this.standIns.add(chunk.key, s);
+    });
+  }
+
+  /** A scenery car's static box leaves the physics world while a real vehicle stands in its place, and returns after. */
+  private setStandInSolid(s: StandIn, solid: boolean) {
+    const chunk = this.chunks.get(s.chunk);
+    if (!solid) {
+      if (!s.collider) return;
+      this.physics.world.removeCollider(s.collider, false);
+      const i = chunk ? chunk.colliders.indexOf(s.collider) : -1;
+      if (i >= 0) chunk!.colliders.splice(i, 1);
+      s.collider = null;
+    } else if (!s.collider && chunk) {
+      s.collider = this.addColliders([s.box])[0];
+      chunk.colliders.push(s.collider);
+    }
   }
 
   /** A vehicle has knocked a prop over: its collider is already gone, and so is the light it carried. */

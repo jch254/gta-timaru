@@ -80,14 +80,16 @@ export function yardFence(s: Site, gateX: number, gateW = 6) {
   for (const [a, b] of stretches(-s.hw + 0.3, s.hw - 0.3, [[gateX - gateW / 2, gateX + gateW / 2]])) run(s, 'chainlink-fence', a, zf, b, zf, 3);
 }
 
-/** A row of static parked cars nose-out along x, with one collider for the lot of them. */
+/**
+ * A row of parked cars nose-out along x. Each is a scenery car with its own box (props/physics.ts) that becomes
+ * a real vehicle near the player (world/standins.ts), so the row has no collider of its own: one laid over the
+ * lot of them would hold the real cars fast.
+ */
 export function carRow(s: Site, x0: number, x1: number, z: number, yaw = 0, tints: readonly number[] = CAR_PAINT) {
   const n = Math.floor((x1 - x0) / 2.75);
   if (n < 1) return;
   const step = (x1 - x0) / n;
   for (let i = 0; i < n; i++) prop(s, 'car-parked', x0 + (i + 0.5) * step, z, yaw + s.rng.range(-0.07, 0.07), 1, s.rng.pick(tints));
-  const cx = (x0 + x1) / 2;
-  s.out.collider(s.f, cx, ground(s, cx, z) + 0.7, z, x1 - x0 - 0.5, 1.4, 4.2);
 }
 
 /** Loose yard clutter: drums and pallets near a point. */

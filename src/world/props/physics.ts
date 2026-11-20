@@ -81,9 +81,12 @@ export const PROP_PHYSICS: Record<string, PropPhysics> = {
 
   // Solid, never knocked over.
   hedge: { box: { hx: 1.02, hz: 0.36, height: 1.2 }, solidTo: 'vehicles' },
+  // Scenery cars. Solid while they are scenery: near the player each gives up its box to the real vehicle that
+  // takes its place, which can be shunted and driven off like any other (world/standins.ts).
   'car-parked': { box: { hx: 0.84, hz: 2.1, height: 1.35 } },
   'car-parked-wagon': { box: { hx: 0.84, hz: 2.15, height: 1.38 } },
   'van-parked': { box: { hx: 0.88, hz: 2.22, height: 1.9 } },
+  // Solid, never knocked over.
   'skip-bin': { box: { hx: 0.86, hz: 1.7, height: 1.15 } },
   'timber-stack': { box: { hx: 0.6, hz: 2.1, height: 1.9 } },
   'water-tank': { box: post(0.95, 2.7) },

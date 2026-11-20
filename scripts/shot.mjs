@@ -20,6 +20,7 @@
 //   --eval      JavaScript to run in the page after setup (may use `dev` and `sleep(ms)`, may await and return a
 //               value; console.log('[shot] …') lines are echoed live). Ready-made ones: scripts/playtest/*.js,
 //               e.g. --eval "$(cat scripts/playtest/missions.js)"
+//   --eval-file the same, read from a file: --eval-file scripts/playtest/carpark.js
 //   --wait      seconds to let the scene settle before the shot (default 4)
 //   --fps       measure frame rate over this many seconds and print it
 //   --hud       keep the HUD in the shot (hidden by default)
@@ -30,12 +31,13 @@
 //               Safari: see scripts/playtest/phone.mjs for a played-through run with real touch events.
 //   --out       PNG path, default shots/shot.png
 //   --town      timaru | christchurch: where the new game starts (default timaru), before any --place / --at
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
 import { CHROME, DEV_URL, GPU_ARGS, IPHONE_UA, newGame, parseArgs, SETTINGS_KEY } from './lib.mjs';
 
 const args = parseArgs();
+if (args['eval-file']) args.eval = readFileSync(String(args['eval-file']), 'utf8');
 const url = args.url || DEV_URL;
 const MOBILE_SIZES = { true: '844x390', max: '932x430', portrait: '390x844' };
 const mobile = args.mobile ? MOBILE_SIZES[String(args.mobile)] || MOBILE_SIZES.true : null;

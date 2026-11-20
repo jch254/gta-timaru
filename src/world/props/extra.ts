@@ -268,7 +268,9 @@ registerProp('washing-line', (m) => {
 });
 
 // ───────────────────────────── Static cars ─────────────────────────────
-// Scenery that cannot be driven, nose to +z. One part each: the paintwork is white in the vertex colours, so the
+// The cars of car parks, yards and marked bays, nose to +z. Scenery at a distance: near the player each one is
+// swapped for a real vehicle of its shape and colour that can be driven away (world/standins.ts), so a new kind
+// here wants an entry in STAND_IN_KINDS. One part each: the paintwork is white in the vertex colours, so the
 // instance tint is the car's colour, and the glass, rubber and trim are dark enough that the tint barely shows.
 
 const CAR_GLASS = 0x10161b;
