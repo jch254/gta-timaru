@@ -355,10 +355,33 @@ export class Effects {
     if (vehicle) this.decals.attach(slot, vehicle);
   }
 
+  /** Blood soaked into the clothes where they were hit, and soot from a blast or a fire (cars: see `struck`). */
+  private soil(actor: Actor, info: DamageInfo) {
+    const figure = actor.figure;
+    if (!figure?.stain || actor.invulnerable) return;
+    if (actor.position.distanceToSquared(this.ctx.camera.position) > IMPACT_RANGE * IMPACT_RANGE) return;
+    const point = info.point;
+    if (info.kind === 'bullet' && point) figure.stain(point, Math.min(0.3, 0.1 + info.amount * 0.0025));
+    else if (info.kind === 'melee' && point) figure.stain(point, info.amount < BLEED_MELEE ? 0.06 : 0.13);
+    else if (info.kind === 'fire') figure.stain(null, 0, 0.5);
+    else if (info.kind === 'explosion' && info.amount >= BLAST_BLOOD / 3) {
+      const k = Math.min(1.5, info.amount / 45);
+      // On the side that faced the blast.
+      _g.set(actor.position.x, actor.position.y + 1.05, actor.position.z);
+      if (info.direction) _g.addScaledVector(info.direction, -0.15);
+      figure.stain(_g, info.amount >= BLAST_BLOOD ? 0.2 + 0.12 * k : 0, Math.min(1, 0.3 + 0.5 * k));
+      if (info.amount >= GORE_BLAST) {
+        _g.y -= 0.55;
+        figure.stain(_g, 0.3);
+      }
+    }
+  }
+
   /** Blown about by a blast: blood out of them, the way the blast threw them. */
   private damaged(actor: Actor, info: DamageInfo) {
     const { ctx } = this;
     this.wound(actor, info);
+    this.soil(actor, info);
     if (info.kind !== 'explosion' || info.amount < BLAST_BLOOD || actor.vehicle || actor.invulnerable) return;
     if (actor.position.distanceToSquared(ctx.camera.position) > IMPACT_RANGE * IMPACT_RANGE) return;
     const amount = Math.min(1.8, info.amount / 45);
@@ -399,6 +422,16 @@ export class Effects {
     _n.copy(_e).negate();
     burstFlesh(this.smoke, _c, _n, _e, amount, ctx.world.groundAt(_c.x, _c.z));
     this.spatter(_c, _e, amount);
+    // Their front, where the car took them, and the legs below.
+    const figure = actor.figure;
+    if (figure?.stain) {
+      _g.copy(_c).addScaledVector(_e, -0.15);
+      figure.stain(_g, 0.12 + 0.12 * amount);
+      if (speed >= SPLASH_SPEED) {
+        _g.y -= 0.45;
+        figure.stain(_g, 0.1 + 0.1 * amount);
+      }
+    }
     // Hit fast enough to tear them open.
     if (speed >= GORE_SPEED) this.gore(_g.copy(_c), _h.copy(_e), Math.min(1.6, 0.5 + (speed - GORE_SPEED) / 10));
     if (speed < SPLASH_SPEED) return;
@@ -428,6 +461,14 @@ export class Effects {
     _c.set(x, ground + 0.12, z);
     burstCrush(this.smoke, _c, _d, amount, ground);
     this.gore(_g.copy(_c), _h.copy(_d), Math.min(1, 0.3 + speed / 15));
+    // Where the tyre went over them, and the road under them.
+    const figure = actor.figure;
+    if (figure?.stain) {
+      _g.set(x, ground + 0.15, z);
+      figure.stain(_g, 0.32);
+      _g.set(actor.position.x, ground + 0.15, actor.position.z);
+      figure.stain(_g, 0.2);
+    }
     if (ctx.world.waterDepthAt(x, z) > 0.1) return;
     this.vehicles.bloody(vehicle);
     _a.set(x, ground, z);

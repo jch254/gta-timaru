@@ -101,6 +101,9 @@ export class Ped implements PedHandle {
   readonly invulnerable: boolean;
 
   private humanoid: Humanoid;
+  get figure(): Humanoid {
+    return this.humanoid;
+  }
   private body: RAPIER.RigidBody;
   private collider: RAPIER.Collider;
   private groupsUp: number;
