@@ -4,7 +4,7 @@ Terraform for hosting the game on AWS (private S3 served by CloudFront), with
 TLS via ACM, DNS in Cloudflare, and deployment by AWS CodeBuild. It is composed
 from the shared [`terraform-modules`](https://github.com/jch254/terraform-modules)
 (`web-app`, `acm-dns-validated-certificate`, `cloudflare-dns-records`,
-`ssm-parameter-placeholder`, `codebuild-project`, `codebuild-terraform-role`)
+`ssm-parameter-placeholder`, `codebuild-project`)
 at tag `1.19.1`. The site follows the same layout as
 `discogs-market-monitor/frontend`; the game owns its whole zone, `03.quest`,
 so the zone's records and its Cloudflare token are kept here the way
@@ -53,14 +53,13 @@ so the zone's records and its Cloudflare token are kept here the way
 **Cloudflare API token** (`ssm-parameter-placeholder` module)
 - `/03-quest/cloudflare-api-token`, created by Terraform with a placeholder
   value that is then overwritten by hand (Terraform ignores the value after
-  that). `buildspec.yml` loads it as `CLOUDFLARE_API_TOKEN`, so Terraform never
-  takes the token as a variable.
+  that). Only the infrastructure operator needs `CLOUDFLARE_API_TOKEN`.
 - The token needs **Zone DNS Edit** and **Single Redirect Edit** on `03.quest`
   and on `old_site_zone` (for the old-address redirect).
 
-**CodeBuild deployment** (`codebuild-project` + `codebuild-terraform-role`)
+**CodeBuild game publisher** (`codebuild-project` + `terraform/publisher.tf`)
 - On a push to `main`: runs the unit tests (a red suite aborts before anything
-  deploys), applies this Terraform, runs `pnpm run build`, `aws s3 sync`s
+  deploys), runs `pnpm run build`, `aws s3 sync`s
   `dist/` to the bucket, uploads `version.json` last, prunes old files, then
   invalidates the CloudFront distribution (see `buildspec.yml` in the repo root)
 - `version.json` (the build's commit and time) is what running games read to
@@ -70,7 +69,10 @@ so the zone's records and its Cloudflare token are kept here the way
   old build's hashed files. `prune-old-files.mjs` removes files the new build
   no longer has once they have been unused for a week (`RETAIN_DAYS`). A
   failed prune does not fail the deploy; the next one tries again.
-- `CLOUDFLARE_API_TOKEN` is read from SSM Parameter Store by `buildspec.yml`
+- The project supplies `SITE_BUCKET` and `DISTRIBUTION_ID` from the hosting module.
+  Its role can list the bucket, upload objects, abort multipart uploads, delete
+  stale objects, invalidate this distribution and write its own log streams.
+  It cannot read Terraform state or the Cloudflare token, or change infrastructure.
 - Build results go to the shared-platform build notifier
 
 ## State
@@ -102,7 +104,7 @@ Changing `domain` or `site_subdomain` replaces the ACM certificate and the
 Cloudflare records and re-points the CloudFront alias; add the old name to the
 old-address redirect if links to it should keep working. A new `domain` has to be an active zone in the
 Cloudflare account that the token can edit: the plan reads the zone first, so
-a token that cannot see it fails the build before anything changes.
+a token that cannot see it fails the operator's plan before anything changes.
 
 The game has been renamed twice since these resources were created (THE 03,
 then 03 Quest, now at `03.quest`), but the state key, bucket and CodeBuild
@@ -111,23 +113,31 @@ original `timmaz-hard` slug: changing any of them creates new resources rather
 than renaming the old ones, so moving those to the new slug is a deliberate
 migration, not a find-and-replace.
 
-## First deploy
+## Operator workflow
 
-The CodeBuild project is created by this same Terraform, so the first apply is
-run by hand.
+Provision from a trusted checkout with a separate AWS operator identity that
+can access the existing state and manage the resources above (including passing
+the publisher role to CodeBuild). Never give those credentials to a game build.
+From the repo root, select the correct AWS profile/account, region and backend
+(see State), and export `CLOUDFLARE_API_TOKEN` from your secret store. For an
+existing deployment the operator can read the SecureString with decryption.
 
 ```bash
-# Authenticate with AWS (requires access to the S3 state bucket).
-aws sso login  # or export AWS_* env vars
-
-# Export a Cloudflare token with Zone DNS Edit and Single Redirect Edit on the zone.
-export CLOUDFLARE_API_TOKEN="..."
-
-bash ./infrastructure/deploy-infrastructure.bash
+bash infrastructure/deploy-infrastructure.bash           # init + saved plan only
+terraform -chdir=infrastructure/terraform show main.tfplan
+terraform -chdir=infrastructure/terraform apply main.tfplan  # only after review
 ```
 
-Then overwrite the placeholder token parameter that apply created, so CodeBuild
-can read the real one:
+Treat saved plans like state: keep them private and discard them after use.
+Use this workflow for later infrastructure changes too; merging `.tf` files
+alone publishes the game but does not provision anything.
+
+### New deployment
+
+Configure the account's CodeBuild GitHub source credentials first. Use the
+workflow above with `TF_VAR_codebuild_webhook_enabled=false` exported. Supply
+the real Cloudflare token out of band for this first plan, then populate the
+new placeholder if keeping the token in SSM for future operators:
 
 ```bash
 aws ssm put-parameter \
@@ -138,10 +148,27 @@ aws ssm put-parameter \
   --overwrite
 ```
 
-That first apply creates the bucket, distribution, certificate, DNS records,
-www redirect, token parameter and the CodeBuild project, but uploads nothing.
-Push to `main` (or start the `timmaz-hard` build in CodeBuild) to build the
-game and publish it.
+The apply uploads no game files. Once the publish-only `buildspec.yml` is on
+`main`, manually start the project at that revision. Verify `version.json`
+reports the intended build, the invalidation succeeds, and the notifier fires.
+Unset `TF_VAR_codebuild_webhook_enabled` and review/apply a fresh plan to
+enable automatic publishing (or leave the webhook off for manual builds).
 
-If `codebuild_webhook_enabled` is `true`, the AWS account must already have
-CodeBuild GitHub source credentials configured so AWS can create the webhook.
+### Migrate the existing `timmaz-hard` pipeline
+
+1. Before merging, freeze pushes to the deploy branch and manual/retry builds.
+   Drain queued and running builds so no legacy job can apply during cutover.
+2. From the **new** trusted revision, export `TF_VAR_codebuild_webhook_enabled=false`
+   and use the operator workflow against the **existing** backend and production
+   variable values. Expect removal of the webhook and legacy provisioning role
+   and policy, creation of the publisher role/policy, and an in-place project
+   update with both target variables. Stop if the bucket, distribution, DNS,
+   certificate, token parameter or project would be replaced. Do not migrate state.
+3. With the webhook off, merge the matching buildspec. Confirm the project uses
+   the publisher role and expected targets. Manually build that exact commit
+   (this publishes to the real site) and verify the checks above. Do not retry
+   an old revision: its buildspec expects infrastructure credentials.
+4. Re-enable the webhook with a fresh reviewed plan as for a new deployment,
+   then release the freeze. If verification fails, leave the webhook off and
+   fix forward; do not grant provisioning permissions to the publisher. To roll
+   back game content, publish the known-good source with the new buildspec.

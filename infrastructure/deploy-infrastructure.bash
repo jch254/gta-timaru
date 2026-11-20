@@ -1,12 +1,9 @@
 #!/bin/bash
 
-# Stop at the first failing command. This has to be set here rather than on the
-# shebang line: buildspec.yml runs this file as `bash ./…`, which ignores the
-# shebang's flags, and a failed plan would otherwise go unnoticed while the
-# build carried on and reported success.
-set -ex
+# Operator only. Leave the saved plan for review before a separate apply.
+set -eu
 
-echo Deploying 03 Quest infrastructure via Terraform...
+: "${CLOUDFLARE_API_TOKEN:?export the infrastructure operator token first}"
 
 cd "$(dirname "$0")/terraform"
 
@@ -18,6 +15,4 @@ terraform init \
   -get=true
 
 terraform plan -out main.tfplan
-terraform apply -auto-approve main.tfplan
-
-echo Finished deploying 03 Quest infrastructure
+echo 'After review, run: terraform -chdir=infrastructure/terraform apply main.tfplan'
