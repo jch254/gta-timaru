@@ -108,19 +108,20 @@ describe('boy racers', () => {
     }
   });
 
-  it('stay out longer on Friday and Saturday nights (clock.day % 7 of 5 and 6)', () => {
+  it('stay out longer on Friday and Saturday nights (day 1 is a Friday, as the HUD says)', () => {
     // Friday evening before nine, and the small hours of Saturday morning.
-    expect(racersOut(19.5, 5)).toBe(true);
-    expect(racersOut(3, 6)).toBe(true);
-    // Saturday evening, and the small hours of Sunday.
-    expect(racersOut(20, 6)).toBe(true);
-    expect(racersOut(3.5, 7)).toBe(true);
+    expect(racersOut(19.5, 1)).toBe(true);
+    expect(racersOut(3, 2)).toBe(true);
+    // Saturday evening, and the small hours of Sunday; a week on, the same.
+    expect(racersOut(20, 2)).toBe(true);
+    expect(racersOut(3.5, 3)).toBe(true);
+    expect(racersOut(19.5, 8)).toBe(true);
     // An ordinary Tuesday: not before nine, not after two.
-    expect(racersOut(19.5, 2)).toBe(false);
-    expect(racersOut(3, 3)).toBe(false);
+    expect(racersOut(19.5, 5)).toBe(false);
+    expect(racersOut(3, 6)).toBe(false);
     // The early hours of Friday belong to Thursday night.
-    expect(racersOut(3, 5)).toBe(false);
-    expect(racersOut(5, 6)).toBe(false);
+    expect(racersOut(3, 1)).toBe(false);
+    expect(racersOut(5, 2)).toBe(false);
   });
 
   it('come in packs of two to four, the same all night', () => {

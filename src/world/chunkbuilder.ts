@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { ChunkBuilder, MaterialLibrary, WorldApi } from '../core/types';
+import type { ChunkBuilder, Conveyor, MaterialLibrary, WorldApi } from '../core/types';
 import { batchHint } from '../render/materials';
 
 interface Batch {
@@ -49,6 +49,16 @@ export interface ChunkLight {
   range: number;
 }
 
+/** A building floor in world space: an oriented rectangle with its top at `y`. */
+export interface FloorRect {
+  x: number;
+  y: number;
+  z: number;
+  hw: number;
+  hd: number;
+  heading: number;
+}
+
 const _v = new THREE.Vector3();
 const _n = new THREE.Vector3();
 const _m3 = new THREE.Matrix3();
@@ -64,6 +74,8 @@ export class ChunkBuilderImpl implements ChunkBuilder {
   colliders: ColliderBox[] = [];
   instances: PropInstance[] = [];
   lights: ChunkLight[] = [];
+  conveyors: Conveyor[] = [];
+  floors: FloorRect[] = [];
 
   constructor(
     readonly materials: MaterialLibrary,
@@ -209,7 +221,23 @@ export class ChunkBuilderImpl implements ChunkBuilder {
     frame.decompose(_pos, _quat, _scale);
     _euler.setFromQuaternion(_quat, 'YXZ');
     _v.set(cx, cy, cz).applyMatrix4(frame);
-    this.colliders.push({ x: _v.x, y: _v.y, z: _v.z, hx: w / 2, hy: h / 2, hz: d / 2, heading: _euler.y });
+    const box: ColliderBox = { x: _v.x, y: _v.y, z: _v.z, hx: w / 2, hy: h / 2, hz: d / 2, heading: _euler.y };
+    // A frame tilted as well as turned (ramps, escalators) keeps its whole orientation.
+    if (Math.abs(_euler.x) > 1e-5 || Math.abs(_euler.z) > 1e-5) box.quat = _quat.clone();
+    this.colliders.push(box);
+  }
+
+  conveyor(frame: THREE.Matrix4, from: readonly [number, number, number], to: readonly [number, number, number], width: number, speed: number) {
+    const a = new THREE.Vector3(...from).applyMatrix4(frame);
+    const b = new THREE.Vector3(...to).applyMatrix4(frame);
+    this.conveyors.push({ from: { x: a.x, y: a.y, z: a.z }, to: { x: b.x, y: b.y, z: b.z }, width, speed });
+  }
+
+  floor(frame: THREE.Matrix4, cx: number, cy: number, cz: number, w: number, d: number) {
+    frame.decompose(_pos, _quat, _scale);
+    _euler.setFromQuaternion(_quat, 'YXZ');
+    _v.set(cx, cy, cz).applyMatrix4(frame);
+    this.floors.push({ x: _v.x, y: _v.y, z: _v.z, hw: w / 2, hd: d / 2, heading: _euler.y });
   }
 
   instance(kind: string, x: number, y: number, z: number, heading = 0, scale = 1, tint?: number) {

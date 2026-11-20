@@ -1,3 +1,4 @@
+import { weekendNight } from '../core/calendar';
 import { TAU, clamp, lerp, smooth } from '../core/math';
 
 /**
@@ -88,10 +89,7 @@ export function parkedTimeFactor(hour: number, commercial: boolean): number {
 export function racersOut(hour: number, day: number): boolean {
   const h = ((hour % 24) + 24) % 24;
   if (h >= 21 || h < 2) return true;
-  const night = h >= 19 ? day : h < 4 ? day - 1 : -1;
-  if (night < 0) return false;
-  const weekday = ((night % 7) + 7) % 7;
-  return weekday === 5 || weekday === 6;
+  return weekendNight(hour, day);
 }
 
 /** 2–4 racers, the same number all night. */

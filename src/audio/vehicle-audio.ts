@@ -245,7 +245,9 @@ export class VehicleAudio {
     const alive = !v.destroyed;
     // Reversing is driven by the brake control.
     const throttle = alive ? Math.min(1, Math.max(v.controls.throttle, v.speed < -0.5 ? v.controls.brake : 0)) : 0;
-    const changed = stepGearbox(this.gearbox, spec, speed / Math.max(1, v.spec.topSpeed), throttle, grounded, dt);
+    // In a burnout the engine is turning the spinning wheels, not the stationary car: rev it as if moving.
+    const spin = v.wheelspin ?? 0;
+    const changed = stepGearbox(this.gearbox, spec, Math.max(speed / Math.max(1, v.spec.topSpeed), spin * 0.42), throttle, grounded, dt);
     const shifting = this.gearbox.shift > 0;
     const loadTarget = shifting ? 0.1 : throttle;
     this.load = damp(this.load, loadTarget, loadTarget > this.load ? 14 : 7, dt);
@@ -293,7 +295,7 @@ export class VehicleAudio {
     // Tyres.
     this.loose = damp(this.loose, looseness(surface), 6, dt);
     const rolling = grounded ? 1 : 0;
-    const slide = rolling * Math.min(1, Math.max(0, (v.slip - 0.22) / 0.5)) * Math.min(1, speed / 7);
+    const slide = rolling * Math.max(Math.min(1, Math.max(0, (v.slip - 0.22) / 0.5)) * Math.min(1, speed / 7), spin * 0.9);
     const squeal = slide * (1 - Math.min(1, this.loose * 1.4));
     const wob = 1 + 0.05 * Math.sin(this.time * 31) + 0.03 * Math.sin(this.time * 12.7);
     g.skidA.frequency.setTargetAtTime((1150 + 380 * slide) * wob, now, K);

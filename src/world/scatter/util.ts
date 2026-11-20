@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { ChunkBuilder, LandmarkPlacement, MaterialLibrary, Place, RoadClass, RoadEdge, RoadGraph, RoadNode, WorldApi } from '../../core/types';
+import { inLandmark as insideLandmark } from '../clearance';
 import { packCell } from '../mapsource';
 import { batchHint, setBatchHint } from '../../render/materials';
 
@@ -101,7 +102,7 @@ export class Keep {
 
   /** Inside a landmark's clear radius (grown by `pad`). */
   inLandmark(x: number, z: number, pad = 0): boolean {
-    for (const l of this.marks) if (Math.hypot(l.x - x, l.z - z) < l.clearRadius + pad) return true;
+    for (const l of this.marks) if (insideLandmark(l, x, z, pad)) return true;
     return false;
   }
 

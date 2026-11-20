@@ -449,6 +449,18 @@ export function compileMap(src: MapSource): CompiledMap {
   });
   terrain.attach(graph, rivers);
 
+  // Platforms for the buildings with interiors on rising ground: level with the footpath at the middle of the frontage.
+  terrain.setCuts(
+    src.landmarks
+      .filter((l) => l.footprint?.level)
+      .map((l) => {
+        const f = l.footprint!;
+        const front = f.d / 2 + 1.5;
+        const y = terrain.height(l.x + Math.sin(l.heading) * front, l.z + Math.cos(l.heading) * front);
+        return { x: l.x, z: l.z, heading: l.heading, w: f.w, d: f.d, y };
+      }),
+  );
+
   const rails: RailPath[] = src.rails.map((source) => {
     const pts = resample(source.pts.length > 2 ? smoothPolyline(source.pts) : source.pts, 6);
     const samples = pts.map((p, i) => {

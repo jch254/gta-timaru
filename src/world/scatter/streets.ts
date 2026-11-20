@@ -3,6 +3,7 @@ import type { DistrictType, RoadClass, RoadEdge, RoadGraph, Scatterer, WorldApi 
 // Registers junction-sign, rubbish-bag, picnic-table…
 import '../landmarks/christchurch/props';
 import { Geo } from '../landmarks/rural/kit';
+import { inLandmark } from '../clearance';
 import { SCATTERERS } from './registry';
 import { approachControl, DRESSING_OFF, edgesIn, hashName, junctionRadius, Keep, nodesIn, ROUND3_OFF, unshadowed } from './util';
 
@@ -113,7 +114,7 @@ export const streetScatter: Scatterer = (area, out) => {
 
   /** Clear of every landmark and marker in the world (not just this area's), so both chunks at a boundary agree. */
   const freeAnywhere = (x: number, z: number): boolean => {
-    for (const l of world.landmarks) if (Math.hypot(l.x - x, l.z - z) < l.clearRadius + 1.5) return false;
+    for (const l of world.landmarks) if (inLandmark(l, x, z, 1.5)) return false;
     for (const p of world.places) if (Math.hypot(p.x - x, p.z - z) < 4) return false;
     return true;
   };

@@ -37,7 +37,6 @@ export const PROP_PHYSICS: Record<string, PropPhysics> = {
   'road-sign': { box: post(0.06, 2.4), breakSpeed: 2.5, slow: 0.04, mass: 14 },
   'junction-sign': { box: post(0.06, 2.6), breakSpeed: 2.5, slow: 0.04, mass: 16 },
   'marker-post': { box: post(0.05, 1), solidTo: 'vehicles', breakSpeed: 2, slow: 0.02, mass: 4 },
-  'chevron-board': { box: { hx: 0.3, hz: 0.05, height: 1.8 }, solidTo: 'vehicles', breakSpeed: 2.5, slow: 0.03, mass: 9 },
   'picnic-table': { box: { hx: 0.9, hz: 0.75, height: 0.78 }, breakSpeed: 5, slow: 0.12, mass: 70 },
   'bike-stand': { box: { hx: 0.9, hz: 0.25, height: 0.8 }, breakSpeed: 4, slow: 0.08, mass: 30 },
   'rubbish-bag': { box: post(0.3, 0.5), solidTo: 'vehicles', breakSpeed: 1.5, slow: 0.02, mass: 6 },
@@ -93,3 +92,10 @@ export const PROP_PHYSICS: Record<string, PropPhysics> = {
   'rugby-posts': { box: { hx: 2.95, hz: 0.17, height: 3 }, solidTo: 'vehicles' },
   'chch-rugby-posts': { box: { hx: 2.95, hz: 0.17, height: 3 }, solidTo: 'vehicles' },
 };
+
+// Curve warnings and chevron boards on open-road bends (scatter/chevrons.ts): breakaway posts.
+for (const turn of ['left', 'right']) {
+  PROP_PHYSICS[`chevron-pw67-${turn}`] = { box: post(0.05, 1.9), breakSpeed: 2, slow: 0.03, mass: 10 };
+  for (const v of [15, 25, 35, 45, 55, 65, 75, 85]) PROP_PHYSICS[`curve-warning-${turn}-${v}`] = { box: post(0.06, 2.7), breakSpeed: 2.5, slow: 0.04, mass: 16 };
+  for (const v of [15, 25, 35]) PROP_PHYSICS[`chevron-pw66-${turn}-${v}`] = { box: { hx: 0.66, hz: 0.06, height: 2.2 }, breakSpeed: 3, slow: 0.06, mass: 30 };
+}

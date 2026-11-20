@@ -13,6 +13,7 @@ import type { ChunkBuilder, LandmarkPlacement, MaterialLibrary, MaterialOptions,
  */
 
 import type { V3 } from '../../../core/vec3';
+import { CUT_DROP } from '../../height';
 export type { V3 } from '../../../core/vec3';
 
 /** Clear radius per kind, from docs/CONTRACT.md. Builders keep everything inside it. */
@@ -42,6 +43,14 @@ export const CLEAR_RADIUS: Record<string, number> = {
   'rugby-field': 70,
   'rail-station-small': 30,
   marae: 50,
+  'timaru-dept-store': 27,
+  'timaru-discount-store': 20,
+  'timaru-arcade-mall': 27,
+  'timaru-nightclub': 21,
+  'royal-arcade': 29,
+  'northside-mall': 57,
+  'highfield-mall': 56,
+  'patiti-point': 55,
 };
 
 const _p = new THREE.Vector3();
@@ -537,7 +546,9 @@ export class Site {
     readonly p: LandmarkPlacement,
     readonly out: ChunkBuilder,
   ) {
-    this.y = out.world.groundAt(p.x, p.z);
+    // A building on a platform the world cut for it (`footprint.level`) stands on the platform, clear of the
+    // cut ground just below, so its floor and the terrain do not fight.
+    this.y = out.world.groundAt(p.x, p.z) + (p.footprint?.level ? CUT_DROP : 0);
     // Set dressing (`kind: 'dressing'`, see scatter/setpieces.ts) keeps the library as it is.
     this.m = p.kind === 'dressing' ? out.materials : agedLibrary(out.materials, p, this.y);
     this.f = out.frameAt(p.x, this.y, p.z, p.heading);

@@ -1,6 +1,7 @@
 import { hashInts, Rng } from '../core/rng';
 import type { DistrictType, LandmarkPlacement, Lot, RoadClass, RoadEdge } from '../core/types';
-import { WORLD_BOUNDS } from './height';
+import { CUT_MARGIN, WORLD_BOUNDS } from './height';
+import { footprintRect } from './clearance';
 import { packCell } from './mapsource';
 import type { CompiledMap } from './map';
 
@@ -65,7 +66,21 @@ export function generateLots(map: CompiledMap): Map<number, Lot[]> {
   const CELL = 48;
   const cellKey = (x: number, z: number) => (Math.floor(x / CELL) + 1024) * 4096 + (Math.floor(z / CELL) + 1024);
 
-  const nearLandmark = (x: number, z: number, r: number) => map.landmarks.some((l: LandmarkPlacement) => Math.hypot(l.x - x, l.z - z) < l.clearRadius + r);
+  // A landmark with a footprint keeps lots off that rectangle (with a hand's breadth between), and off the margin
+  // round it where the ground is cut level for it and the cell beyond where its retaining walls stand; the rest
+  // keep lots out of their clear circle.
+  const rects = new Map<LandmarkPlacement, Placed>();
+  for (const l of map.landmarks) {
+    const r = footprintRect(l);
+    const pad = 0.3 + (l.footprint?.level ? CUT_MARGIN + 4.2 : 0);
+    if (r) rects.set(l, { ...r, hw: r.hw + pad, hd: r.hd + pad });
+  }
+  const nearLandmark = (p: Placed) =>
+    map.landmarks.some((l: LandmarkPlacement) => {
+      const rect = rects.get(l);
+      if (rect) return overlaps(p, rect);
+      return Math.hypot(l.x - p.x, l.z - p.z) < l.clearRadius + Math.max(p.hw, p.hd);
+    });
   // Places tagged 'yard' are fought over or delivered into: the ground around them has to stay open, or the
   // generated frontage walls the player off from mission peds and parks deliveries a building short of the mark.
   const yards = map.places.filter((p) => p.tags.includes('yard'));
@@ -146,7 +161,7 @@ export function generateLots(map: CompiledMap): Map<number, Lot[]> {
             break;
           }
         }
-        if (!ok || nearLandmark(x, z, Math.max(width, depth) * 0.5) || nearYard(x, z, Math.max(width, depth) * 0.5) || !free(p)) continue;
+        if (!ok || nearLandmark(p) || nearYard(x, z, Math.max(width, depth) * 0.5) || !free(p)) continue;
 
         const key = cellKey(x, z);
         placed.set(key, [...(placed.get(key) ?? []), p]);

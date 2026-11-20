@@ -118,6 +118,7 @@ export class PedsSystem implements PedsApi, System {
     const ped = new Ped(this.world, ctx.actors.nextId(), {
       x: options.x,
       z: options.z,
+      y: options.y,
       heading: options.heading ?? rng.range(0, TAU),
       look,
       kind: options.kind ?? 'ped',

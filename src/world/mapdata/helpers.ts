@@ -386,8 +386,8 @@ export class Author {
   }
 
   /** A landmark at `at` whose front faces `towards`. */
-  landmark(kind: string, name: string, at: Pt, towards: Pt, clearRadius: number, skyline = false) {
-    this.b.landmark(kind, name, at[0], at[1], facing(at, towards), clearRadius, skyline ? { skyline: true } : {});
+  landmark(kind: string, name: string, at: Pt, towards: Pt, clearRadius: number, skyline = false, footprint?: { w: number; d: number; level?: boolean }) {
+    this.b.landmark(kind, name, at[0], at[1], facing(at, towards), clearRadius, { ...(skyline ? { skyline: true } : {}), ...(footprint ? { footprint } : {}) });
   }
 }
 
@@ -496,11 +496,33 @@ export const CLEAR: Record<string, number> = {
   'rugby-field': 70,
   'rail-station-small': 30,
   marae: 50,
+  'timaru-dept-store': 27,
+  'timaru-discount-store': 20,
+  'timaru-arcade-mall': 27,
+  'timaru-nightclub': 21,
+  'royal-arcade': 29,
+  'northside-mall': 57,
+  'highfield-mall': 56,
+  'patiti-point': 55,
+};
+
+/**
+ * Footprint (w along the frontage, d front to back) per landmark kind that stands in a street frontage: lots keep
+ * off this rectangle rather than the clear circle, which for these is the circle round it.
+ */
+export const FOOTPRINT: Record<string, { w: number; d: number; level?: boolean }> = {
+  'timaru-dept-store': { w: 34, d: 40, level: true },
+  'timaru-discount-store': { w: 24, d: 32, level: true },
+  'timaru-arcade-mall': { w: 34, d: 40 },
+  'timaru-nightclub': { w: 34, d: 22 },
+  'royal-arcade': { w: 14, d: 54 },
+  'northside-mall': { w: 90, d: 68 },
+  'highfield-mall': { w: 88, d: 68 },
 };
 
 export const SKYLINE = new Set(['chch-cathedral', 'sugarloaf-tower', 'gondola-summit', 'lyttelton-port', 'timaru-basilica', 'timaru-port', 'smithfield-works']);
 
-/** Landmark with the contract's clear radius and skyline flag filled in. */
+/** Landmark with the contract's clear radius, footprint and skyline flag filled in. */
 export function mark(a: Author, kind: string, name: string, at: Pt, towards: Pt) {
-  a.landmark(kind, name, at, towards, CLEAR[kind], SKYLINE.has(kind));
+  a.landmark(kind, name, at, towards, CLEAR[kind], SKYLINE.has(kind), FOOTPRINT[kind]);
 }

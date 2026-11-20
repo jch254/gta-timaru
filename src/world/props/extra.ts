@@ -159,31 +159,6 @@ registerProp('road-sign', (m) => ({
   ],
 }));
 
-/** How high the middle of a chevron board stands above its base. */
-export const CHEVRON_HEIGHT = 1.45;
-
-registerProp('chevron-board', (m) => {
-  // Curve chevron board on the outside of an open-road bend: one black chevron on a yellow board on a galvanised
-  // post (the size is approximate). The board stands across the road with the chevron pointing along local +x;
-  // the chevron goes through the board, so it reads from both faces and each way of travel sees it point into
-  // the bend. One draw call, no shadow.
-  const arm = (dy: number, tilt: number) => bx(0.42, 0.11, 0.034).rotateZ(tilt).translate(0, CHEVRON_HEIGHT + dy, 0);
-  return {
-    parts: [
-      {
-        geometry: painted([
-          [bx(0.05, CHEVRON_HEIGHT + 0.38, 0.05, 0, (CHEVRON_HEIGHT + 0.38) / 2, -0.04), 0x9a9c9e],
-          [bx(0.6, 0.75, 0.02, 0, CHEVRON_HEIGHT, 0), 0xf0c020],
-          [arm(0.125, -0.69), 0x141414],
-          [arm(-0.125, 0.69), 0x141414],
-        ]),
-        material: m.get('plain', { vertexColors: true, roughness: 0.55 }),
-      },
-    ],
-    castShadow: false,
-  };
-});
-
 registerProp('rugby-posts', (m) => ({
   // Goal: uprights 5.6 m apart, crossbar at 3 m, padded bases. The plane of the posts faces +z.
   parts: [

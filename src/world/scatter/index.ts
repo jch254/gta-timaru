@@ -4,8 +4,8 @@ import './urban';
 import './streets';
 import './country';
 import './hoardings';
-import './chevrons';
 import './setpieces';
 import './shopstreets';
+import './chevrons';
 
 export { SCATTERERS } from './registry';

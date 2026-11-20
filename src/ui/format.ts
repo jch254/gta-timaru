@@ -1,3 +1,4 @@
+import { weekday } from '../core/calendar';
 import { CITY_NAMES, CITY_TE_REO, FEATURE_TE_REO } from '../core/names';
 import type { CityId } from '../core/types';
 
@@ -48,8 +49,7 @@ const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satur
 
 /** The story opens on a Friday, so day 1 is a Friday. */
 export function weekdayName(day: number, short = false): string {
-  const d = Number.isFinite(day) ? Math.floor(day) : 1;
-  const name = WEEKDAYS[(((d - 1 + 4) % 7) + 7) % 7];
+  const name = WEEKDAYS[weekday(day)];
   return short ? name.slice(0, 3) : name;
 }
 

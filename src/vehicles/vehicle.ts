@@ -35,6 +35,7 @@ export class VehicleImpl implements Vehicle {
   burning = false;
   wheelsOnGround = 0;
   slip = 0;
+  wheelspin = 0;
   siren = false;
   headlightsOn = false;
   controller: Vehicle['controller'] = 'none';
@@ -50,6 +51,9 @@ export class VehicleImpl implements Vehicle {
   private upsideDown = 0;
   private spawnGrace = 0.6;
   private wheelSpin = 0;
+  private squirm = 0;
+  /** Extra turn of the driven wheels while they spin on the spot. */
+  private drivenSpin = 0;
   private lean = 0;
   private beaconTime = 0;
   private bike: boolean;
@@ -199,6 +203,13 @@ export class VehicleImpl implements Vehicle {
     const lock = Math.min(spec.steerLock, Math.atan((spec.wheelbase * 1.22 * mu * 9.81) / v2));
     this.steer = moveToward(this.steer, clamp(c.steer, -1, 1) * lock, (Math.abs(c.steer) > 0.01 ? 1.9 : 3.2) * dt * (0.6 + lock));
 
+    // Burnout: throttle and brake held together at a standstill. The brakes hold the undriven wheels, the driven
+    // ones spin and smoke, the car squirms on the spot and creeps; steering swings the tail.
+    const burning = alive && !this.bike && this.wheelsOnGround >= 3 && c.throttle > 0.5 && c.brake > 0.5 && Math.abs(speed) < TUNING.burnoutBelow;
+    this.wheelspin = moveToward(this.wheelspin, burning ? 1 : 0, dt * (burning ? 2.2 : 3.5));
+    const spinning = this.wheelspin > 0.05;
+    const frontDriven = spec.drive === 'fwd';
+
     const frontGrip = mu;
     const rearGrip = mu * spec.rearGripBias * (c.handbrake ? 0.45 : 1);
     const brakeImpulse = ((spec.mass * 10.5) / 60 / 4) * spec.brakeForce;
@@ -214,6 +225,15 @@ export class VehicleImpl implements Vehicle {
       // Engine braking / rolling resistance when coasting.
       if (throttle === 0 && reverse === 0 && brake === 0) b += brakeImpulse * (offRoad ? 0.1 : 0.035);
       else if (offRoad) b += brakeImpulse * 0.05 * clamp(Math.abs(speed) / 12, 0, 1);
+      if (spinning) {
+        const driven = frontDriven ? front : !front;
+        if (driven) {
+          // A spinning tyre has little grip left: it scrabbles the car forward rather than driving it.
+          b = 0;
+          this.rig.setWheelFrictionSlip(i, (front ? frontGrip : rearGrip) * (1 - 0.7 * this.wheelspin));
+          this.rig.setWheelEngineForce(i, Math.abs(speed) < TUNING.burnoutCreep ? spec.engineForce * 0.12 * this.wheelspin : 0);
+        } else b = Math.max(b, brakeImpulse * 2.6);
+      }
       this.rig.setWheelBrake(i, b);
     }
     this.rig.updateVehicle(dt, undefined, this.ctx.physics.groups(CollisionGroup.Vehicle, CollisionGroup.World));
@@ -236,6 +256,14 @@ export class VehicleImpl implements Vehicle {
         const fix = clamp((want - yaw) * 0.07, -0.25, 0.25) * dt * 60;
         const t = fix * spec.mass * 0.9;
         body.applyTorqueImpulse({ x: _up.x * t * dt, y: _up.y * t * dt, z: _up.z * t * dt }, true);
+      }
+      if (this.wheelspin > 0.05) {
+        // The tail squirms as the tyres fight for grip, and swings out with the steering.
+        this.squirm += dt;
+        const wobble = Math.sin(this.squirm * 5.3) * 0.35 + Math.sin(this.squirm * 2.1) * 0.25;
+        const sign = spec.drive === 'fwd' ? -1 : 1;
+        const t = (clamp(c.steer, -1, 1) * 1.1 * sign + wobble) * this.wheelspin * spec.mass * TUNING.burnoutSwing * dt;
+        body.applyTorqueImpulse({ x: _up.x * t, y: _up.y * t, z: _up.z * t }, true);
       }
     }
     if (this.bike && grounded) {
@@ -332,6 +360,8 @@ export class VehicleImpl implements Vehicle {
 
     const wheels = this.model.wheels;
     this.wheelSpin += (this.speed / this.spec.wheelRadius) * dt;
+    this.drivenSpin += this.wheelspin * 70 * dt;
+    const drivenFront = this.spec.drive === 'fwd';
     const susp = (i: number) => this.restY[i] - (this.rig.wheelSuspensionLength(i) ?? this.spec.suspensionTravel) + this.originY;
     if (this.bike) {
       // Two visible wheels driven by the hidden four-wheel rig.
@@ -347,7 +377,8 @@ export class VehicleImpl implements Vehicle {
         const p = Math.min(i, 3) < 2 ? i : 2 + (i % 2);
         const w = wheels[i];
         w.position.y = susp(p);
-        w.rotation.set(this.wheelSpin, i < 2 ? this.steer : 0, 0, 'YXZ');
+        const driven = drivenFront ? p < 2 : p >= 2;
+        w.rotation.set(this.wheelSpin + (driven ? this.drivenSpin : 0), i < 2 ? this.steer : 0, 0, 'YXZ');
       }
     }
   }

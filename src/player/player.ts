@@ -12,6 +12,7 @@ const HALF = 0.56; // capsule half-height (cylinder part)
 const FEET = RADIUS + HALF;
 const _v = new THREE.Vector3();
 const _door = new THREE.Vector3();
+const _carry = new THREE.Vector3();
 
 /** The player on foot and behind the wheel. */
 export class Player implements PlayerApi, System {
@@ -32,6 +33,7 @@ export class Player implements PlayerApi, System {
   controlsEnabled = true;
   aiming = false;
   sprinting = false;
+  tipsy = 0;
   cameraHeading = Math.PI;
   humanoid: Humanoid;
   get figure(): Humanoid {
@@ -139,7 +141,8 @@ export class Player implements PlayerApi, System {
 
   teleport(x: number, z: number, heading = this.heading) {
     if (this.vehicle) this.leaveVehicle(true);
-    const y = this.ctx.world.groundAt(x, z);
+    // Inside a building on a raised floor (the arcade mall over its undercroft), stand on the floor, not the ground below it.
+    const y = this.ctx.world.floorAt ? this.ctx.world.floorAt(x, z, -Infinity) : this.ctx.world.groundAt(x, z);
     this.body.setTranslation({ x, y: y + FEET + 0.05, z }, true);
     this.position.set(x, y, z);
     this.group.position.copy(this.position);
@@ -179,6 +182,8 @@ export class Player implements PlayerApi, System {
     const { ctx } = this;
     this.respawning = true;
     this.controlsEnabled = false;
+    // A night in the cells or a stay in hospital sobers anyone up.
+    this.tipsy = 0;
     if (reason === 'died' || reason === 'busted') await ctx.ui.fade(true, 1.2);
     let spot = at;
     if (!spot) {
@@ -263,6 +268,10 @@ export class Player implements PlayerApi, System {
     }
     this.jumpQueued = false;
     this.vy -= TUNING.gravity * dt;
+    // Standing on an escalator: it carries you along (and up or down) whether you walk or not. The carry is
+    // added after the character controller has had its say: fed through it, a slow push up a slope stalls.
+    _carry.set(0, 0, 0);
+    if (this.grounded && this.vy <= 0) this.ctx.world.conveyorAt?.(t.x, t.y - FEET, t.z, _carry);
     this.mover.computeColliderMovement(
       this.collider,
       { x: this.velocity.x * dt, y: this.vy * dt, z: this.velocity.z * dt },
@@ -270,7 +279,8 @@ export class Player implements PlayerApi, System {
       // People on their feet are solid too (a knocked-down pedestrian drops out of the Character filter and is stepped over).
       this.ctx.physics.groups(CollisionGroup.Character, CollisionGroup.World | CollisionGroup.Vehicle | CollisionGroup.Character),
     );
-    const move = this.mover.computedMovement();
+    const computed = this.mover.computedMovement();
+    const move = { x: computed.x + _carry.x * dt, y: computed.y + _carry.y * dt, z: computed.z + _carry.z * dt };
     const wasGrounded = this.grounded;
     this.grounded = this.mover.computedGrounded();
     if (!wasGrounded && this.grounded && this.vy < -TUNING.fallHurts) this.takeDamage({ amount: (-this.vy - TUNING.fallGrace) * TUNING.fallScale, kind: 'fall' });
@@ -293,6 +303,7 @@ export class Player implements PlayerApi, System {
     const input = ctx.input;
     const free = this.controlsEnabled && this.alive && !ctx.ui.menuOpen;
     this.cameraHeading = this.camera.yaw;
+    if (this.tipsy > 0) this.tipsy = Math.max(0, this.tipsy - dt);
 
     if (!this.alive) {
       this.humanoid.setPose('dead');
