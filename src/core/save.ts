@@ -21,17 +21,18 @@ export class Save implements SaveApi {
 
   save() {
     const out: Record<string, unknown> = { savedAt: Date.now() };
-    for (const [key, slice] of this.slices) {
-      try {
-        out[key] = slice.serialize();
-      } catch (err) {
-        console.warn(`save: slice "${key}" failed to serialize`, err);
-      }
-    }
     try {
-      localStorage.setItem(KEY, JSON.stringify(out));
+      for (const [key, slice] of this.slices) out[key] = slice.serialize();
+      const raw = JSON.stringify(out, (_key, value) => {
+        if (value === undefined || typeof value === 'function' || typeof value === 'symbol' ||
+            (typeof value === 'number' && !Number.isFinite(value))) throw new Error('Non-JSON save data');
+        return value;
+      });
+      localStorage.setItem(KEY, raw);
+      return { ok: true } as const;
     } catch (err) {
-      console.warn('save: could not write localStorage', err);
+      console.warn('save: could not write complete game', err);
+      return { ok: false, message: 'Game not saved. Your previous save has not changed.' } as const;
     }
   }
 

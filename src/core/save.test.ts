@@ -56,3 +56,27 @@ describe('Save.load with a damaged file', () => {
     expect(save.loadProblems).toEqual([]);
   });
 });
+
+describe('Save.save', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each([
+    () => { throw new Error('slice'); },
+    () => undefined,
+    () => ({ nested: Infinity }),
+    () => BigInt(1),
+  ])('does not commit a partial snapshot', (serialize) => {
+    const data = storage({ [SAVE_KEY]: 'previous' });
+    const save = new Save();
+    save.register('good', () => 5, () => {});
+    save.register('bad', serialize, () => {});
+    expect(save.save().ok).toBe(false);
+    expect(data.get(SAVE_KEY)).toBe('previous');
+  });
+
+  it('reports a refused storage write', () => {
+    storage();
+    localStorage.setItem = () => { throw new Error('quota'); };
+    expect(new Save().save().ok).toBe(false);
+  });
+});

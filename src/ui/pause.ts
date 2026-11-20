@@ -373,17 +373,22 @@ export class PauseMenu {
         if (id !== 'jobs' || this.jobs.length > 0) this.setFocus('panel');
         break;
       case 'save': {
-        ctx.save.save();
-        this.savedNote = `Saved ${weekdayName(ctx.clock.day)} ${formatClock(ctx.clock.hour)}.`;
-        this.host.toast('Game saved');
+        const result = ctx.save.save();
+        this.savedNote = !result.ok ? result.message : `Saved ${weekdayName(ctx.clock.day)} ${formatClock(ctx.clock.hour)}.`;
+        this.host.toast(result.ok ? 'Game saved' : result.message);
         this.showPane('save', true);
         break;
       }
       case 'update':
         // Saved first, so the new version picks up where this one left off.
         if (!this.arm('update')) {
-          ctx.save.save();
-          location.reload();
+          const result = ctx.save.save();
+          if (result.ok) location.reload();
+          else {
+            this.disarm();
+            this.fillText(this.panes.update!, [result.message, 'Update cancelled. You can retry without leaving the game.']);
+            this.host.toast(result.message);
+          }
         }
         break;
       case 'quit':

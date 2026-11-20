@@ -1373,7 +1373,10 @@ export class MissionRunner {
     }
     this.onResult?.(def, result, reason);
     this.onChange?.();
-    if (result === 'passed') ctx.save.save();
+    if (result === 'passed') {
+      const saved = ctx.save.save();
+      if (!saved.ok) ctx.ui.toast(saved.message, 6);
+    }
   }
 
   /**

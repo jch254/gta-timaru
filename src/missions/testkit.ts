@@ -648,6 +648,7 @@ export function makeFake(options: FakeOptions = {}) {
       for (const [key, slice] of slices) out[key] = slice.serialize();
       // Through JSON, as the real save file goes.
       this.stored = JSON.parse(JSON.stringify(out));
+      return { ok: true } as const;
     },
     load() {
       if (!this.stored) return false;

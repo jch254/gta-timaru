@@ -228,6 +228,7 @@ function makeGame() {
       exists: () => false,
       save() {
         calls.saves++;
+        return { ok: true };
       },
     },
   };
@@ -678,7 +679,14 @@ describe('UI smoke test', () => {
     expect(update.text).toContain('Sure?');
     expect(calls.saves).toBe(saves);
     expect(reloads).toBe(reloaded);
-    // The second press saves first, then reloads.
+    // A failed write cancels the reload and leaves the update available to retry.
+    const save = raw.save.save;
+    raw.save.save = () => ({ ok: false, message: 'No space' });
+    frame(['interact']);
+    expect(reloads).toBe(reloaded);
+    expect(root.find('nw-pane-update')!.text).toContain('No space');
+    raw.save.save = save;
+    frame(['interact']);
     frame(['interact']);
     expect(calls.saves).toBe(saves + 1);
     expect(reloads).toBe(reloaded + 1);
