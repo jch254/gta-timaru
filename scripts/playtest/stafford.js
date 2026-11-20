@@ -18,7 +18,7 @@ await sleep(1500);
 const floor = p.position.y;
 log('foot of the up escalator at', p.position.x.toFixed(1), p.position.z.toFixed(1), 'y', floor.toFixed(2));
 let top = floor;
-for (let t = 0; t < 24; t++) {
+for (let t = 0; t < 36; t++) {
   await sleep(500);
   top = Math.max(top, p.position.y);
   if (t % 4 === 0) log(`  t ${(t / 2).toFixed(1)} s  y ${(p.position.y - floor).toFixed(2)}  at`, p.position.x.toFixed(1), p.position.z.toFixed(1));
@@ -42,7 +42,7 @@ body.setTranslation({ x: dx, y: floor + 4.3 + 0.9, z: dz }, true);
 await sleep(600);
 log('top of the down escalator, height', (p.position.y - floor).toFixed(2));
 let low = p.position.y;
-for (let t = 0; t < 24; t++) {
+for (let t = 0; t < 36; t++) {
   await sleep(500);
   low = Math.min(low, p.position.y);
 }
