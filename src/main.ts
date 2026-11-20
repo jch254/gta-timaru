@@ -1,6 +1,7 @@
 import './style.css';
 import { archiveInvalid, readSlot } from './core/saveFormat';
 import { migrateStorage } from './core/storage';
+import { readGamepad } from './core/gamepad';
 import { deviceHints, isTouchFirst } from './core/device';
 import { updates } from './core/update';
 
@@ -235,11 +236,21 @@ window.addEventListener('keydown', onKey);
 
 // Gamepad: D-pad or left stick to choose, A to select, B to put the controls sheet away. Polled only while the
 // title is up; the game's own input takes over once it starts.
-let padHeld = true; // whatever is held as the page opens is ignored until released
+let padHeld = true; // ignore a button already held on entry, reconnect or refocus
+let titleFocused = true;
+let titlePad: number | undefined;
+window.addEventListener('blur', () => { titleFocused = false; titlePad = undefined; });
+window.addEventListener('focus', () => { titleFocused = true; });
+window.addEventListener('gamepaddisconnected', (e) => {
+  if (titlePad === e.gamepad.index) titlePad = undefined;
+});
 function pollPad() {
   if (started) return;
   requestAnimationFrame(pollPad);
-  const pad = navigator.getGamepads?.().find((p) => p && p.connected);
+  if (!titleFocused) return;
+  const pad = readGamepad();
+  if (titlePad !== pad?.index) padHeld = true;
+  titlePad = pad?.index;
   if (!pad) return;
   const down = (i: number) => !!pad.buttons[i]?.pressed;
   const axis = pad.axes[1] ?? 0;
@@ -253,7 +264,7 @@ function pollPad() {
   }
   padHeld = any;
 }
-if (typeof navigator.getGamepads === 'function') requestAnimationFrame(pollPad);
+requestAnimationFrame(pollPad);
 
 // Open on Continue when there is a game to go back to.
 select(hasFile() ? continueBtn : newBtn);

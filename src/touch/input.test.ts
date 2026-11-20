@@ -35,6 +35,7 @@ let pads: unknown[];
 const make = (over: Partial<SettingsData> = {}) => new Input(canvas as unknown as HTMLElement, settings(over));
 const key = (code: string, trusted = true) => win.fire('keydown', { code, repeat: false, isTrusted: trusted });
 const pad = (axes = [0, 0, 0, 0], pressed: number[] = []) => ({
+  index: 0,
   connected: true,
   mapping: 'standard',
   axes,
@@ -175,6 +176,64 @@ describe('Input: whichever device was used last is in charge', () => {
     input.poll();
     expect(input.held('fire')).toBe(false);
     expect(input.throttle).toBe(0);
+  });
+});
+
+describe('gamepad sampling', () => {
+  it.each(['denied', 'disconnected'])('drops pad state when %s and still samples the keyboard', (loss) => {
+    const input = make();
+    pads = [pad([1, 0, 1, 0], [3, 7])];
+    input.poll();
+    expect(input.pressed('interact')).toBe(true);
+    if (loss === 'denied') vi.stubGlobal('navigator', { getGamepads() { throw new DOMException('Denied', 'SecurityError'); } });
+    else pads = [];
+    key('KeyW');
+    input.poll();
+    expect([input.gamepadActive, input.pressed('interact'), input.held('interact')]).toEqual([false, false, false]);
+    expect([input.moveX, input.moveZ, input.lookYaw + 0]).toEqual([0, 1, 0]);
+  });
+
+  it('forgets disconnected buttons even if a replacement uses the same index before the next poll', () => {
+    const input = make();
+    pads = [pad(undefined, [3])];
+    input.poll();
+    win.fire('gamepaddisconnected', { gamepad: pads[0] });
+    expect(input.held('interact') || input.pressed('interact')).toBe(false);
+    input.poll();
+    expect(input.pressed('interact')).toBe(true);
+    input.endFrame();
+    expect(input.pressed('interact')).toBe(false);
+  });
+
+  it('drops held input, queued edges and look on blur, including while suspended', () => {
+    const input = make();
+    pads = [pad(undefined, [3])];
+    key('KeyW');
+    input.poll();
+    input.suspend();
+    win.fire('mousemove', { buttons: 1, movementX: 100, movementY: 50 });
+    win.fire('blur');
+    input.resume();
+    input.poll();
+    expect(input.held('forward') || input.pressed('forward') || input.held('interact') || input.pressed('interact')).toBe(false);
+    expect(Math.abs(input.lookYaw) + Math.abs(input.lookPitch)).toBe(0);
+    win.fire('focus');
+    input.poll();
+    expect(input.held('interact')).toBe(true);
+  });
+
+  it.each([30, 144])('turns through the same angle in one second at %i Hz', (hz) => {
+    const input = make();
+    pads = [pad([0, 0, 1, -1])];
+    let yaw = 0, pitch = 0;
+    for (let frame = 0; frame < hz; frame++) {
+      input.poll(1 / hz);
+      yaw += input.lookYaw;
+      pitch += input.lookPitch;
+      input.endFrame();
+    }
+    expect(yaw).toBeCloseTo(-2.7);
+    expect(pitch).toBeCloseTo(-1.8);
   });
 });
 

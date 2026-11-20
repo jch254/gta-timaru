@@ -203,7 +203,7 @@ export class Game {
     const dt = this.frameClock.elapsed(now);
     const { ctx } = this;
     this.frameCost = {};
-    this.input.poll();
+    this.input.poll(dt);
 
     if (!ctx.clock.paused) {
       this.frameClock.simulate(dt, (step) => {

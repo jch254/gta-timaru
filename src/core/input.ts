@@ -1,3 +1,4 @@
+import { readGamepad } from './gamepad';
 import { TouchFeed } from './feed';
 import type { Action, InputApi, SettingsApi } from './types';
 
@@ -77,6 +78,8 @@ export class Input implements InputApi {
 
   private down = new Set<string>();
   private hits = new Set<string>();
+  private focused = true;
+  private padIndex: number | undefined;
   private padDown = new Set<number>();
   private padHits = new Set<number>();
   private mouseDX = 0;
@@ -95,8 +98,19 @@ export class Input implements InputApi {
     });
     window.addEventListener('keyup', (e) => this.down.delete(e.code));
     window.addEventListener('blur', () => {
+      this.focused = false;
       this.down.clear();
+      this.hits.clear();
+      this.clearPad();
+      this.suspended = false;
+      this.stash = null;
+      this.mouseDX = this.mouseDY = this.lookYaw = this.lookPitch = 0;
+      this.moveX = this.moveZ = this.throttle = this.brake = 0;
       this.touch.releaseAll();
+    });
+    window.addEventListener('focus', () => { this.focused = true; });
+    window.addEventListener('gamepaddisconnected', (e) => {
+      if (e.gamepad.index === this.padIndex) this.clearPad();
     });
     element.addEventListener('mousedown', (e) => {
       this.hits.add(`Mouse${e.button}`);
@@ -160,8 +174,16 @@ export class Input implements InputApi {
     return LABELS[code] ?? code.replace(/^Key|^Digit/, '');
   }
 
-  /** Sample devices. Call once at the start of each frame. */
-  poll() {
+  private clearPad() {
+    this.padIndex = undefined;
+    this.padDown.clear();
+    this.padHits.clear();
+    this.stash?.padHits.clear();
+    this.gamepadActive = false;
+  }
+
+  /** Sample devices. dt is elapsed frame time in seconds. */
+  poll(dt = 1 / 60) {
     const sens = this.settings.data.mouseSensitivity;
     const invert = this.settings.data.invertY ? -1 : 1;
     this.lookYaw = -this.mouseDX * 0.0024 * sens;
@@ -174,7 +196,9 @@ export class Input implements InputApi {
     this.throttle = k('forward');
     this.brake = k('back');
 
-    const pad = navigator.getGamepads?.().find((p) => p && p.connected && p.mapping === 'standard');
+    const pad = this.focused ? readGamepad(true) : undefined;
+    if (this.padIndex !== pad?.index) this.clearPad();
+    this.padIndex = pad?.index;
     this.padHits.clear();
     let padUsed = false;
     if (pad) {
@@ -198,8 +222,8 @@ export class Input implements InputApi {
         }
         this.throttle = Math.max(this.throttle, rt);
         this.brake = Math.max(this.brake, lt);
-        this.lookYaw += -rx * 0.045 * sens;
-        this.lookPitch += ry * 0.03 * sens * invert;
+        this.lookYaw += -rx * 2.7 * dt * sens;
+        this.lookPitch += ry * 1.8 * dt * sens * invert;
       }
     }
     if (this.hits.size && !this.padHits.size) this.gamepadActive = this.gamepadActive && !this.hits.size;
@@ -254,5 +278,6 @@ export class Input implements InputApi {
   /** Clear edge state. Call at the end of each frame. */
   endFrame() {
     this.hits.clear();
+    this.padHits.clear();
   }
 }
