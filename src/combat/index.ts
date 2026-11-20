@@ -314,7 +314,8 @@ class Combat implements CombatApi, System {
     const target = bestRank === 0 || bestRank === 1 ? owner : null;
     const heavy = damage >= TUNING.meleeBloodDamage;
     _a.set(attacker.position.x, attacker.position.y + MELEE_ROWS[0], attacker.position.z);
-    this.fx.hint(_a, forward, null, heavy && !(owner && !isVehicle(owner) && owner.invulnerable) ? feelOf('bat').blood : 0, true);
+    const blood = owner && !isVehicle(owner) && owner.invulnerable ? 0 : feelOf(heavy ? 'bat' : 'fists').blood;
+    this.fx.hint(_a, forward, null, blood, true);
     ctx.events.emit('impact', { position: best.point, normal: best.normal, surface: !owner ? 'world' : isVehicle(owner) ? 'vehicle' : 'flesh' });
     this.fx.clearHint();
     if (!target) return null;

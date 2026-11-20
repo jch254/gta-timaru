@@ -38,15 +38,15 @@ export interface WeaponFeel {
   falloffMin: number;
   /** Muzzle flash size multiplier. */
   flash: number;
-  /** Blood drawn by one hit on a person, 0 (none) .. 1.5. */
+  /** Blood drawn by one hit on a person, 0 (none) .. 1.5 (a head shot draws half as much again). */
   blood: number;
   /** Extra radians the player tips the weapon up from the forearm when carrying it (not aiming). */
   carryTilt: number;
 }
 
 export const WEAPON_FEEL: Record<WeaponId, WeaponFeel> = {
-  fists: { recoil: 0, kick: 0, barrel: 0, pickupAmmo: 0, maxReserve: 0, vehicleScale: 0, falloffStart: 1, falloffMin: 1, flash: 0, blood: 0, carryTilt: 0 },
-  bat: { recoil: 0, kick: 0, barrel: 0, pickupAmmo: 0, maxReserve: 0, vehicleScale: 0, falloffStart: 1, falloffMin: 1, flash: 0, blood: 0.8, carryTilt: 0 },
+  fists: { recoil: 0, kick: 0, barrel: 0, pickupAmmo: 0, maxReserve: 0, vehicleScale: 0, falloffStart: 1, falloffMin: 1, flash: 0, blood: 0.3, carryTilt: 0 },
+  bat: { recoil: 0, kick: 0, barrel: 0, pickupAmmo: 0, maxReserve: 0, vehicleScale: 0, falloffStart: 1, falloffMin: 1, flash: 0, blood: 1, carryTilt: 0 },
   pistol: { recoil: 0.1, kick: 0.016, barrel: 0.2, pickupAmmo: 18, maxReserve: 180, vehicleScale: 0.45, falloffStart: 0.5, falloffMin: 0.6, flash: 1, blood: 1, carryTilt: 0.1 },
   shotgun: { recoil: 0.38, kick: 0.06, barrel: 0.75, pickupAmmo: 10, maxReserve: 60, vehicleScale: 0.4, falloffStart: 0.3, falloffMin: 0.25, flash: 1.8, blood: 0.5, carryTilt: 0.3 },
   rifle: { recoil: 0.2, kick: 0.036, barrel: 0.7, pickupAmmo: 10, maxReserve: 60, vehicleScale: 0.5, falloffStart: 0.7, falloffMin: 0.8, flash: 1.25, blood: 1.3, carryTilt: 0.3 },
@@ -80,7 +80,7 @@ export const TUNING = {
   /** A swing does (damage − floor) × scale to a vehicle: fists barely mark a car, the bat dents it. */
   meleeVehicleFloor: 10,
   meleeVehicleScale: 0.5,
-  /** Melee swings at or above this damage draw blood (the bat does, fists do not). */
+  /** Melee swings at or above this damage draw a bat's worth of blood; lighter ones (fists) a punch's worth. */
   meleeBloodDamage: 25,
   /** Shove (m/s) a bullet gives per point of damage, and its cap. */
   bulletKnock: 0.04,

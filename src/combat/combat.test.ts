@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventBus } from '../core/events';
 import type { Action, Actor, ActorKind, CombatApi, DamageInfo, GameContext, GameEvents, MaterialLibrary, PlayerApi, RayHit, System, Vehicle } from '../core/types';
 import type { Effects } from '../fx';
+import { DecalRing } from '../fx/styles';
 import { createCombat } from './index';
 import { DRAW_TIME } from './inventory';
 import { TUNING, WEAPONS } from './weapons';
@@ -858,6 +859,15 @@ describe('combat: pickups', () => {
 describe('combat: blood and marks', () => {
   const fxOf = (h: Harness) => (h.combat as unknown as { fx: Effects }).fx;
   const decalPositions = (fx: Effects) => (fx.decals.mesh.geometry as THREE.InstancedBufferGeometry).getAttribute('iPos').array as Float32Array;
+  /** Live decals in one ring: the gore splats (DecalRing.Drop) are counted apart from the other stains. */
+  const inRing = (fx: Effects, ring: number) => {
+    const d = fx.decals as unknown as { ringStart: number[]; ringSize: number[]; live: Uint8Array };
+    let n = 0;
+    for (let i = d.ringStart[ring]; i < d.ringStart[ring] + d.ringSize[ring]; i++) n += d.live[i];
+    return n;
+  };
+  const splats = (fx: Effects) => inRing(fx, DecalRing.Drop);
+  const stains = (fx: Effects) => fx.decals.active - splats(fx);
 
   it('a bullet in a person sprays blood on along the shot, marks the ground, and pools when they die', () => {
     const h = harness();
@@ -887,7 +897,8 @@ describe('combat: blood and marks', () => {
     car.velocity.set(0, 0, 14);
     h.events.emit('vehicleHitActor', { actor: ped, vehicle: car, speed: 14, under: false });
     expect(fx.smoke.alive).toBeGreaterThan(10);
-    expect(fx.decals.active).toBe(2);
+    expect(stains(fx)).toBe(2);
+    expect(splats(fx)).toBeGreaterThan(0); // hit hard enough to tear: pieces landing round them
     const pos = decalPositions(fx);
     const slots = [...Array(fx.decals.capacity).keys()];
     const road = slots.find((i) => pos[i * 3 + 2] > 6);
@@ -915,7 +926,7 @@ describe('combat: blood and marks', () => {
     expect(slots.some((i) => Math.abs(pos[i * 3 + 2] - 13.6) < 0.01)).toBe(true);
   });
 
-  it('wheels going over someone squeeze blood out either side and smear it along the road', () => {
+  it('wheels going over someone squeeze blood out either side, smear it along the road and print it on down the road', () => {
     const h = harness();
     const fx = fxOf(h);
     const ped = h.ped('ped', 2, 8);
@@ -924,13 +935,33 @@ describe('combat: blood and marks', () => {
     car.velocity.set(0, 0, 6);
     h.events.emit('vehicleHitActor', { actor: ped, vehicle: car, speed: 6, under: true });
     expect(fx.smoke.alive).toBeGreaterThan(8);
-    expect(fx.decals.active).toBe(1);
+    expect(stains(fx)).toBe(2); // the smear, and a splash thrown out to one side
+    expect(splats(fx)).toBeGreaterThan(0); // and what the tyre tore out
     const pos = decalPositions(fx);
     const u = (fx.decals.mesh.geometry as THREE.InstancedBufferGeometry).getAttribute('iU').array as Float32Array;
     // Under the body, not the feet, and drawn out along the car's travel.
     expect(pos[0]).toBeCloseTo(1.4, 3);
     expect(pos[2]).toBeCloseTo(8, 3);
     expect(Math.abs(u[2])).toBeGreaterThan(Math.abs(u[0]) * 5);
+    // The splash went sideways, off the line of travel.
+    expect(Math.abs(pos[3] - 1.4)).toBeGreaterThan(0.3);
+
+    // Driving on, the tyres print red on the road for a while, then wear clean.
+    const before = fx.decals.active;
+    const drive = (metres: number) => {
+      for (let i = 0; i < metres / 0.1; i++) {
+        car.position.z += 0.1;
+        h.run(1 / 60);
+      }
+    };
+    drive(8);
+    const printed = fx.decals.active - before;
+    expect(printed).toBeGreaterThan(10); // two rear wheels, a print every 75 cm
+    drive(30);
+    const worn = fx.decals.active;
+    drive(10);
+    expect(fx.decals.active).toBe(worn);
+    expect(worn - before).toBeLessThan(2 * Math.ceil(24 / 0.75) + 4);
   });
 
   it('a cameo struck or run over by a car shows no blood', () => {
@@ -945,16 +976,121 @@ describe('combat: blood and marks', () => {
     expect(fx.decals.active).toBe(0);
   });
 
-  it('punches draw no blood; the bat does', () => {
+  it('someone badly hurt and on their feet leaves a trail of drops as they go, and stops when they die', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    const ped = h.ped('ped', 0, 6, 100);
+    ped.health = 55;
+    h.events.emit('actorDamaged', { actor: ped, info: { amount: 45, kind: 'bullet', direction: new THREE.Vector3(0, 0, 1) } });
+    h.run(1 / 60);
+    const at = splats(fx);
+    for (let i = 0; i < 20; i++) {
+      ped.position.z += 0.5;
+      h.run(1 / 10);
+    }
+    const trail = splats(fx) - at;
+    expect(trail).toBeGreaterThan(3); // ten metres
+    expect(trail).toBeLessThan(20);
+    ped.alive = false;
+    h.run(1 / 60);
+    const dead = splats(fx);
+    for (let i = 0; i < 10; i++) {
+      ped.position.z += 0.5;
+      h.run(1 / 10);
+    }
+    expect(splats(fx)).toBe(dead);
+  });
+
+  it('a punch does not open anyone up', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    const ped = h.ped('ped', 0, 6, 100);
+    ped.health = 50;
+    h.events.emit('actorDamaged', { actor: ped, info: { amount: 14, kind: 'melee' } });
+    for (let i = 0; i < 20; i++) {
+      ped.position.z += 0.5;
+      h.run(1 / 10);
+    }
+    expect(splats(fx)).toBe(0);
+  });
+
+  it('a punch draws a little blood; the bat draws more', () => {
     const h = harness();
     const fx = fxOf(h);
     h.ped('ped', 0, 1.2, 1000);
     h.combat.melee(h.player, h.combat.weapons.get('fists')!.damage);
-    expect(fx.decals.active).toBe(0);
-    expect(fx.smoke.alive).toBeLessThanOrEqual(2);
+    const punch = fx.smoke.alive;
+    expect(punch).toBeGreaterThan(4); // drops and a little haze, not just a puff of cloth
+    expect(fx.decals.active).toBe(1); // drips on the ground
+    h.run(1);
+    expect(fx.smoke.alive).toBe(0);
     h.combat.melee(h.player, h.combat.weapons.get('bat')!.damage, 2);
-    expect(fx.smoke.alive).toBeGreaterThan(8);
-    expect(fx.decals.active).toBe(1);
+    expect(fx.smoke.alive).toBeGreaterThan(punch * 1.8);
+    expect(fx.decals.active).toBe(2);
+  });
+
+  it('a shot through someone splashes the wall behind them, and the splash runs down it', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    h.ped('ped', 0, 6, 1000);
+    // A wall across the street 2 m behind them, facing back up it.
+    const physics = h.ctx.physics as unknown as { raycast: (o: THREE.Vector3, d: THREE.Vector3, max: number, opts?: { mask?: number }) => RayHit | null };
+    const ray = physics.raycast;
+    physics.raycast = (o, d, max, opts) => {
+      if (opts?.mask !== 3 || d.z <= 0) return ray(o, d, max, opts);
+      const distance = (8 - o.z) / d.z;
+      if (distance > max) return null;
+      return { point: o.clone().addScaledVector(d, distance), normal: new THREE.Vector3(0, 0, -1), distance, collider: null as never, owner: null };
+    };
+    h.combat.fire(h.player, 'pistol', muzzle(), ahead());
+    expect(fx.decals.active).toBe(2); // on the ground, and on the wall
+    const pos = decalPositions(fx);
+    const u = (fx.decals.mesh.geometry as THREE.InstancedBufferGeometry).getAttribute('iU').array as Float32Array;
+    const slot = [...Array(fx.decals.capacity).keys()].find((i) => Math.abs(pos[i * 3 + 2] - 8) < 0.05)!;
+    expect(slot).toBeDefined();
+    expect(pos[slot * 3 + 1]).toBeGreaterThan(0.5); // up on the wall, at the height of the wound
+    expect(u[slot * 3 + 1]).toBeLessThan(0); // laid with its runs going downhill
+  });
+
+  it('a blast throws blood out of the people it catches, and they pool where they land', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    h.player.position.set(0, 0, -40);
+    const ped = h.ped('ped', 2, 10, 60);
+    h.combat.explode(new THREE.Vector3(0, 0.8, 10), 9, 120, null);
+    expect(ped.alive).toBe(false);
+    expect(stains(fx)).toBe(2); // the scorch and the spatter beyond them
+    expect(splats(fx)).toBeGreaterThan(0); // caught close: in pieces
+    // Thrown by the blast; the pool waits for the body to stop.
+    ped.velocity.set(0, 0, 0);
+    h.run(1 / 60);
+    expect(stains(fx)).toBe(3);
+  });
+
+  it('a body thrown by a car smears the road as it slides, but not while it is in the air', () => {
+    const h = harness();
+    const fx = fxOf(h);
+    const ped = h.ped('ped', 0, 6);
+    const car = h.car(0, 3);
+    car.velocity.set(0, 0, 14);
+    h.events.emit('vehicleHitActor', { actor: ped, vehicle: car, speed: 14, under: false });
+    const before = fx.decals.active;
+    // Up over the bonnet: nothing.
+    ped.group.position.set(0, 1.2, 6);
+    for (let i = 0; i < 10; i++) {
+      ped.position.z += 0.3;
+      h.run(1 / 60);
+    }
+    expect(fx.decals.active).toBe(before);
+    // Down and sliding: a smear every half-metre or so.
+    ped.group.position.y = 0;
+    for (let i = 0; i < 20; i++) {
+      ped.position.z += 0.2;
+      h.run(1 / 60);
+    }
+    const smears = fx.decals.active - before;
+    expect(smears).toBeGreaterThanOrEqual(5);
+    expect(smears).toBeLessThanOrEqual(8);
   });
 
   it('bullets leave holes in the world and pocks that ride on cars', () => {
