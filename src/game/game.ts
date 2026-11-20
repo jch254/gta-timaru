@@ -5,6 +5,8 @@ import { createAudio } from '../audio';
 import { createCombat } from '../combat';
 import { EventBus } from '../core/events';
 import { Input } from '../core/input';
+import { loadInitialRegion } from './initialRegion';
+import type { Snapshot } from '../core/saveFormat';
 import { Save } from '../core/save';
 import { Settings } from '../core/settings';
 import type { Actor, ActorsApi, GameClock, GameContext, GameEvents, System } from '../core/types';
@@ -43,7 +45,7 @@ class Actors implements ActorsApi {
 export interface StartOptions {
   canvas: HTMLCanvasElement;
   /** Continue from the save file instead of starting fresh. */
-  load: boolean;
+  snapshot?: Snapshot;
   /** Place id a new game begins at (the map's spawn if left out or not on the map). Ignored when continuing. */
   spawnAt?: string;
   onProgress(stage: string, fraction: number): void;
@@ -67,7 +69,7 @@ export class Game {
     return game;
   }
 
-  private async init({ canvas, load, spawnAt, onProgress }: StartOptions) {
+  private async init({ canvas, snapshot, spawnAt, onProgress }: StartOptions) {
     onProgress('Starting physics', 0);
     const physics = (this.physics = await Physics.create());
     const settings = new Settings();
@@ -165,19 +167,10 @@ export class Game {
     await world.buildFar((f) => onProgress('Raising the Alps', 0.1 + f * 0.35));
     for (const s of this.systems) await s.init?.();
 
-    const chosen = !load && spawnAt ? world.places.find((p) => p.id === spawnAt) : undefined;
-    const spawn = chosen ?? world.placesTagged('spawn')[0] ?? { x: 0, z: 0, heading: 0 };
-    await world.loadAround(spawn.x, spawn.z, (f) => onProgress('Building the streets', 0.45 + f * 0.5));
-    ctx.player.teleport(spawn.x, spawn.z, spawn.heading);
-    if (load && save.load()) {
-      const p = ctx.player.position;
-      await world.loadAround(p.x, p.z, (f) => onProgress('Finding where you left off', 0.95 + f * 0.05));
-      ctx.player.teleport(p.x, p.z, ctx.player.heading);
-      events.emit('playerRespawned', { reason: 'load' });
-      if (save.loadProblems.length) ctx.ui.toast('The save file was damaged; some progress may be missing.', 8);
-    } else {
-      events.emit('playerRespawned', { reason: 'new' });
-    }
+    const spawn = await loadInitialRegion(world, snapshot, spawnAt, f => onProgress('Building the streets', 0.45 + f * 0.55));
+    if (snapshot) save.apply(snapshot); // Player restoration teleports onto the loaded terrain.
+    else ctx.player.teleport(spawn.x, spawn.z, spawn.heading);
+    events.emit('playerRespawned', { reason: snapshot ? 'load' : 'new' });
     onProgress('Ready', 1);
 
     this.running = true;
