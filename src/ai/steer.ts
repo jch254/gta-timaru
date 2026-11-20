@@ -36,17 +36,16 @@ export function pursuitCurvature(f: number, l: number): number {
 
 /**
  * Steering input (−1..1, + = left) that follows `curvature`, for a vehicle with the given wheelbase and
- * low-speed steering lock. The lock shrinks with speed exactly as the vehicle model's does.
+ * current steering limit (radians).
  */
-export function steerForCurvature(curvature: number, wheelbase: number, steerLock: number, speed: number): number {
-  const lock = steerLock / (1 + Math.abs(speed) * DRIVE.steerSpeedFalloff);
+export function steerForCurvature(curvature: number, wheelbase: number, lock: number): number {
   return clamp(Math.atan(wheelbase * curvature) / lock, -1, 1);
 }
 
 /** Pure-pursuit steering towards a target at local (f, l). A target behind the vehicle asks for full lock. */
-export function pursuitSteer(f: number, l: number, wheelbase: number, steerLock: number, speed: number): number {
+export function pursuitSteer(f: number, l: number, wheelbase: number, lock: number): number {
   if (f < 0.5) return l >= 0 ? 1 : -1;
-  return steerForCurvature(pursuitCurvature(f, l), wheelbase, steerLock, speed);
+  return steerForCurvature(pursuitCurvature(f, l), wheelbase, lock);
 }
 
 /** Highest speed now that still allows slowing to `target` within `distance` at `decel`. */

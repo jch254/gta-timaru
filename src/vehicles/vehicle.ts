@@ -2,6 +2,7 @@ import type RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { createOccupant } from './occupant';
 import { TUNING } from './tuning';
+import { DRY_ROAD_MU, steeringLimit } from './steering';
 import { clamp, damp, moveToward } from '../core/math';
 import { CollisionGroup, type Actor, type GameContext, type Vehicle, type VehicleControls, type VehicleModel, type VehicleSpec } from '../core/types';
 
@@ -11,8 +12,7 @@ const _fwd = new THREE.Vector3();
 const _up = new THREE.Vector3();
 const _right = new THREE.Vector3();
 
-/** Peak tyre friction coefficient for a spec with grip 1 on dry seal. */
-const MU = 1.12;
+
 
 /**
  * One drivable vehicle: a Rapier ray-cast vehicle (dynamic chassis + four suspension rays) with
@@ -43,6 +43,7 @@ export class VehicleImpl implements Vehicle {
 
   private rig: RAPIER.DynamicRayCastVehicleController;
   private collider: RAPIER.Collider;
+  steeringLimit: number;
   private steer = 0;
   private originY: number;
   private restY: number[] = [];
@@ -73,6 +74,7 @@ export class VehicleImpl implements Vehicle {
   ) {
     const R = ctx.physics.rapier;
     const world = ctx.physics.world;
+    this.steeringLimit = spec.steerLock;
     this.health = spec.health;
     this.bike = spec.wheelCount === 2;
     this.originY = spec.wheelRadius + 0.28;
@@ -206,11 +208,9 @@ export class VehicleImpl implements Vehicle {
     const offRoad = surface === 'grass' || surface === 'sand' || surface === 'shingle' || surface === 'field';
     const loose = surface === 'gravel' || offRoad;
     // Tyre friction coefficient: about 1.1 g of grip for an ordinary road car on dry seal.
-    const mu = MU * spec.grip * (1 - env.wetness * 0.28) * (loose ? 0.72 : 1);
-    // Speed-sensitive steering: full lock when parking; at speed, only as much lock as the tyres can use
-    // (a little more than the grip limit, so the front can still be pushed into a slide).
-    const v2 = Math.max(1, speed * speed);
-    const lock = Math.min(spec.steerLock, Math.atan((spec.wheelbase * 1.22 * mu * 9.81) / v2));
+    const mu = DRY_ROAD_MU * spec.grip * (1 - env.wetness * 0.28) * (loose ? 0.72 : 1);
+    const lock = steeringLimit(spec, speed, mu);
+    this.steeringLimit = lock;
     this.steer = moveToward(this.steer, clamp(c.steer, -1, 1) * lock, (Math.abs(c.steer) > 0.01 ? 1.9 : 3.2) * dt * (0.6 + lock));
 
     // Burnout: throttle and brake held together at a standstill. The brakes hold the undriven wheels, the driven

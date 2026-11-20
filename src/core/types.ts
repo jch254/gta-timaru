@@ -841,6 +841,8 @@ export interface Vehicle {
   heading: number;
   /** Signed forward speed, m/s. */
   speed: number;
+  /** Front wheel angle (radians) requested by full steer at the latest physics step. */
+  readonly steeringLimit: number;
   readonly velocity: THREE.Vector3;
   controls: VehicleControls;
   /** Whoever is driving. Null = parked / abandoned. */

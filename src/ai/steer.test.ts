@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { arcOffset, boxHalfLat, boxHalfLon, brakingSpeed, followSpeed, lookAhead, pursuitCurvature, pursuitSteer, speedControl, steerForCurvature, toLocal, turnSpeed, type Pedals } from './steer';
 import { DRIVE } from './tuning';
 
+import { DRY_ROAD_MU, steeringLimit } from '../vehicles/steering';
+
+const lockAt = (speed: number) => steeringLimit({ wheelbase: 2.8, steerLock: 0.58 }, speed, DRY_ROAD_MU);
 const local = { f: 0, l: 0 };
 const pedals: Pedals = { throttle: 0, brake: 0, handbrake: false };
 
@@ -34,26 +37,26 @@ describe('pure pursuit', () => {
   });
 
   it('steers towards the target: + is left', () => {
-    expect(pursuitSteer(10, 2, 2.8, 0.58, 10)).toBeGreaterThan(0);
-    expect(pursuitSteer(10, -2, 2.8, 0.58, 10)).toBeLessThan(0);
-    expect(pursuitSteer(10, 0, 2.8, 0.58, 10)).toBe(0);
+    expect(pursuitSteer(10, 2, 2.8, lockAt(10))).toBeGreaterThan(0);
+    expect(pursuitSteer(10, -2, 2.8, lockAt(10))).toBeLessThan(0);
+    expect(pursuitSteer(10, 0, 2.8, lockAt(10))).toBe(0);
   });
 
   it('steers harder for a target further to the side, up to full lock', () => {
-    const gentle = pursuitSteer(10, 1, 2.8, 0.58, 5);
-    const sharp = pursuitSteer(10, 4, 2.8, 0.58, 5);
+    const gentle = pursuitSteer(10, 1, 2.8, lockAt(5));
+    const sharp = pursuitSteer(10, 4, 2.8, lockAt(5));
     expect(sharp).toBeGreaterThan(gentle);
-    expect(pursuitSteer(2, 6, 2.8, 0.58, 5)).toBe(1);
-    expect(pursuitSteer(2, -6, 2.8, 0.58, 5)).toBe(-1);
+    expect(pursuitSteer(2, 6, 2.8, lockAt(5))).toBe(1);
+    expect(pursuitSteer(2, -6, 2.8, lockAt(5))).toBe(-1);
   });
 
   it('asks for full lock when the target is behind', () => {
-    expect(pursuitSteer(-5, 1, 2.8, 0.58, 3)).toBe(1);
-    expect(pursuitSteer(-5, -1, 2.8, 0.58, 3)).toBe(-1);
+    expect(pursuitSteer(-5, 1, 2.8, lockAt(3))).toBe(1);
+    expect(pursuitSteer(-5, -1, 2.8, lockAt(3))).toBe(-1);
   });
 
   it('needs more steering input at speed, because the lock shrinks', () => {
-    expect(steerForCurvature(0.02, 2.8, 0.58, 30)).toBeGreaterThan(steerForCurvature(0.02, 2.8, 0.58, 5));
+    expect(steerForCurvature(0.02, 2.8, lockAt(30))).toBeGreaterThan(steerForCurvature(0.02, 2.8, lockAt(5)));
   });
 
   it('looks further ahead the faster it goes', () => {
@@ -69,15 +72,15 @@ describe('pure pursuit', () => {
     let h = -0.15;
     const speed = 12;
     const wheelbase = 2.8;
-    const lock = 0.58;
+    const lock = lockAt(speed);
     const dt = 1 / 60;
     let steer = 0;
     for (let i = 0; i < 60 * 8; i++) {
       const look = lookAhead(speed);
       toLocal(x, z, h, 0, z + look, local);
-      const want = pursuitSteer(local.f, local.l, wheelbase, lock, speed);
+      const want = pursuitSteer(local.f, local.l, wheelbase, lock);
       steer += Math.max(-2 * dt, Math.min(2 * dt, want - steer));
-      const angle = (steer * lock) / (1 + speed * DRIVE.steerSpeedFalloff);
+      const angle = steer * lock;
       h += ((speed * Math.tan(angle)) / wheelbase) * dt;
       x += Math.sin(h) * speed * dt;
       z += Math.cos(h) * speed * dt;

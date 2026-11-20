@@ -12,8 +12,7 @@ export const DRIVE = {
   lookMin: 5,
   lookGain: 0.55,
   lookMax: 26,
-  /** Mirrors the speed-sensitive steering lock in vehicles/vehicle.ts (lock = steerLock / (1 + |v| × this)). */
-  steerSpeedFalloff: 0.052,
+
   /** Comfortable planning deceleration; the profile to any stop or slow point is v² = v₀² + 2·brake·d. */
   brake: 3.6,
   /** Lateral acceleration accepted on open-road bends and through junction turns. */
