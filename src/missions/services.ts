@@ -5,6 +5,7 @@
 import { settle } from '../core/async';
 import type { GameContext, Place } from '../core/types';
 import { maraeAt, newResolved, resolveSpot } from './spots';
+import { findStashes, STASH } from './stashes';
 import { TUNING } from './tuning';
 import type { Spot } from './types';
 import { warnOnce } from './warn';
@@ -36,9 +37,11 @@ export const WORLD_PICKUPS: readonly WorldPickup[] = [
 ];
 
 interface PickupState {
-  def: WorldPickup;
+  def: Pick<WorldPickup, 'id' | 'kind' | 'amount' | 'respawn'>;
   x: number;
   z: number;
+  /** Hidden round the back of somewhere (stashes.ts): lies low, no halo. */
+  stash: boolean;
   spawned: boolean;
   remove: (() => void) | null;
 }
@@ -68,6 +71,8 @@ export class Services {
   /** One-off pickups already taken (saved). */
   readonly collected = new Set<string>();
   private pickups: PickupState[] = [];
+  /** The first stash found gets a word; the rest are their own reward. */
+  private stashFound = false;
   private scan = 0;
   private blipIds: string[] = [];
   private off: () => void;
@@ -91,9 +96,14 @@ export class Services {
         skipped++;
         continue;
       }
-      this.pickups.push({ def, x: at.x, z: at.z, spawned: false, remove: null });
+      this.pickups.push({ def, x: at.x, z: at.z, stash: false, spawned: false, remove: null });
     }
     if (skipped) warnOnce(`missions: ${skipped} world pickup(s) have nowhere to go on this map yet`);
+    // Weapons hidden round the back of buildings. Guns come back after a long while; a katana is found once.
+    for (const s of findStashes(ctx.world)) {
+      if (maraeAt(ctx.world, s.x, s.z, TUNING.maraeMargin)) continue;
+      this.pickups.push({ def: { id: s.id, kind: s.kind, respawn: s.kind === 'katana' ? undefined : STASH.respawn }, x: s.x, z: s.z, stash: true, spawned: false, remove: null });
+    }
   }
 
   private blip(id: string, kind: 'shop' | 'safehouse', place: Place) {
@@ -111,7 +121,7 @@ export class Services {
       if (p.spawned || this.collected.has(p.def.id) || !world.isLoaded(p.x, p.z)) continue;
       p.spawned = true;
       try {
-        p.remove = combat.spawnPickup(p.def.kind, p.x, p.z, p.def.amount, p.def.respawn);
+        p.remove = combat.spawnPickup(p.def.kind, p.x, p.z, p.def.amount, p.def.respawn, p.stash ? { stash: true } : undefined);
       } catch {
         p.remove = null;
       }
@@ -121,6 +131,15 @@ export class Services {
   /** A 'pickup' event says what was taken but not which one: the one-off of that kind under the player's feet is it. */
   private claim(kind: string) {
     const pos = this.ctx.player.position;
+    if (!this.stashFound) {
+      for (let i = 0; i < this.pickups.length; i++) {
+        const p = this.pickups[i];
+        if (!p.stash || !p.spawned || p.def.kind !== kind || Math.hypot(p.x - pos.x, p.z - pos.z) > TUNING.pickupClaimDistance) continue;
+        this.stashFound = true;
+        this.ctx.ui.toast("Somebody's stash. Finders keepers: there'll be more round the back of places.", 5);
+        break;
+      }
+    }
     for (let i = 0; i < this.pickups.length; i++) {
       const p = this.pickups[i];
       if (!p.spawned || p.def.respawn !== undefined || p.def.kind !== kind || this.collected.has(p.def.id)) continue;

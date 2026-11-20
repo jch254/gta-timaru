@@ -940,6 +940,8 @@ export interface WeaponSpec {
   driveBy: boolean;
   /** Price at a gun shop. */
   price: number;
+  /** Melee only: an edge rather than a club. It cuts (more blood), shoves less, and barely marks a car. */
+  blade?: boolean;
 }
 
 export interface CombatApi {
@@ -957,8 +959,11 @@ export interface CombatApi {
    * Returns true if a shot was fired (rate limiting is the caller's job for NPCs).
    */
   fire(shooter: Actor, weaponId: string, origin: THREE.Vector3, direction: THREE.Vector3): boolean;
-  /** Short-range melee swing in front of the actor. */
-  melee(attacker: Actor, damage: number, reach?: number): Actor | Vehicle | null;
+  /**
+   * Short-range melee swing in front of the actor. `weaponId` says what was swung, for callers that know: a
+   * blade (`WeaponSpec.blade`) cuts rather than clubs. Left out, the swing is a fist or a club by its damage.
+   */
+  melee(attacker: Actor, damage: number, reach?: number, weaponId?: string): Actor | Vehicle | null;
   /** Spawn an explosion (vehicles call this when they blow). */
   explode(position: THREE.Vector3, radius: number, damage: number, source?: Actor | null): void;
   /** A small mesh of the weapon to attach to a humanoid's hand (`humanoid.setHeld`). Null for fists. */
@@ -966,9 +971,10 @@ export interface CombatApi {
   /**
    * World pickups: 'health' | 'armour' | 'cash' | weapon id. Returns a remover. `options.ttl` makes it
    * vanish by itself after that many seconds; `options.drop` marks it as something a body let go of
-   * (counted against the shared drop cap, oldest removed first).
+   * (counted against the shared drop cap, oldest removed first); `options.stash` hides it: lying still on the
+   * ground with a faint glint instead of floating in a halo, and drawn only from close by.
    */
-  spawnPickup(kind: string, x: number, z: number, amount?: number, respawnSeconds?: number, options?: { ttl?: number; drop?: boolean }): () => void;
+  spawnPickup(kind: string, x: number, z: number, amount?: number, respawnSeconds?: number, options?: { ttl?: number; drop?: boolean; stash?: boolean }): () => void;
   serialize(): unknown;
   deserialize(data: unknown): void;
 }

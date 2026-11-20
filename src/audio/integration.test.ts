@@ -180,7 +180,7 @@ describe.each([48000, 44100])('unlocked at %i Hz', (rate) => {
     w.run(0.2);
     const ac = w.ac();
     const before = ac.byKind.bufferSource ?? 0;
-    const ids = Object.keys(SOUNDS).filter((id) => !['pain', 'deathCry', 'crunch', 'footGravel', 'footGrass', 'footSand', 'footWet', 'impactWorld', 'impactMetal', 'backfire', 'carPass', 'wantedUp', 'wantedClear', 'static', 'radioOff', 'gull', 'bellbird', 'chirp', 'morepork'].includes(id)) as SfxId[];
+    const ids = Object.keys(SOUNDS).filter((id) => !['slash', 'pain', 'deathCry', 'crunch', 'footGravel', 'footGrass', 'footSand', 'footWet', 'impactWorld', 'impactMetal', 'backfire', 'carPass', 'wantedUp', 'wantedClear', 'static', 'radioOff', 'gull', 'bellbird', 'chirp', 'morepork'].includes(id)) as SfxId[];
     expect(ids.length).toBe(32);
     let i = 0;
     w.run(8, (t) => {
@@ -202,6 +202,33 @@ describe.each([48000, 44100])('unlocked at %i Hz', (rate) => {
     // Silly arguments are survived.
     w.audio.play('pistol', { at: vec(1, 0, 1), volume: -3, pitch: 1 });
     w.audio.play('pistol', { at: vec(1, 0, 1), volume: 99, pitch: 1 });
+    expect(w.audio.debug().errors).toBe(0);
+  });
+
+  it("a blade in the player's hand cuts when it lands; a fist, a bat and anyone else's blow add nothing", () => {
+    const ac = w.ac();
+    w.run(0.5);
+    // (No health: nobody cries out, so the only new voice is the cut.)
+    const ped = { kind: 'ped', id: 7, health: 0, position: { x: 4, y: 0, z: 4 } } as never;
+    const combat = w.ctx.combat as unknown as { current: { id: string; kind: string; blade?: boolean } };
+    const count = (): number => ac.byKind.bufferSource ?? 0;
+    const hit = (source: unknown, kind: 'melee' | 'bullet' = 'melee'): number => {
+      const before = count();
+      w.events.emit('actorDamaged', { actor: ped, info: { amount: 26, kind, source: source as never, point: vec(4, 1.2, 3.8) } });
+      w.run(0.2);
+      return count() - before;
+    };
+    combat.current = { id: 'knife', kind: 'melee', blade: true };
+    expect(hit(w.player)).toBe(1);
+    combat.current = { id: 'katana', kind: 'melee', blade: true };
+    expect(hit(w.player)).toBe(1);
+    // Not a melee blow, not the player's, or not a blade: nothing more than the game already plays.
+    expect(hit(w.player, 'bullet')).toBe(0);
+    expect(hit({ kind: 'gang', id: 9 })).toBe(0);
+    combat.current = { id: 'bat', kind: 'melee' };
+    expect(hit(w.player)).toBe(0);
+    combat.current = { id: 'fists', kind: 'fists' };
+    expect(hit(w.player)).toBe(0);
     expect(w.audio.debug().errors).toBe(0);
   });
 

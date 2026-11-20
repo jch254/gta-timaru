@@ -49,6 +49,14 @@ export function gunSound(weaponId: string, kind?: string): SoundId | null {
   return null;
 }
 
+/**
+ * What a melee blow from this weapon adds when it lands on someone: the cut of a blade (`WeaponSpec.blade`).
+ * Fists and clubs add nothing here: the combat system plays their thud ('punch') itself, and leaves it out for a blade.
+ */
+export function meleeSound(weapon?: { kind?: string; blade?: boolean } | null): SoundId | null {
+  return weapon && weapon.kind === 'melee' && weapon.blade === true ? 'slash' : null;
+}
+
 /** Metres of ground covered per footfall at a given speed: a stroll is ~2 steps a second, a sprint ~3.5. */
 export const strideLength = (speed: number): number => 0.6 + 0.2 * speed;
 
@@ -303,6 +311,13 @@ class AudioSystem implements AudioApi, System {
     on('actorDamaged', ({ actor, info }) => {
       const p = actor.position;
       if (info.kind === 'vehicle' || info.kind === 'fall') this.emit('bodyHit', p.x, p.y, p.z);
+      // A blade in the player's hand: the cut, where it landed. (A hit does not say what dealt it, so only the
+      // player's weapon can be known here; anyone else's blade lands with the thump every blow on a body makes.)
+      if (info.kind === 'melee' && info.source === ctx.player) {
+        const cut = meleeSound(ctx.combat.current);
+        const at = info.point;
+        if (cut) this.emit(cut, at ? at.x : p.x, at ? at.y : p.y + 1.1, at ? at.z : p.z, 1, 1, 0, 1);
+      }
       // A cry from whoever it did not kill (the dying get theirs below).
       if (actor.kind !== 'player' && actor.health > 0 && info.kind !== 'drown' && this.rng.chance(0.75)) this.emit('pain', p.x, p.y + 1.6, p.z, 1, this.voice(actor));
     });

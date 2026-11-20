@@ -96,6 +96,20 @@ describe('sound effect library', () => {
     expect(lowShare('explosion')).toBeGreaterThan(lowShare('glass') * 5);
   });
 
+  it('a blade cuts where a fist thuds: bright, short, and nothing like a gun', () => {
+    const lowShare = (id: SoundId): number => lowEnergy(renderSound(id, 0), SR, 210);
+    for (let v = 0; v < SOUNDS.slash.variants; v++) {
+      const b = renderSound('slash', v);
+      expect(b.length / SR, `slash#${v}`).toBeLessThan(0.35);
+      expect(lowEnergy(b, SR, 210), `slash#${v}`).toBeLessThan(lowShare('punch') / 3);
+    }
+    expect(renderSound('slash', 0)).not.toEqual(renderSound('slash', 1));
+    // Mixed like the punch it stands in for: heard at the same distance, never louder.
+    expect(SOUNDS.slash.max).toBe(SOUNDS.punch.max);
+    expect(SOUNDS.slash.gain).toBeLessThanOrEqual(SOUNDS.punch.gain);
+    expect(renderSound('slash', 0).length).toBeLessThan(renderSound('smg', 0).length);
+  });
+
   it('the rifle has an audible echo after the crack', () => {
     const b = renderSound('rifle', 0);
     const win = (from: number, to: number): number => rms(b.subarray(Math.floor(from * SR), Math.floor(to * SR)));

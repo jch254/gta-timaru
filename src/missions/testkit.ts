@@ -359,7 +359,7 @@ export interface FakeOptions {
 }
 
 const CLASS_OF: Record<string, VehicleSpec['cls']> = { statesman: 'sedan', v8sedan: 'sedan', coupe: 'coupe', hatch: 'hatch', wagon: 'wagon', ute: 'ute', farmtruck: 'truck', van: 'van', bike: 'bike', police: 'police', bus: 'bus' };
-const PRICE_OF: Record<string, number> = { fists: 0, bat: 45, pistol: 400, shotgun: 850, rifle: 1200 };
+const PRICE_OF: Record<string, number> = { fists: 0, knife: 30, bat: 45, katana: 0, pistol: 400, shotgun: 850, rifle: 1200 };
 
 export function makeFake(options: FakeOptions = {}) {
   const events = new EventBus<GameEvents>();
@@ -545,7 +545,7 @@ export function makeFake(options: FakeOptions = {}) {
   const weapons = new Map<string, WeaponSpec>();
   for (const id of WEAPON_IDS) {
     const ranged = id === 'pistol' || id === 'shotgun' || id === 'rifle';
-    weapons.set(id, { id, name: id, kind: id === 'bat' ? 'melee' : (id as WeaponSpec['kind']), magazine: ranged ? 6 : 0, price: PRICE_OF[id] } as WeaponSpec);
+    weapons.set(id, { id, name: id, kind: id === 'bat' || id === 'knife' || id === 'katana' ? 'melee' : (id as WeaponSpec['kind']), magazine: ranged ? 6 : 0, price: PRICE_OF[id] } as WeaponSpec);
   }
   const combat = {
     weapons,

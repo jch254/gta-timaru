@@ -75,6 +75,7 @@ class Combat implements CombatApi, System {
   private swingTime = 0;
   private swingDamage = 0;
   private swingReach = 0;
+  private swingWeapon = 'fists';
   private stance = 0;
   /** View kick still to spring back (radians). */
   private kickPitch = 0;
@@ -208,7 +209,7 @@ class Combat implements CombatApi, System {
     const spec = this.weapons.get(weaponId);
     if (!spec || !shooter.alive) return false;
     if (!isRanged(spec)) {
-      this.melee(shooter, spec.damage, spec.range);
+      this.melee(shooter, spec.damage, spec.range, spec.id);
       return true;
     }
     if (direction.lengthSq() < 1e-8) return false;
@@ -356,9 +357,12 @@ class Combat implements CombatApi, System {
 
   // ───────────── Melee ─────────────
 
-  melee(attacker: Actor, damage: number, reach: number = TUNING.meleeReach): Actor | Vehicle | null {
+  melee(attacker: Actor, damage: number, reach: number = TUNING.meleeReach, weaponId?: string): Actor | Vehicle | null {
     if (!attacker.alive || attacker.vehicle) return null;
     const { ctx } = this;
+    // What was swung, when the caller says: a blade cuts where a fist or a bat clubs.
+    const spec = weaponId === undefined ? undefined : this.weapons.get(weaponId);
+    const blade = spec?.blade === true;
     const heading = attacker.heading;
     const options = this.rayOptions;
     let best: RayHit | null = null;
@@ -388,20 +392,22 @@ class Combat implements CombatApi, System {
     const target = bestRank === 0 || bestRank === 1 ? owner : null;
     const heavy = damage >= TUNING.meleeBloodDamage;
     _a.set(attacker.position.x, attacker.position.y + MELEE_ROWS[0], attacker.position.z);
-    const blood = owner && !isVehicle(owner) && owner.invulnerable ? 0 : feelOf(heavy ? 'bat' : 'fists').blood;
+    const blood = owner && !isVehicle(owner) && owner.invulnerable ? 0 : feelOf(spec ? spec.id : heavy ? 'bat' : 'fists').blood;
     this.fx.hint(_a, forward, null, blood, true);
     ctx.events.emit('impact', { position: best.point, normal: best.normal, surface: !owner ? 'world' : isVehicle(owner) ? 'vehicle' : 'flesh' });
     this.fx.clearHint();
     if (!target) return null;
 
     if (isVehicle(target)) {
-      // A dent, not a wreck: fists barely mark a car.
-      target.body.applyImpulse({ x: forward.x * damage * 6, y: 0, z: forward.z * damage * 6 }, true);
-      this.damageVehicle(target, Math.max(0, damage - TUNING.meleeVehicleFloor) * TUNING.meleeVehicleScale, attacker, best.point);
+      // A dent, not a wreck: fists barely mark a car, and a blade only scores the paint.
+      const shove = damage * 6 * (blade ? TUNING.bladeKnock : 1);
+      target.body.applyImpulse({ x: forward.x * shove, y: 0, z: forward.z * shove }, true);
+      this.damageVehicle(target, blade ? TUNING.bladeVehicleDamage : Math.max(0, damage - TUNING.meleeVehicleFloor) * TUNING.meleeVehicleScale, attacker, best.point);
       return target;
     }
-    ctx.audio.play('punch', { at: best.point });
-    const knock = Math.min(TUNING.meleeKnockMax, Math.max(TUNING.meleeKnockMin, damage * TUNING.meleeKnock));
+    // A blade does not thud: the audio module adds the cut when it hears the wound (src/audio/index.ts, `meleeSound`).
+    if (!blade) ctx.audio.play('punch', { at: best.point });
+    const knock = Math.min(TUNING.meleeKnockMax, Math.max(TUNING.meleeKnockMin, damage * TUNING.meleeKnock)) * (blade ? TUNING.bladeKnock : 1);
     target.velocity.addScaledVector(forward, knock);
     this.damageActor(target, { amount: damage, kind: 'melee', source: attacker, point: best.point, direction: forward });
     return target;
@@ -464,12 +470,12 @@ class Combat implements CombatApi, System {
     return this.models.held(weaponId);
   }
 
-  spawnPickup(kind: string, x: number, z: number, amount?: number, respawnSeconds?: number, options?: { ttl?: number; drop?: boolean }): () => void {
-    return this.pickups.spawn(kind, x, z, amount, respawnSeconds, options?.ttl ?? Infinity, options?.drop ?? false);
+  spawnPickup(kind: string, x: number, z: number, amount?: number, respawnSeconds?: number, options?: { ttl?: number; drop?: boolean; stash?: boolean }): () => void {
+    return this.pickups.spawn(kind, x, z, amount, respawnSeconds, options?.ttl ?? Infinity, options?.drop ?? false, options?.stash ?? false);
   }
 
   /** Live, takeable pickups — a dev-tools aid, not part of the contract. */
-  livePickups(): { kind: string; x: number; z: number }[] {
+  livePickups(): { kind: string; x: number; z: number; stash: boolean }[] {
     return this.pickups.all();
   }
 
@@ -522,7 +528,7 @@ class Combat implements CombatApi, System {
     // A swing already under way lands on time.
     if (this.swinging && (this.swingTime -= dt) <= 0) {
       this.swinging = false;
-      if (player.alive && !player.vehicle && this.melee(player, this.swingDamage, this.swingReach)) player.shakeCamera(0.07);
+      if (player.alive && !player.vehicle && this.melee(player, this.swingDamage, this.swingReach, this.swingWeapon)) player.shakeCamera(0.07);
     }
 
     if (free) {
@@ -570,6 +576,7 @@ class Combat implements CombatApi, System {
     this.swingTime = TUNING.meleeHitDelay;
     this.swingDamage = spec.damage;
     this.swingReach = spec.range;
+    this.swingWeapon = spec.id;
     this.ctx.player.playAction('punch', 0.35);
   }
 

@@ -36,6 +36,7 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
   smg: def({ variants: 3, gain: 0.34, ref: 12, max: 200, reverb: 0.3, priority: 7, limit: 5 }),
   rifle: def({ variants: 2, gain: 0.46, ref: 20, max: 300, reverb: 0.55, priority: 7, gap: 0.08 }),
   punch: def({ variants: 3, gain: 0.38, ref: 4, max: 60, reverb: 0.08, priority: 5, gap: 0.06 }),
+  slash: def({ variants: 3, gain: 0.34, ref: 4, max: 60, reverb: 0.08, priority: 5, gap: 0.06 }),
   reload: def({ gain: 0.24, ref: 2.5, max: 40, reverb: 0.05, gap: 0.2, jitter: 0.02 }),
   empty: def({ gain: 0.2, ref: 2, max: 30, reverb: 0, gap: 0.08, jitter: 0.02 }),
   ricochet: def({ variants: 4, gain: 0.24, ref: 6, max: 90, reverb: 0.3, priority: 3, jitter: 0.1 }),

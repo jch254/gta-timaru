@@ -52,6 +52,31 @@ describe('Inventory: loadout', () => {
     expect(inv.full('rifle')).toBe(false);
     expect(inv.give('bazooka', 5)).toBe('unknown');
     expect(inv.has('bazooka')).toBe(false);
+    // The blades are melee weapons like the bat: nothing to load, and a second one adds nothing.
+    for (const id of ['knife', 'katana']) {
+      expect(inv.full(id)).toBe(false);
+      expect(inv.give(id, 50)).toBe('new');
+      expect(inv.ammo(id)).toEqual({ clip: 0, reserve: 0 });
+      expect(inv.full(id)).toBe(true);
+      expect(inv.give(id, 50)).toBe('none');
+    }
+  });
+
+  it('cycles fists, knife, bat, katana, then the guns', () => {
+    const inv = make();
+    for (const id of ['rifle', 'katana', 'shotgun', 'knife', 'pistol', 'bat']) inv.give(id, 20);
+    expect(inv.list()).toEqual(['fists', 'knife', 'bat', 'katana', 'pistol', 'shotgun', 'rifle']);
+    inv.select('fists');
+    const seen: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      inv.cycle(1);
+      seen.push(inv.currentId);
+    }
+    expect(seen).toEqual(['knife', 'bat', 'katana', 'pistol', 'shotgun', 'rifle', 'fists']);
+    // A blade in hand does not shoot, reload or go dry.
+    inv.select('katana');
+    expect(inv.tryFire()).toBe('melee');
+    expect(inv.startReload()).toBe(false);
   });
 
   it('cycles through owned weapons in the fixed order, wrapping', () => {
@@ -212,6 +237,47 @@ describe('Inventory: save', () => {
     expect(copy.currentId).toBe('shotgun');
     for (const id of inv.list()) expect(copy.ammo(id)).toEqual(inv.ammo(id));
     expect(copy.serialize()).toEqual(inv.serialize());
+  });
+
+  it('a save holding the knife and the katana round-trips, katana in hand', () => {
+    const inv = make();
+    inv.give('knife');
+    inv.give('katana');
+    inv.give('pistol', 30);
+    inv.select('katana');
+    const saved = JSON.parse(JSON.stringify(inv.serialize()));
+    expect(saved.weapons.map((w: { id: string }) => w.id)).toEqual(['knife', 'katana', 'pistol']);
+    const copy = make();
+    copy.deserialize(saved);
+    expect(copy.list()).toEqual(['fists', 'knife', 'katana', 'pistol']);
+    expect(copy.currentId).toBe('katana');
+    expect(copy.current.blade).toBe(true);
+    expect(copy.ammo('katana')).toEqual({ clip: 0, reserve: 0 });
+    expect(copy.ammo('pistol')).toEqual(inv.ammo('pistol'));
+    expect(copy.serialize()).toEqual(inv.serialize());
+  });
+
+  it('a save from before the blades existed still loads, weapon for weapon', () => {
+    // Exactly what the five-weapon game wrote: ids, never positions in the cycling order.
+    const old = { v: 1, current: 'shotgun', weapons: [{ id: 'bat', clip: 0, reserve: 0 }, { id: 'pistol', clip: 7, reserve: 31 }, { id: 'shotgun', clip: 2, reserve: 9 }, { id: 'rifle', clip: 5, reserve: 0 }] };
+    const inv = make();
+    inv.deserialize(JSON.parse(JSON.stringify(old)));
+    expect(inv.list()).toEqual(['fists', 'bat', 'pistol', 'shotgun', 'rifle']);
+    expect(inv.currentId).toBe('shotgun');
+    expect(inv.has('knife')).toBe(false);
+    expect(inv.has('katana')).toBe(false);
+    expect(inv.ammo('pistol')).toEqual({ clip: 7, reserve: 31 });
+    expect(inv.ammo('shotgun')).toEqual({ clip: 2, reserve: 9 });
+    expect(inv.serialize()).toEqual(old);
+    // And the loaded game can pick the new ones up and cycle to them.
+    inv.give('knife');
+    inv.select('fists');
+    inv.cycle(1);
+    expect(inv.currentId).toBe('knife');
+    wait(inv, DRAW_TIME);
+    inv.select('shotgun');
+    wait(inv, DRAW_TIME);
+    expect(inv.tryFire()).toBe('fired');
   });
 
   it('replaces whatever was held before', () => {
