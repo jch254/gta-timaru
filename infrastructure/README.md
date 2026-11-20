@@ -40,10 +40,10 @@ so the zone's records and its Cloudflare token are kept here the way
 - Set `manage_dns = false` to skip the site record and the www redirect
 
 **Old addresses** (`cloudflare-dns-records` module and `cloudflare_ruleset`)
-- `the-03.603.nz`, the game's previous address, is a proxied placeholder record
-  in the `603.nz` zone, and a Single Redirect rule there sends it (301) to
-  `https://03.quest` with the path and query kept. More old names go in
-  `old_site_subdomains`; an empty list turns it off.
+- `the-03.603.nz` and `timmaz-hard.603.nz`, the game's earlier addresses, are
+  proxied placeholder records in the `603.nz` zone, and a Single Redirect rule
+  there sends them (301) to `https://03.quest` with the path and query kept.
+  More old names go in `old_site_subdomains`; an empty list turns it off.
 - That rule is `603.nz`'s Single Redirect ruleset, and a zone has only one, so
   any other redirect wanted in `603.nz` (by `603dotnz` or another app) has to
   be added here or the ruleset moved to the repo that owns the zone.
@@ -85,7 +85,7 @@ Remote state is stored in S3. The bucket/key/region are supplied via
 | `aws_region` | `ap-southeast-2` | Region for the bucket and the CodeBuild project |
 | `codebuild_webhook_branch` | `main` | Branch whose pushes deploy |
 | `manage_dns` | `true` | Whether Terraform manages the Cloudflare DNS records and the redirects |
-| `old_site_subdomains` | `["the-03"]` | Old addresses in `old_site_zone` (`603.nz`) redirected to the site |
+| `old_site_subdomains` | `["the-03", "timmaz-hard"]` | Old addresses in `old_site_zone` (`603.nz`) redirected to the site |
 | `cloudflare_api_token_parameter_name` | `/03-quest/cloudflare-api-token` | SSM parameter holding the Cloudflare token |
 
 With the defaults the game is served at `https://03.quest`, the apex of the
