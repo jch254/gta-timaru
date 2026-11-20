@@ -198,8 +198,8 @@ export interface InputApi {
   lookPitch: number;
   /** True while the mouse is captured (pointer lock) or a gamepad is active. */
   captured: boolean;
-  /** Ask for pointer lock (must be called from a user gesture). */
-  capture(): void;
+  /** Ask for pointer lock. A canvas mousedown is consumed only if used to request capture. */
+  capture(gesture?: MouseEvent): void;
   release(): void;
   /** Human-readable binding for prompts, e.g. label('interact') → 'F'. */
   label(action: Action): string;

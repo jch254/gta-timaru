@@ -82,6 +82,7 @@ export class Input implements InputApi {
   private padIndex: number | undefined;
   private padDown = new Set<number>();
   private padHits = new Set<number>();
+  private triedCanvasCapture = false;
   private mouseDX = 0;
   private mouseDY = 0;
 
@@ -113,6 +114,7 @@ export class Input implements InputApi {
       if (e.gamepad.index === this.padIndex) this.clearPad();
     });
     element.addEventListener('mousedown', (e) => {
+      if (e.defaultPrevented) return;
       this.hits.add(`Mouse${e.button}`);
       this.down.add(`Mouse${e.button}`);
     });
@@ -128,14 +130,19 @@ export class Input implements InputApi {
     element.addEventListener('wheel', (e) => this.hits.add(e.deltaY > 0 ? 'WheelDown' : 'WheelUp'), { passive: true });
     document.addEventListener('pointerlockchange', () => {
       this.captured = document.pointerLockElement === element;
+      if (this.captured) this.triedCanvasCapture = false;
     });
   }
 
-  capture() {
+  capture(gesture?: MouseEvent) {
     // On a touch screen there is no pointer to lock, and asking can put up a browser banner.
-    if (this.touch.active) return;
+    if (this.touch.active || !this.element.requestPointerLock || this.captured) return;
+    // Try once per unlocked play session: a blocked frame must still get subsequent clicks for play.
+    if (gesture && this.triedCanvasCapture) return;
+    this.triedCanvasCapture = !!gesture;
+    gesture?.preventDefault();
     try {
-      const result = this.element.requestPointerLock?.() as Promise<void> | undefined;
+      const result = this.element.requestPointerLock() as Promise<void> | undefined;
       result?.catch?.(() => undefined);
     } catch {
       // Pointer lock unavailable: drag-to-look still works.

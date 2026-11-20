@@ -214,10 +214,11 @@ class Ui implements UiApi, System {
     const canvas = ctx.gfx?.renderer?.domElement;
     if (canvas) {
       const onDown = (e: MouseEvent) => {
-        if (e.button === 0 && this.running && !this.menuOpen && !ctx.clock.paused && !ctx.input.captured && !ctx.input.gamepadActive) ctx.input.capture();
+        if (e.button === 0 && this.running && !this.menuOpen && !ctx.clock.paused && !ctx.input.captured && !ctx.input.gamepadActive) ctx.input.capture(e);
       };
-      canvas.addEventListener('mousedown', onDown);
-      this.cleanups.push(() => canvas.removeEventListener('mousedown', onDown));
+      // Claim the lock gesture before Input's gameplay listener sees the press.
+      canvas.addEventListener('mousedown', onDown, true);
+      this.cleanups.push(() => canvas.removeEventListener('mousedown', onDown, true));
     }
   }
 
