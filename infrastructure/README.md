@@ -39,12 +39,24 @@ so the zone's records and its Cloudflare token are kept here the way
   per hostname) are never split between two.
 - Set `manage_dns = false` to skip the site record and the www redirect
 
+**Old addresses** (`cloudflare-dns-records` module and `cloudflare_ruleset`)
+- `the-03.603.nz`, the game's previous address, is a proxied placeholder record
+  in the `603.nz` zone, and a Single Redirect rule there sends it (301) to
+  `https://03.quest` with the path and query kept. More old names go in
+  `old_site_subdomains`; an empty list turns it off.
+- That rule is `603.nz`'s Single Redirect ruleset, and a zone has only one, so
+  any other redirect wanted in `603.nz` (by `603dotnz` or another app) has to
+  be added here or the ruleset moved to the repo that owns the zone.
+- Saves made at an old address stay with it: the redirect takes players to the
+  game, not their browser storage.
+
 **Cloudflare API token** (`ssm-parameter-placeholder` module)
 - `/03-quest/cloudflare-api-token`, created by Terraform with a placeholder
   value that is then overwritten by hand (Terraform ignores the value after
   that). `buildspec.yml` loads it as `CLOUDFLARE_API_TOKEN`, so Terraform never
   takes the token as a variable.
-- The token needs **Zone DNS Edit** and **Single Redirect Edit** on `03.quest`.
+- The token needs **Zone DNS Edit** and **Single Redirect Edit** on `03.quest`
+  and on `603.nz` (for the old-address redirect).
 
 **CodeBuild deployment** (`codebuild-project` + `codebuild-terraform-role`)
 - On a push to `main`: runs the unit tests (a red suite aborts before anything
@@ -72,15 +84,16 @@ Remote state is stored in S3. The bucket/key/region are supplied via
 | `bucket_name` | `timmaz-hard` | S3 bucket name; must be globally unique |
 | `aws_region` | `ap-southeast-2` | Region for the bucket and the CodeBuild project |
 | `codebuild_webhook_branch` | `main` | Branch whose pushes deploy |
-| `manage_dns` | `true` | Whether Terraform manages the Cloudflare DNS records and the www redirect |
+| `manage_dns` | `true` | Whether Terraform manages the Cloudflare DNS records and the redirects |
+| `old_site_subdomains` | `["the-03"]` | Old addresses in `old_site_zone` (`603.nz`) redirected to the site |
 | `cloudflare_api_token_parameter_name` | `/03-quest/cloudflare-api-token` | SSM parameter holding the Cloudflare token |
 
 With the defaults the game is served at `https://03.quest`, the apex of the
 `03.quest` zone. Cloudflare answers a CNAME on the apex with flattened A/AAAA
 records, so the record can stay DNS-only there too.
 Changing `domain` or `site_subdomain` replaces the ACM certificate and the
-Cloudflare records and re-points the CloudFront alias; nothing answers at the
-old address afterwards. A new `domain` has to be an active zone in the
+Cloudflare records and re-points the CloudFront alias; add the old name to the
+old-address redirect if links to it should keep working. A new `domain` has to be an active zone in the
 Cloudflare account that the token can edit: the plan reads the zone first, so
 a token that cannot see it fails the build before anything changes.
 
@@ -100,9 +113,9 @@ build started first fails before it changes anything.
 1. In the Cloudflare dashboard, delete any records already at `03.quest` and
    `www.03.quest` (a parked or imported A/AAAA there blocks the new CNAME).
 2. Create a Cloudflare API token with Zone DNS Edit and Single Redirect Edit on
-   `03.quest`, plus Zone DNS Edit on `603.nz`: this apply deletes the old
-   `the-03` CNAME and its certificate validation record from that zone. The
-   `603.nz` grant can be removed afterwards.
+   `03.quest` and `603.nz`. In `603.nz` the apply deletes the old `the-03`
+   CNAME and its certificate validation record, then redirects `the-03` to
+   `03.quest`, so keep `603.nz` on the token.
 3. Apply from a checkout of this branch:
 
    ```bash
@@ -113,8 +126,8 @@ build started first fails before it changes anything.
 
    The certificate is reissued for `03.quest` (DNS validation usually takes a
    few minutes), CloudFront answers for it, the www redirect is added and
-   `the-03.603.nz` stops resolving. The bucket still holds the last build until
-   step 5.
+   `the-03.603.nz` redirects to `https://03.quest`. The bucket still holds the
+   last build until step 5.
 4. Overwrite the placeholder Terraform created with the real token:
 
    ```bash

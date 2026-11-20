@@ -22,6 +22,18 @@ variable "site_subdomain" {
   default     = ""
 }
 
+variable "old_site_zone" {
+  description = "Cloudflare zone holding the game's old addresses."
+  type        = string
+  default     = "603.nz"
+}
+
+variable "old_site_subdomains" {
+  description = "Old addresses of the game in old_site_zone, each redirected (301) to the site. Empty list turns the redirect off."
+  type        = list(string)
+  default     = ["the-03"]
+}
+
 variable "bucket_name" {
   description = "Name of the S3 bucket that hosts the built game. Must be globally unique."
   type        = string

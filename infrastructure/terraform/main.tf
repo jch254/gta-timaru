@@ -11,6 +11,9 @@ locals {
   dns_record_name = var.site_subdomain == "" ? var.domain : var.site_subdomain
   # Served from the apex, www answers too, as a redirect to the apex.
   www_redirect = var.manage_dns && var.site_subdomain == ""
+  # The game's old addresses, each redirected to the site.
+  old_site_redirect = var.manage_dns && length(var.old_site_subdomains) > 0
+  old_site_hosts    = [for name in var.old_site_subdomains : "${name}.${var.old_site_zone}"]
 
   # shared-platform deploys one build-notifier core (SNS topic + formatter
   # Lambda) per CI region, because EventBridge can only invoke a same-region
@@ -164,6 +167,64 @@ resource "cloudflare_ruleset" "www_redirect" {
           preserve_query_string = true
           target_url = {
             expression = "concat(\"https://${var.domain}\", http.request.uri.path)"
+          }
+        }
+      }
+    },
+  ]
+}
+
+# --- Old addresses: redirected to the site at Cloudflare's edge ---------------
+# The game used to be served from subdomains of 603.nz. Links to them still land
+# on the game. This owns 603.nz's Single Redirect ruleset (a zone has one), so
+# redirects for anything else in 603.nz would have to be added here too.
+
+data "cloudflare_zone" "old_site" {
+  count = local.old_site_redirect ? 1 : 0
+
+  filter = {
+    name = var.old_site_zone
+  }
+}
+
+module "old_site_dns" {
+  count  = local.old_site_redirect ? 1 : 0
+  source = "github.com/jch254/terraform-modules//cloudflare-dns-records?ref=1.19.1"
+
+  zone_id = data.cloudflare_zone.old_site[0].id
+  records = {
+    for name in var.old_site_subdomains : name => {
+      name = name
+      type = "AAAA"
+      # A placeholder, like www's: the rule below answers before any origin.
+      content = "100::"
+      proxied = true
+    }
+  }
+}
+
+resource "cloudflare_ruleset" "old_site_redirect" {
+  count = local.old_site_redirect ? 1 : 0
+
+  zone_id     = data.cloudflare_zone.old_site[0].id
+  name        = "default"
+  description = "Redirect the game's old addresses to https://${local.site_domain}"
+  kind        = "zone"
+  phase       = "http_request_dynamic_redirect"
+
+  rules = [
+    {
+      ref         = "old_site_to_site"
+      description = "${join(", ", local.old_site_hosts)} to https://${local.site_domain}, keeping the path and query"
+      expression  = "(http.host in {${join(" ", [for host in local.old_site_hosts : "\"${host}\""])}})"
+      action      = "redirect"
+
+      action_parameters = {
+        from_value = {
+          status_code           = 301
+          preserve_query_string = true
+          target_url = {
+            expression = "concat(\"https://${local.site_domain}\", http.request.uri.path)"
           }
         }
       }
