@@ -112,15 +112,54 @@ module "site_dns" {
     site = {
       name = local.dns_record_name
       type = "CNAME"
-      # CloudFront serves TLS via the ACM cert and does the caching, so
-      # Cloudflare is DNS-only here. Proxied, Cloudflare's cache would sit in
-      # front of CloudFront's without the deploy's invalidation reaching it,
-      # and any CSP on the zone would need 'wasm-unsafe-eval' in script-src and
-      # blob: in img-src and connect-src or the game does not start.
+      # Proxied so the zone's Cloudflare analytics count the game's traffic;
+      # CloudFront is still the origin and holds the ACM cert. Cloudflare's
+      # cache sits in front of CloudFront's and the deploy's invalidation does
+      # not reach it. That is safe while buildspec.yml caches for long only what
+      # has a hashed name (assets/), gives the icons and the manifest an hour,
+      # and gives index.html and version.json a Cache-Control that keeps them
+      # out of Cloudflare's cache. Any CSP added on the zone needs
+      # 'wasm-unsafe-eval' in script-src and blob: in img-src and connect-src
+      # or the game does not start.
       content = module.site.cloudfront_domain_name
-      proxied = false
+      proxied = true
     }
   }
+
+  # The zone has to be on Full (strict) before the record turns proxied.
+  depends_on = [cloudflare_zone_setting.ssl]
+}
+
+# --- Zone settings the proxied site record relies on --------------------------
+
+# On Flexible, Cloudflare would fetch from CloudFront over HTTP, which
+# CloudFront answers with a redirect to HTTPS: a loop. Strict also checks the
+# ACM certificate.
+resource "cloudflare_zone_setting" "ssl" {
+  count = var.manage_dns ? 1 : 0
+
+  zone_id    = data.cloudflare_zone.zone.id
+  setting_id = "ssl"
+  value      = "strict"
+}
+
+# Rocket Loader rewrites how a page's scripts load; the game's must run as built.
+resource "cloudflare_zone_setting" "rocket_loader" {
+  count = var.manage_dns ? 1 : 0
+
+  zone_id    = data.cloudflare_zone.zone.id
+  setting_id = "rocket_loader"
+  value      = "off"
+}
+
+# 0 is "Respect Existing Headers": browsers get the Cache-Control the deploy
+# sets (buildspec.yml) rather than a zone-wide minimum.
+resource "cloudflare_zone_setting" "browser_cache_ttl" {
+  count = var.manage_dns ? 1 : 0
+
+  zone_id    = data.cloudflare_zone.zone.id
+  setting_id = "browser_cache_ttl"
+  value      = 0
 }
 
 # --- www: redirected to the apex at Cloudflare's edge -------------------------

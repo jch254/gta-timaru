@@ -25,19 +25,33 @@ so the zone's records and its Cloudflare token are kept here the way
 **Cloudflare DNS** (`cloudflare-dns-records` module)
 - `CNAME` from the site domain → the CloudFront distribution domain, plus the
   ACM validation records
-- The site record is **DNS-only** (`proxied = false`): CloudFront terminates
-  TLS and does the caching, and the deploy's CloudFront invalidation would not
-  reach a Cloudflare cache in front of it. To proxy it anyway, purge
-  Cloudflare's cache on each deploy too, and any CSP on the zone needs
-  `'wasm-unsafe-eval'` in `script-src` (the physics WebAssembly) and `blob:` in
-  `img-src` and `connect-src` (the character models carry their textures inside
-  the file), or the game does not start.
+- The site record is **proxied** (`proxied = true`), so the zone's Cloudflare
+  analytics count the game's traffic; CloudFront is still the origin and holds
+  the certificate. Cloudflare's cache sits in front of CloudFront's and the
+  deploy's CloudFront invalidation does not reach it. That is safe while
+  `buildspec.yml` caches for long only what has a hashed name (`assets/`),
+  gives the icons and the manifest an hour, and gives `index.html` and
+  `version.json` a `Cache-Control` that keeps them out of Cloudflare's cache.
+  A file cached for long that changed under the same name would need a
+  Cloudflare purge on each deploy too.
+- Three zone settings (`cloudflare_zone_setting`) hold that up: SSL/TLS mode
+  **Full (strict)** (on Flexible, Cloudflare fetches over HTTP and CloudFront's
+  redirect to HTTPS loops), **Rocket Loader off**, and Browser Cache TTL
+  **Respect Existing Headers**. The SSL mode is applied before the record turns
+  proxied.
+- Any CSP added on the zone needs `'wasm-unsafe-eval'` in `script-src` (the
+  physics WebAssembly) and `blob:` in `img-src` and `connect-src` (the
+  character models carry their textures inside the file), or the game does not
+  start.
+- To go back to DNS-only, set `proxied = false` on the site record; the zone
+  settings can stay.
 - Served from the apex, `www` is a proxied placeholder record (`AAAA 100::`,
   no origin) and a Single Redirect rule (`cloudflare_ruleset`, phase
   `http_request_dynamic_redirect`) sends it to `https://03.quest` with the path
   and query kept. One hostname serves the game, so saves (browser storage is
   per hostname) are never split between two.
-- Set `manage_dns = false` to skip the site record and the www redirect
+- Set `manage_dns = false` to skip the site record, the zone settings and the
+  www redirect
 
 **Old addresses** (`cloudflare-dns-records` module and `cloudflare_ruleset`)
 - The game's earlier addresses (`old_site_subdomains` in the `old_site_zone`
@@ -55,7 +69,8 @@ so the zone's records and its Cloudflare token are kept here the way
   value that is then overwritten by hand (Terraform ignores the value after
   that). Only the infrastructure operator needs `CLOUDFLARE_API_TOKEN`.
 - The token needs **Zone DNS Edit** and **Single Redirect Edit** on `03.quest`
-  and on `old_site_zone` (for the old-address redirect).
+  and on `old_site_zone` (for the old-address redirect), and **Zone Settings
+  Edit** on `03.quest` (for the zone settings above).
 
 **CodeBuild game publisher** (`codebuild-project` + `terraform/publisher.tf`)
 - On a push to `main`: runs the unit tests (a red suite aborts before anything
@@ -93,13 +108,13 @@ Remote state is stored in S3. The bucket/key/region are supplied via
 | `bucket_name` | `timmaz-hard` | S3 bucket name; must be globally unique |
 | `aws_region` | `ap-southeast-2` | Region for the bucket and the CodeBuild project |
 | `codebuild_webhook_branch` | `main` | Branch whose pushes deploy |
-| `manage_dns` | `true` | Whether Terraform manages the Cloudflare DNS records and the redirects |
+| `manage_dns` | `true` | Whether Terraform manages the Cloudflare DNS records, the zone settings and the redirects |
 | `old_site_subdomains` | `["the-03", "timmaz-hard"]` | Old subdomains of `old_site_zone` redirected to the site |
 | `cloudflare_api_token_parameter_name` | `/03-quest/cloudflare-api-token` | SSM parameter holding the Cloudflare token |
 
 With the defaults the game is served at `https://03.quest`, the apex of the
 `03.quest` zone. Cloudflare answers a CNAME on the apex with flattened A/AAAA
-records, so the record can stay DNS-only there too.
+records, so the same record works there, proxied or not.
 Changing `domain` or `site_subdomain` replaces the ACM certificate and the
 Cloudflare records and re-points the CloudFront alias; add the old name to the
 old-address redirect if links to it should keep working. A new `domain` has to be an active zone in the
