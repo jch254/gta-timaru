@@ -63,7 +63,9 @@ export class Player implements PlayerApi, System {
 
     this.body = world.createRigidBody(R.RigidBodyDesc.kinematicPositionBased().setTranslation(0, 50, 0));
     this.collider = world.createCollider(
-      R.ColliderDesc.capsule(HALF, RADIUS).setCollisionGroups(ctx.physics.groups(CollisionGroup.Character, CollisionGroup.World | CollisionGroup.Vehicle | CollisionGroup.Debris)),
+      R.ColliderDesc.capsule(HALF, RADIUS).setCollisionGroups(
+        ctx.physics.groups(CollisionGroup.Character, CollisionGroup.World | CollisionGroup.Vehicle | CollisionGroup.Character | CollisionGroup.Debris),
+      ),
       this.body,
     );
     ctx.physics.setOwner(this.collider, this);
@@ -260,7 +262,8 @@ export class Player implements PlayerApi, System {
       this.collider,
       { x: this.velocity.x * dt, y: this.vy * dt, z: this.velocity.z * dt },
       undefined,
-      this.ctx.physics.groups(CollisionGroup.Character, CollisionGroup.World | CollisionGroup.Vehicle),
+      // People on their feet are solid too (a knocked-down pedestrian drops out of the Character filter and is stepped over).
+      this.ctx.physics.groups(CollisionGroup.Character, CollisionGroup.World | CollisionGroup.Vehicle | CollisionGroup.Character),
     );
     const move = this.mover.computedMovement();
     const wasGrounded = this.grounded;

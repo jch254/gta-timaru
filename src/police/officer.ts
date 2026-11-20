@@ -179,9 +179,10 @@ export class Officer implements Actor {
     const R = ctx.physics.rapier;
     this.body = ctx.physics.world.createRigidBody(R.RigidBodyDesc.kinematicPositionBased().setTranslation(0, -500, 0));
     // Vehicles are left out of the filter on purpose: a kinematic capsule would stop a car dead like a bollard.
-    // Being run over is handled in `vehicleContact` instead. Bullets and probes still find the capsule.
+    // Being run over is handled in `vehicleContact` instead. Bullets and probes still find the capsule, and the
+    // player on foot is stopped by it.
     this.collider = ctx.physics.world.createCollider(
-      R.ColliderDesc.capsule(HALF, RADIUS).setCollisionGroups(ctx.physics.groups(CollisionGroup.Character, CollisionGroup.World | CollisionGroup.Debris)),
+      R.ColliderDesc.capsule(HALF, RADIUS).setCollisionGroups(ctx.physics.groups(CollisionGroup.Character, CollisionGroup.World | CollisionGroup.Character | CollisionGroup.Debris)),
       this.body,
     );
     this.collider.setEnabled(false);

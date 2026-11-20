@@ -643,6 +643,20 @@ describe('scripted pedestrians', () => {
     expect(last).toBe(false);
   });
 
+  it('walk round the player on foot instead of through them', async () => {
+    const { world, peds, run } = setup();
+    peds.density = 0;
+    world.player.position.set(38, 0, 30);
+    const ped = peds.spawn({ x: 30, z: 30, behaviour: 'stand', persistent: true });
+    let arrived: boolean | null = null;
+    void ped.goTo(46, 30).then((ok) => (arrived = ok));
+    let closest = Infinity;
+    run(15, () => (closest = Math.min(closest, Math.hypot(ped.position.x - 38, ped.position.z - 30))));
+    await Promise.resolve();
+    expect(arrived).toBe(true);
+    expect(closest).toBeGreaterThanOrEqual(PEDS.radius * 2);
+  });
+
   it('get into a vehicle, ride in it, and get out when told to do something else', () => {
     const { world, peds, run } = setup();
     peds.density = 0;
