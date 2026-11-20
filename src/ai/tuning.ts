@@ -199,7 +199,7 @@ export const TRAFFIC = {
   /** Panic. */
   gunshotRadius: 45,
   ramSpeed: 4.5,
-  ramRadius: 9,
+
   fleeSeconds: 20,
   fleeAggression: 1.9,
   bailChance: 0.25,

@@ -413,9 +413,10 @@ class Police implements PoliceApi, System {
 
   private onVehicleCrash(e: GameEvents['vehicleCrash']) {
     const pv = this.ctx.player.vehicle;
-    if (!pv || e.vehicle !== pv || e.speed < 4 || this.intel.suspended) return;
-    // Clouting a patrol car is noticed by definition; any other prang only if an officer is close by and watching.
-    if (this.force.vehicleNear(pv.position.x, pv.position.z, pv.spec.length / 2 + 3.4, pv)) this.reportDirect('vehicleDamage');
+    if (!pv || (e.vehicle !== pv && e.other !== pv) || e.speed < 4 || this.intel.suspended) return;
+    // Either chassis can register the impact. Other prangs still need a nearby witness.
+    const partner = e.vehicle === pv ? e.other : e.vehicle;
+    if (this.force.ownsVehicle(partner)) this.reportDirect('vehicleDamage');
     else if (this.now - this.seenNearAt < 1) this.reportDirect('recklessDriving');
   }
 

@@ -129,15 +129,14 @@ export class TrafficSystem implements TrafficApi, System {
       }
     });
     ctx.events.on('vehicleCrash', ({ vehicle, speed, other }) => {
-      const car = this.byVehicle.get(vehicle);
-      if (!car || car.state !== 'driving' || speed < TRAFFIC.ramSpeed) return;
-      // The crash event does not always say who hit us: blame the player if their car is right here.
+      if (speed < TRAFFIC.ramSpeed) return;
       const mine = ctx.player.vehicle;
-      const rammed = (mine && other === mine) || other === ctx.player || (mine && mine !== vehicle && mine.position.distanceTo(vehicle.position) < TRAFFIC.ramRadius + mine.spec.length / 2);
-      if (rammed) {
-        this.panic(car);
-        this.shout(car);
-      }
+      const partner = mine && vehicle === mine ? other : other === ctx.player || (mine && other === mine) ? vehicle : null;
+      if (!partner || !('spec' in partner)) return;
+      const car = this.byVehicle.get(partner);
+      if (!car || car.state !== 'driving') return;
+      this.panic(car);
+      this.shout(car);
     });
     ctx.events.on('vehicleDestroyed', ({ vehicle, source }) => {
       const car = this.byVehicle.get(vehicle);

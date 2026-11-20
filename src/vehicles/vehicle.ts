@@ -291,14 +291,21 @@ export class VehicleImpl implements Vehicle {
     this.spawnGrace -= dt;
     const dv = _v.subVectors(this.velocity, this.prevVel).length();
     if (dv > TUNING.crashNoticeDv && this.spawnGrace < 0) {
-      // Whoever is close enough to have been hit.
-      let other: Vehicle | null = null;
-      for (const v of this.ctx.vehicles.all) {
-        if (v !== this && v.position.distanceToSquared(this.position) < ((v.spec.length + spec.length) * 0.5 + 0.8) ** 2) {
-          other = v;
-          break;
+      // Use impulses from the completed physics step. An unowned wall can win this
+      // comparison too; a lighter contact with a vehicle didn't cause that jolt.
+      const physics = this.ctx.physics;
+      let other: Vehicle | Actor | null = null;
+      let strongest = 0;
+      physics.world.contactPairsWith(this.collider, (collider) => {
+        let impulse = 0;
+        physics.world.contactPair(this.collider, collider, (manifold) => {
+          for (let i = 0; i < manifold.numContacts(); i++) impulse += manifold.contactImpulse(i);
+        });
+        if (impulse > strongest) {
+          strongest = impulse;
+          other = physics.ownerOf(collider);
         }
-      }
+      });
       this.ctx.events.emit('vehicleCrash', { vehicle: this, speed: dv, other });
       if (dv > TUNING.crashHurtsDv) this.applyDamage((dv - TUNING.crashDamageGrace) * TUNING.crashDamageScale, null);
     }

@@ -145,11 +145,9 @@ export class Force implements OfficerHost {
     return 'tags' in thing && thing.tags.has('police');
   }
 
-  /** Is one of our crewed or roadblock vehicles within `radius` of a point? */
-  vehicleNear(x: number, z: number, radius: number, except: Vehicle | null = null): boolean {
-    for (const u of this.units) if (u.vehicle !== except && Math.hypot(u.vehicle.position.x - x, u.vehicle.position.z - z) < radius) return true;
-    for (const rb of this.roadblocks) for (const v of rb.cars) if (v !== except && Math.hypot(v.position.x - x, v.position.z - z) < radius) return true;
-    return false;
+  /** Is this one of our crewed or roadblock vehicles? */
+  ownsVehicle(thing: Actor | Vehicle | null): boolean {
+    return !!thing && (this.units.some(u => u.vehicle === thing) || this.roadblocks.some(rb => rb.cars.some(v => v === thing)));
   }
 
   /** Call sign of the pursuing unit nearest the player (for radio chatter). */
