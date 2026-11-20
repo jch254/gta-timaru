@@ -59,7 +59,7 @@ so the zone's records and its Cloudflare token are kept here the way
 
 **CodeBuild game publisher** (`codebuild-project` + `terraform/publisher.tf`)
 - On a push to `main`: runs the unit tests (a red suite aborts before anything
-  deploys), runs `pnpm run build`, `aws s3 sync`s
+  deploys), runs `pnpm run build`, waits for the public GitHub Chrome/Firefox push workflow to pass for the same commit, then `aws s3 sync`s
   `dist/` to the bucket, uploads `version.json` last, prunes old files, then
   invalidates the CloudFront distribution (see `buildspec.yml` in the repo root)
 - `version.json` (the build's commit and time) is what running games read to

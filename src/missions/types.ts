@@ -284,6 +284,8 @@ export interface RivalDef {
 
 export interface RaceStep extends StepCommon {
   kind: 'race';
+  /** When set, only this mission vehicle can collect the player's checkpoints. */
+  vehicle?: string;
   /** Start line: a lane spot. Rivals line up around it. */
   grid: Spot;
   /** In order; the last one is the finish. */

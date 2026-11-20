@@ -27,7 +27,7 @@ phases:
       - test -s dist/index.html || { echo "Build did not produce dist/index.html"; exit 1; }
       - test -s dist/version.json || { echo "Build did not produce dist/version.json"; exit 1; }
 
-      # Wire browser gate #10 here against dist/, before any publish command.
+      - node infrastructure/require-browser-gate.mjs
 
   post_build:
     commands:

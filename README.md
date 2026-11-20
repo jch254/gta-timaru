@@ -16,6 +16,14 @@ pnpm dev
 
 Then open the URL Vite prints. `pnpm build` type-checks and writes a self-contained `dist/` with relative asset paths and hashed filenames, suitable for an S3 bucket behind CloudFront. `pnpm preview` serves that build locally. `pnpm test` runs the unit tests.
 
+### Production browser gate
+
+After integrating changes, run `pnpm install --frozen-lockfile && pnpm test && pnpm build && pnpm test:browser`. The last command starts its own loopback preview of **the existing `dist/`**, plays in a fresh Chrome profile, and shuts both down. Set `CHROME_PATH` to the executable outside the standard macOS install. For Firefox, use `BROWSER=firefox FIREFOX_PATH=/path/to/firefox pnpm test:browser` (a WebGL2-capable display or Xvfb/Mesa on Linux).
+
+The gate checks failed Save feedback and preservation of the previous slot, reload → Continue, pause → Resume, a same-road district crossing under throttle, and checkpoint credit after swapping race cars. The production bundle’s existing `?dev` helpers position the scenarios; saving, loading, simulation, HUD and mission ticks run in the browser. There is no dev server or mocked engine. The failed-write case requires the save fix: a quota error must not look like a successful save.
+
+GitHub runs `Production gameplay (chrome)` and `Production gameplay (firefox)` on pull requests and pushes. CodeBuild waits for the matching push workflow to succeed on its exact source commit before it uploads anything. The check uses GitHub’s public API without a token and fails closed if it cannot verify the result. Require both browser checks in branch rules as well to catch regressions before merge. The workflow neither deploys nor needs AWS credentials.
+
 ## Controls
 
 | Action | Keyboard / mouse | Gamepad |

@@ -1,0 +1,36 @@
+name: Production browser gate
+on: [pull_request, push]
+permissions:
+  contents: read
+jobs:
+  play:
+    name: Production gameplay (${{ matrix.engine }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chrome, firefox]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: browser-actions/setup-firefox@v1
+        if: matrix.engine == 'firefox'
+        id: firefox
+        with:
+          firefox-version: latest
+      - name: Play the built game
+        env:
+          BROWSER: ${{ matrix.engine }}
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+          CHROME_PATH: /usr/bin/google-chrome
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MOZ_WEBRENDER: '1'
+        run: xvfb-run -a pnpm test:browser
