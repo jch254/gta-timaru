@@ -12,7 +12,7 @@ import { Save } from '../core/save';
 import { Settings } from '../core/settings';
 import type { Actor, ActorsApi, GameClock, GameContext, GameEvents, System } from '../core/types';
 import { createMissions } from '../missions';
-import { Physics } from '../physics/physics';
+import type { Physics } from '../physics/physics';
 import { Player } from '../player/player';
 import { createQuips } from '../player/quips';
 import { createPolice } from '../police';
@@ -70,7 +70,7 @@ export class Game {
 
   private async init({ canvas, snapshot, spawnAt, onProgress }: StartOptions) {
     onProgress('Starting physics', 0);
-    const physics = (this.physics = await Physics.create());
+
     const settings = new Settings();
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(58, 1, 0.35, 26000);
@@ -94,7 +94,13 @@ export class Game {
     const save = new Save();
 
     onProgress('Unpacking the scenery', 0.02);
-    await Promise.all([gfx.loadTextures(), preloadCharacters(import.meta.env.BASE_URL)]);
+    // A static Rapier import would wait for WASM before starting any of the scenery requests.
+    const [physics] = await Promise.all([
+      import('../physics/physics').then(({ Physics }) => Physics.create()),
+      gfx.loadTextures(),
+      preloadCharacters(import.meta.env.BASE_URL),
+    ]);
+    this.physics = physics;
 
     onProgress('Surveying Canterbury', 0.05);
     const world = (this.world = new World(scene, gfx, physics, () => gfx.preset.chunkRadius));

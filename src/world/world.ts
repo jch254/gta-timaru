@@ -829,7 +829,11 @@ export class World implements WorldApi, System {
 
   private addInstances(out: ChunkBuilderImpl, parent: THREE.Object3D, disposables: { dispose(): void }[], chunk?: Chunk) {
     const byKind = new Map<string, typeof out.instances>();
-    for (const inst of out.instances) byKind.set(inst.kind, [...(byKind.get(inst.kind) ?? []), inst]);
+    for (const inst of out.instances) {
+      const list = byKind.get(inst.kind);
+      if (list) list.push(inst);
+      else byKind.set(inst.kind, [inst]);
+    }
     const dummy = new THREE.Object3D();
     const tint = new THREE.Color();
     const boxes: ColliderBox[] = [];

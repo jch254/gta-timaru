@@ -303,14 +303,17 @@ export class Gfx implements GfxApi {
       light.intensity = atmo.lightIntensity;
     }
     this.csm.update();
-    // The nearest cascade is redrawn every frame; the wider ones change slowly and take turns, so at most two
-    // shadow maps are drawn per frame. (A map that is not redrawn keeps the matrix it was drawn with.)
+    // The nearest cascade is redrawn every frame; the wider ones change slowly and take turns, so after initialization at most
+    // two shadow maps are drawn per frame. (A map that is not redrawn keeps the matrix it was drawn with.)
     this.frame++;
     const lights = this.csm.lights;
     for (let i = 0; i < lights.length; i++) {
       const every = i === 0 ? 1 : i === 1 ? 2 : 4;
       lights[i].shadow.autoUpdate = false;
-      lights[i].shadow.needsUpdate = (this.frame + i) % every === 0;
+      // Keep the first draw at its original phase. Once initialized, Ultra's fourth cascade
+      // can use phase 0 without competing with the second cascade on odd frames.
+      const phaseOffset = i === 3 && lights[i].shadow.map !== null ? 0 : i;
+      lights[i].shadow.needsUpdate = (this.frame + phaseOffset) % every === 0;
     }
 
     if (this.flashTime > 0) {
