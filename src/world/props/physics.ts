@@ -37,6 +37,7 @@ export const PROP_PHYSICS: Record<string, PropPhysics> = {
   'road-sign': { box: post(0.06, 2.4), breakSpeed: 2.5, slow: 0.04, mass: 14 },
   'junction-sign': { box: post(0.06, 2.6), breakSpeed: 2.5, slow: 0.04, mass: 16 },
   'marker-post': { box: post(0.05, 1), solidTo: 'vehicles', breakSpeed: 2, slow: 0.02, mass: 4 },
+  'chevron-board': { box: { hx: 0.3, hz: 0.05, height: 1.8 }, solidTo: 'vehicles', breakSpeed: 2.5, slow: 0.03, mass: 9 },
   'picnic-table': { box: { hx: 0.9, hz: 0.75, height: 0.78 }, breakSpeed: 5, slow: 0.12, mass: 70 },
   'bike-stand': { box: { hx: 0.9, hz: 0.25, height: 0.8 }, breakSpeed: 4, slow: 0.08, mass: 30 },
   'rubbish-bag': { box: post(0.3, 0.5), solidTo: 'vehicles', breakSpeed: 1.5, slow: 0.02, mass: 6 },

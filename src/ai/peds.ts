@@ -2,7 +2,7 @@ import { TAU, clamp } from '../core/math';
 import { Rng } from '../core/rng';
 import type { Actor, GameContext, PedHandle, PedSpawnOptions, PedsApi, RoadEdge, System, Vehicle } from '../core/types';
 import { makePoint } from './lanes';
-import { barkLine, chatLine, completeLook, pedName, randomLook, type BarkKind, type LookContext } from './looks';
+import { barkLine, chatLine, completeLook, convoLines, pedName, randomLook, type BarkKind, type LookContext } from './looks';
 import { Ped, type PedWorld } from './ped';
 import { pedTimeFactor, pickRingPoint, spawnAllowed, type RingPoint } from './spawn';
 import { PEDS } from './tuning';
@@ -11,6 +11,18 @@ import { footpathInto, walkTrim, walkable } from './walk';
 const WALKABLE = (e: RoadEdge) => walkable(e);
 const _pt = makePoint();
 const _ring: RingPoint = { x: 0, z: 0, radius: 0 };
+
+/** Two passers-by having a yarn, one line at a time. */
+interface Convo {
+  a: Ped;
+  b: Ped;
+  lines: readonly string[];
+  index: number;
+  next: number;
+}
+
+/** How long a line of conversation stays up. */
+const lineSeconds = (text: string) => clamp(1.6 + text.length * 0.045, 2, 4.2);
 
 /**
  * The street population: keeps pedestrians alive around the player, weighted by district and hour, and
@@ -22,6 +34,8 @@ export class PedsSystem implements PedsApi, System {
 
   private peds: Ped[] = [];
   private rng = new Rng(0x9ed5);
+  /** Picks what is said (kept apart from `rng` so talk never shifts who spawns where). */
+  private voice = new Rng(0x7a1c);
   private world: PedWorld;
   private fast: Vehicle[] = [];
   private frame = 0;
@@ -35,6 +49,9 @@ export class PedsSystem implements PedsApi, System {
   private seed: number = PEDS.seedSeconds;
   private lastBark = -100;
   private lastScream = -100;
+  private convo: Convo | null = null;
+  private convoTimer: number = PEDS.convoEvery[0];
+  private watchTimer = 0;
 
   constructor(private ctx: GameContext) {
     this.world = {
@@ -73,6 +90,20 @@ export class PedsSystem implements PedsApi, System {
       for (const ped of this.peds) {
         if (ped.seatedIn === vehicle) ped.takeDamage({ amount: 999, kind: 'explosion', source: source ?? null });
       }
+      const witness = this.witness(vehicle.position.x, vehicle.position.z, PEDS.boomWitness);
+      if (witness) this.bark(witness, 'boom');
+    });
+    // The player's car hitting something hard, or tooting at somebody: whoever is standing nearby has a word.
+    ctx.events.on('vehicleCrash', ({ vehicle, speed, other }) => {
+      const mine = ctx.player.vehicle;
+      if (!mine || mine.driver !== ctx.player || (vehicle !== mine && other !== mine) || speed < PEDS.crashSpeed) return;
+      const witness = this.witness(mine.position.x, mine.position.z, PEDS.crashWitness);
+      if (witness) this.bark(witness, 'crash');
+    });
+    ctx.events.on('horn', ({ vehicle }) => {
+      if (vehicle !== ctx.player.vehicle || !this.voice.chance(0.75)) return;
+      const witness = this.witness(vehicle.position.x, vehicle.position.z, PEDS.hornWitness);
+      if (witness && this.bark(witness, 'horn')) witness.pauseToFace(vehicle.position.x, vehicle.position.z, 1.5);
     });
     ctx.events.on('playerRespawned', () => {
       this.seed = PEDS.seedSeconds;
@@ -168,6 +199,12 @@ export class PedsSystem implements PedsApi, System {
     }
     this.live = live;
     this.ambient = ambient;
+    this.talk(dt);
+    this.watchTimer -= dt;
+    if (this.watchTimer <= 0) {
+      this.watchTimer = 1;
+      this.watch();
+    }
 
     this.slowTimer -= dt;
     if (this.slowTimer <= 0) {
@@ -265,7 +302,7 @@ export class PedsSystem implements PedsApi, System {
     ped.talkCooldown = 14;
     if (!this.audible(ped)) return;
     this.lastBark = ctx.clock.elapsed;
-    ctx.ui.subtitle(chatLine(this.rng, ctx.env.weather, ctx.env.night > 0.5, ctx.clock.hour), 2.5, ped.name);
+    ctx.ui.subtitle(chatLine(this.voice, ctx.env.weather, ctx.env.night > 0.5, ctx.clock.hour), 2.5, ped.name);
     ped.pauseToFace(player.position.x, player.position.z, 2.5);
   }
 
@@ -292,16 +329,19 @@ export class PedsSystem implements PedsApi, System {
       const d = Math.hypot(dx, dz);
       if (d < 45 || (dx * sin + dz * cos) / d > 0.55) continue;
       ped.dispose();
+      // (Counted alive earlier this frame.)
+      this.live--;
+      this.ambient--;
       return;
     }
   }
 
   // ───────────── Voices ─────────────
 
-  /** One line every few seconds at most, and only from people within earshot of the player. */
+  /** One line every few seconds at most, only from people within earshot of the player, and never over the story. */
   private audible(ped: Ped): boolean {
     const { ctx } = this;
-    if (ctx.clock.elapsed - this.lastBark < PEDS.barkGap) return false;
+    if (ctx.clock.elapsed - this.lastBark < PEDS.barkGap || ctx.missions?.talking) return false;
     const p = ctx.player.position;
     return (ped.position.x - p.x) * (ped.position.x - p.x) + (ped.position.z - p.z) * (ped.position.z - p.z) < 22 * 22;
   }
@@ -309,8 +349,107 @@ export class PedsSystem implements PedsApi, System {
   private bark(ped: Ped, kind: BarkKind): boolean {
     if (!this.audible(ped)) return false;
     this.lastBark = this.ctx.clock.elapsed;
-    this.ctx.ui.subtitle(barkLine(this.rng, kind), 2.5, ped.name);
+    this.ctx.ui.subtitle(barkLine(this.voice, kind), 2.5, ped.name);
     return true;
+  }
+
+  /** The nearest ordinary passer-by on foot within `radius` of a point, if any. */
+  private witness(x: number, z: number, radius: number): Ped | null {
+    let best: Ped | null = null;
+    let bestD2 = radius * radius;
+    for (const ped of this.peds) {
+      if (!ped.vocal) continue;
+      const d2 = (ped.position.x - x) * (ped.position.x - x) + (ped.position.z - z) * (ped.position.z - z);
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        best = ped;
+      }
+    }
+    return best;
+  }
+
+  /** Once a second: the player tearing past with the cops on them, or pointing a gun at somebody. */
+  private watch() {
+    const { ctx } = this;
+    const player = ctx.player;
+    if (!player.alive) return;
+    const p = player.position;
+    const v = player.vehicle;
+    if (v && (ctx.police?.level ?? 0) > 0 && Math.abs(v.speed) > PEDS.chaseSpeed && this.voice.chance(0.4)) {
+      const witness = this.witness(p.x, p.z, PEDS.chaseWitness);
+      if (witness) this.bark(witness, 'chase');
+      return;
+    }
+    if (!v && player.aiming) {
+      const sin = Math.sin(player.heading);
+      const cos = Math.cos(player.heading);
+      const r2 = PEDS.armedWitness * PEDS.armedWitness;
+      for (const ped of this.peds) {
+        if (!ped.vocal || !ped.calm) continue;
+        const dx = ped.position.x - p.x;
+        const dz = ped.position.z - p.z;
+        const d2 = dx * dx + dz * dz;
+        // In the line of fire, more or less.
+        if (d2 > r2 || d2 < 0.01 || (dx * sin + dz * cos) / Math.sqrt(d2) < 0.85) continue;
+        this.bark(ped, 'armed');
+        ped.alarm(p.x, p.z, player);
+        break;
+      }
+    }
+  }
+
+  /** Now and then two passers-by near the player stop for a yarn, a line each in turn. */
+  private talk(dt: number) {
+    const { ctx } = this;
+    const now = ctx.clock.elapsed;
+    const convo = this.convo;
+    if (convo) {
+      if (now < convo.next) return;
+      const { a, b } = convo;
+      if (convo.index >= convo.lines.length || !a.alive || !b.alive || a.removed || b.removed || !a.calm || !b.calm) {
+        this.convo = null;
+        return;
+      }
+      if (ctx.missions?.talking) {
+        convo.next = now + 0.5;
+        return;
+      }
+      const text = convo.lines[convo.index];
+      const seconds = lineSeconds(text);
+      ctx.ui.subtitle(text, seconds, convo.index % 2 === 0 ? a.name : b.name);
+      this.lastBark = now;
+      convo.index++;
+      convo.next = now + seconds + 0.2;
+      return;
+    }
+    this.convoTimer -= dt;
+    if (this.convoTimer > 0) return;
+    this.convoTimer = this.voice.range(PEDS.convoEvery[0], PEDS.convoEvery[1]);
+    const player = ctx.player;
+    if (!player.alive || now - this.lastBark < PEDS.barkGap || ctx.missions?.talking || !this.voice.chance(PEDS.convoChance)) return;
+    // Not much of a conversation to overhear at speed.
+    if (player.vehicle && Math.abs(player.vehicle.speed) > 10) return;
+    const pp = player.position;
+    const range2 = PEDS.convoRange * PEDS.convoRange;
+    const pair2 = PEDS.convoPair * PEDS.convoPair;
+    const peds = this.peds;
+    for (let i = 0; i < peds.length; i++) {
+      const a = peds[i];
+      if (!a.chatty || (a.position.x - pp.x) * (a.position.x - pp.x) + (a.position.z - pp.z) * (a.position.z - pp.z) > range2) continue;
+      for (let j = i + 1; j < peds.length; j++) {
+        const b = peds[j];
+        if (!b.chatty || b.name === a.name) continue;
+        if ((b.position.x - a.position.x) * (b.position.x - a.position.x) + (b.position.z - a.position.z) * (b.position.z - a.position.z) > pair2) continue;
+        const lines = convoLines(this.voice, ctx.env.weather, ctx.env.night > 0.5, ctx.env.rain, this.jobsDone());
+        let total = 0;
+        for (const line of lines) total += lineSeconds(line) + 0.2;
+        a.talkCooldown = b.talkCooldown = total + 30;
+        a.pauseToFace(b.position.x, b.position.z, total);
+        b.pauseToFace(a.position.x, a.position.z, total);
+        this.convo = { a, b, lines, index: 0, next: now };
+        return;
+      }
+    }
   }
 
   private scream(ped: Ped) {
@@ -318,6 +457,12 @@ export class PedsSystem implements PedsApi, System {
     if (ctx.clock.elapsed - this.lastScream < PEDS.screamGap) return;
     this.lastScream = ctx.clock.elapsed;
     ctx.audio.play('scream', { at: ped.position, pitch: ped.female ? 1.15 : 0.85 });
+  }
+
+  /** How far the story has got: the jobs done so far (they run in order through 1995). */
+  private jobsDone(): number {
+    const list = this.ctx.missions?.list?.();
+    return list ? list.filter((m) => m.state === 'done').length : 0;
   }
 
   private inMarae(x: number, z: number): boolean {

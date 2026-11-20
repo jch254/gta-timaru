@@ -11,6 +11,7 @@ import type { Actor, ActorsApi, GameClock, GameContext, GameEvents, System } fro
 import { createMissions } from '../missions';
 import { Physics } from '../physics/physics';
 import { Player } from '../player/player';
+import { createQuips } from '../player/quips';
 import { createPolice } from '../police';
 import { Gfx } from '../render/renderer';
 import { createUi } from '../ui';
@@ -145,7 +146,7 @@ export class Game {
     // Three things deliberately run outside this array: fx is created and pumped by combat (shared ownership),
     // the radio scheduler runs on a wall-clock interval so music survives rAF throttling in background tabs,
     // and the render stack (sky, air, film) updates inside gfx.render each frame.
-    this.systems = [ctx.player, ctx.combat, ctx.peds, ctx.traffic, createTram(ctx), ctx.police, ctx.missions, ctx.vehicles, world, createFigureLod(ctx), ctx.audio, ctx.ui] as unknown as System[];
+    this.systems = [ctx.player, ctx.combat, ctx.peds, ctx.traffic, createTram(ctx), ctx.police, ctx.missions, createQuips(ctx), ctx.vehicles, world, createFigureLod(ctx), ctx.audio, ctx.ui] as unknown as System[];
     // The on-screen controller for phones: one more input source, drawn over the HUD.
     this.systems.push(createTouch(ctx, input.touch, canvas));
 

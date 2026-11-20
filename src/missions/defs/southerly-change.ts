@@ -38,13 +38,13 @@ export const southerlyChange: MissionDef = {
       block: true,
       objective: null,
       lines: [
-        line(RENA, "Don't stand there with your mouth open. Yes, it's my money in that container. Twenty years of fish and chips."),
+        line(RENA, "Don't stand there catching flies, boy. Yes, it's my money in that container. Twenty years of fish and chips."),
         line(RENA, "It was going to be the lease on the shop, and something for the whānau after I'm gone."),
-        line(RENA, "Harkness's boys went through Jock's lock-up last night looking for it. Jock's in Timaru Hospital. Seventy-one, and they used a tyre iron."),
-        line(DAZZA, "Ana rang from the port. The box came off an hour ago, the wharf's on its Show Day shift, and Harkness is coming over Dyers Pass with bolt cutters."),
+        line(RENA, "Harkness's boys went through Jock's lock-up last night looking for it. Jock's in Timaru Hospital. Seventy-one, and the bastards used a tyre iron."),
+        line(DAZZA, "Ana rang. The box came off an hour ago, the wharf's on its Show Day shift, and Harkness is coming over Dyers Pass with fucking bolt cutters."),
         line(RENA, "Tip Waaka drives the crane at Lyttelton. He's whānau, near enough. Get to him before they do."),
         line(RENA, "And Mack. Come back. I've buried enough of this family."),
-        line(DAZZA, "Shotgun's on the bench. V8's out front. Try and bring one of them home."),
+        line(DAZZA, "Shotgun's on the bench. V8's out front. Try and bring one of the buggers home."),
       ],
     },
     {
@@ -83,6 +83,7 @@ export const southerlyChange: MissionDef = {
       cues: [
         { at: 15, lines: [line(MACK, "Show Day. The whole city's at Addington patting heifers, and the roads are mine. His too, worse luck.")] },
         { at: 35, lines: [line(MACK, "Southerly's coming up the harbour. You can smell the rain in it.")] },
+        { at: 55, lines: [line(MACK, "Dyers Pass in a southerly. Should've brought a jersey. And a better fucking plan.")] },
       ],
     },
     // The retry resumes down the road on the city side, V8 at the kerb, the roadblock ahead: the same
@@ -93,7 +94,7 @@ export const southerlyChange: MissionDef = {
       kind: 'setBehaviour',
       peds: PASS_CREW,
       behaviour: 'attack',
-      lines: [line(EASTERLY, "Road's closed, mate."), line(MACK, 'Not to me.')],
+      lines: [line(EASTERLY, "Road's closed, mate."), line(MACK, 'Not to me.'), line(EASTERLY, "Then you're fucking dog tucker, Tully.")],
     },
     {
       kind: 'eliminate',
@@ -103,6 +104,10 @@ export const southerlyChange: MissionDef = {
       // chase the next step depends on. The wharf half already stages the police out explicitly.
       police: { suspend: true },
       objective: 'Clear the Easterlies off the pass ({n} left)',
+      cues: [
+        { at: 10, lines: [line(EASTERLY, "Get into the prick! He's on his own up here!")] },
+        { at: 22, lines: [line(MACK, "Brass monkeys up here, ya wankers. Should've stayed home in New Brighton.")] },
+      ],
     },
     {
       kind: 'chase',
@@ -118,7 +123,12 @@ export const southerlyChange: MissionDef = {
       aggression: 1.7,
       objective: 'Their van is running for the port with the bolt cutters. Stay on it',
       lostReason: 'The van got clean away. By the time you reached the wharf the container was open and empty',
-      lines: [line(EASTERLY, 'Go! Get the cutters down to the wharf!'), line(MACK, "Bolt cutters. They're going for the box now.")],
+      lines: [line(EASTERLY, 'Shit, go! Foot to the floor! Get the cutters down to the wharf!'), line(MACK, "Bolt cutters. Bastards are going for the box now.")],
+      cues: [
+        { at: 15, lines: [line(MACK, 'Christ on a bike. Wet road, blind corners and a van full of muppets. Steady as she goes.')] },
+        { at: 35, lines: [line(MACK, "Stay on him. Lose that van and Aunty loses the lot. I'd never hear the bloody end of it.")] },
+        { at: 55, lines: [line(EASTERLY, "He's still on our arse! Give it some herbs, ya egg!")] },
+      ],
     },
     {
       kind: 'goTo',
@@ -129,6 +139,7 @@ export const southerlyChange: MissionDef = {
       // out with the wharf in sight.
       timer: { base: 70, perKm: 75, to: 'lyttelton-wharf', label: 'Bolt cutters', reason: 'They had the container open and empty before you got down the hill' },
       objective: 'Get down to the wharf at Lyttelton',
+      lines: [line(MACK, "Don't cock it up now, Tully. Aunty's whole twenty years is sitting on that wharf.")],
     },
 
     // Last stand. Tip shuts the port gates: no police, no ambulance, nobody until it is over.
@@ -155,7 +166,11 @@ export const southerlyChange: MissionDef = {
       lines: [
         line(TIP, "Kia ora. You'll be Rena's boy. She said you'd be late, and you'd look like your mother."),
         line(TIP, "I've shut the gates. Show Day, so there was hardly a soul to shut out. No police, no ambulance, nobody till the southerly's through."),
-        line(TIP, "I'll get the box onto the truck. You keep them off my crane."),
+        line(TIP, "I'll get the box onto the truck. You keep those bastards off my crane."),
+      ],
+      cues: [
+        { at: 22, lines: [line(EASTERLY, "There's the fucking meat worker! Drop him and the box is ours!")] },
+        { at: 36, lines: [line(TIP, "Ka pai, boy! Keep them busy. She's coming up now.")] },
       ],
     },
     // The crane crew's first-aid box and a spare vest, by the gatehouse, before Flash's wave comes through.
@@ -186,8 +201,9 @@ export const southerlyChange: MissionDef = {
       block: true,
       objective: null,
       lines: [
-        line(FLASH, 'Fourteen years on a chain, Tully, and you think you can stand between me and my money?'),
-        line(MACK, "It's not your money. It's twenty years of fish and chips."),
+        line(FLASH, "Well, well. Dazza's new boy. You've got a fucking cheek, I'll give you that."),
+        line(FLASH, 'Fourteen years on a chain, Tully, and you think you can stand between me and my fucking money?'),
+        line(MACK, "It's not your money, dickhead. It's twenty years of fish and chips."),
       ],
     },
     { kind: 'setBehaviour', peds: LAST_WAVE, behaviour: 'attack' },
@@ -196,7 +212,11 @@ export const southerlyChange: MissionDef = {
       targets: LAST_WAVE,
       police: { suspend: true },
       objective: 'Flash Harkness has come himself. Finish it ({n} left)',
-      cues: [{ at: 15, lines: [line(FLASH, 'I built the Easterlies out of nothing, you freezing-works nobody! NOTHING!')] }],
+      cues: [
+        { at: 6, lines: [line(EASTERLY, 'Hard out, boys! Flash is watching, so don\'t fuck it up!')] },
+        { at: 15, lines: [line(FLASH, 'I built the Easterlies out of nothing, you freezing-works nobody! Fucking NOTHING!')] },
+        { at: 28, lines: [line(MACK, "You've had your chips, Harkness. Twenty years of them, ya prick.")] },
+      ],
     },
     // Rena was never going to wait in Sydenham for news. She came up for what is hers.
     {
@@ -218,10 +238,10 @@ export const southerlyChange: MissionDef = {
       block: true,
       objective: null,
       lines: [
-        line(TIP, "Box is on the truck. And here's your southerly, right on time."),
+        line(TIP, "Box is on the truck, sweet as. And here's your southerly, right on time."),
         line(MACK, 'Harkness?'),
         line(TIP, "Somebody will have to tell his mother. He had one, you know. They all do."),
-        line(RENA, 'Tip Waaka. You shut those gates with my nephew inside them?'),
+        line(RENA, 'Tip Waaka. You shut those bloody gates with my nephew inside them?'),
         line(TIP, "He's standing, isn't he? Kia ora, Rena."),
         line(RENA, 'Twenty years of fish and chips in that box. A cup, a shield lost, a southerly to finish it. And now the lease on the shop, both of us alive to see it.'),
         line(MACK, "You shouldn't have come up, Aunty."),

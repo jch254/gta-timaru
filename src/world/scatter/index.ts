@@ -4,6 +4,7 @@ import './urban';
 import './streets';
 import './country';
 import './hoardings';
+import './chevrons';
 import './setpieces';
 import './shopstreets';
 

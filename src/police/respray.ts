@@ -6,6 +6,28 @@ import { TUNING } from './tuning';
 
 const SPEAKER = 'Panelbeater';
 
+const POLICE_CAR_LINES: readonly string[] = [
+  "Piss off, that's a cop car. Every cop in Canterbury knows that one.",
+  "Mate, it's got a bloody light bar on it. No amount of paint fixes that.",
+  "Get that fuckin' thing out of my yard before you get us both locked up.",
+  "Not touching that, ya dickhead. I've got a mortgage.",
+];
+/** Every line names the price. */
+const SKINT_LINES: readonly ((cost: number) => string)[] = [
+  (cost) => `That's $${cost}, mate. Come back when you've got the fuckin' money.`,
+  (cost) => `$${cost}, cash. I don't do tick. Piss off and come back when you're flush.`,
+  (cost) => `It's $${cost}, mate. I'm not running a bloody charity.`,
+  (cost) => `You're short, ya tight bugger. $${cost}, not a cent less.`,
+];
+const DONE_LINES: readonly string[] = [
+  'Good as new. Never saw you.',
+  'Sweet as. New paint, new plates. Never met you.',
+  "Tidy. Your own mother wouldn't know it. Now piss off.",
+  "Paint's still tacky, so don't lean on the bloody thing. Never saw you.",
+  'Choice. Fresh plates and all. Now bugger off before anyone looks.',
+  "Done. Anyone asks, I've never seen you or this shitbox in my life.",
+];
+
 /** Panel & paint shops (places tagged 'spray'): a respray and new plates loses the heat, for a price. */
 export class Respray {
   private places: Place[] = [];
@@ -67,11 +89,11 @@ export class Respray {
     const cost = sprayCost(level, TUNING.sprayBase, TUNING.sprayPerLevel);
     if (vehicle.destroyed || vehicle.burning) return;
     if (vehicle.tags.has('police')) {
-      ctx.ui.subtitle('Not a chance. Every cop in Canterbury knows that one.', 3.5, SPEAKER);
+      ctx.ui.subtitle(rng.pick(POLICE_CAR_LINES), 3.5, SPEAKER);
       return;
     }
     if (ctx.player.money < cost) {
-      ctx.ui.subtitle(`That's $${cost}, mate. Come back when you've got it.`, 3.5, SPEAKER);
+      ctx.ui.subtitle(rng.pick(SKINT_LINES)(cost), 3.5, SPEAKER);
       return;
     }
     this.busy = true;
@@ -86,7 +108,7 @@ export class Respray {
       if (ctx.player.alive && ctx.player.vehicle !== vehicle && !vehicle.destroyed && ctx.vehicles.all.includes(vehicle)) ctx.player.warpIntoVehicle(vehicle);
       this.onResprayed();
       await settle(ctx.ui.fade(false, 0.6), 1500);
-      ctx.ui.subtitle('Good as new. Never saw you.', 3, SPEAKER);
+      ctx.ui.subtitle(rng.pick(DONE_LINES), 3, SPEAKER);
     } finally {
       if (ctx.player.alive) ctx.player.controlsEnabled = true;
       this.busy = false;

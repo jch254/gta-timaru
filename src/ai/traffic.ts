@@ -5,7 +5,7 @@ import { NIGHT_HEADLIGHTS, type Actor, type Autopilot, type DamageInfo, type Dis
 import { AutopilotImpl, type PilotWorld } from './autopilot';
 import { JunctionBook } from './junction';
 import { lanePointInto, makePoint, sampleEdge } from './lanes';
-import { barkLine } from './looks';
+import { barkLine, pedName } from './looks';
 import { legEnd, legStart, type Leg } from './route';
 import { parkedTimeFactor, pickRingPoint, racerCount, racersOut, spawnAllowed, trafficTimeFactor, type RingPoint } from './spawn';
 import { DRIVE, PEDS, TRAFFIC } from './tuning';
@@ -81,6 +81,9 @@ export class TrafficSystem implements TrafficApi, System {
   private cars: Car[] = [];
   private byVehicle = new Map<Vehicle, Car>();
   private rng = new Rng(0x7a11c);
+  /** Picks what rammed drivers shout (kept apart from `rng` so it never shifts the traffic). */
+  private voice = new Rng(0x5a0d);
+  private lastShout = -100;
   private book = new JunctionBook();
   private pilotWorld: PilotWorld;
   private driving = 0;
@@ -131,7 +134,10 @@ export class TrafficSystem implements TrafficApi, System {
       // The crash event does not always say who hit us: blame the player if their car is right here.
       const mine = ctx.player.vehicle;
       const rammed = (mine && other === mine) || other === ctx.player || (mine && mine !== vehicle && mine.position.distanceTo(vehicle.position) < TRAFFIC.ramRadius + mine.spec.length / 2);
-      if (rammed) this.panic(car);
+      if (rammed) {
+        this.panic(car);
+        this.shout(car);
+      }
     });
     ctx.events.on('vehicleDestroyed', ({ vehicle, source }) => {
       const car = this.byVehicle.get(vehicle);
@@ -346,6 +352,15 @@ export class TrafficSystem implements TrafficApi, System {
   }
 
   // ───────────── Drivers ─────────────
+
+  /** A driver the player has just run into gives them a piece of their mind (no more than one every few seconds). */
+  private shout(car: Car) {
+    const { ctx } = this;
+    const now = ctx.clock.elapsed;
+    if (!car.driver?.alive || now - this.lastShout < PEDS.barkGap || ctx.missions?.talking || !this.voice.chance(0.7)) return;
+    this.lastShout = now;
+    ctx.ui.subtitle(barkLine(this.voice, 'rammed'), 2.5, pedName(this.voice, this.voice.chance(0.5)));
+  }
 
   /** Most drivers put their foot down; some pull up and run. */
   private panic(car: Car) {
