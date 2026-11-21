@@ -123,6 +123,7 @@ A second, smaller sheet, `src/assets/foliage/extra.webp` (251 kB), was added in 
 |---|---|
 | `src/assets/ui/` (title photograph, 156 kB) | A screenshot of the game itself, the Bay Hill at dusk, treated as a faded print. Retake with `zsh scripts/title-still.sh` (dev server running). |
 | `public/manifest.webmanifest`, `public/icon-512.png`, `public/apple-touch-icon.png` | Home-screen manifest and icons, drawn for the game. The icons and the favicon are rasterised from `docs/art/03-quest-mark.svg` (the 03 Quest motorway-sign mark, drawn as paths so no font is needed) by `node scripts/assets/icons.mjs`. |
+| `public/og.png` (1200 × 630, 358 kB) | The link preview picture, named by `og:image` in `index.html`: what a chat app shows in the card when someone pastes `https://03.quest`. It is the title screen without its buttons, the same photograph and lettering from `src/style.css`, drawn by `node scripts/assets/og.mjs`. Run that again after the title photograph is retaken. |
 
 ## Character models
 
